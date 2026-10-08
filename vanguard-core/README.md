@@ -186,44 +186,6 @@ USD millions, the grain a 10-K prints, so a computed figure grounds against the
 filing verbatim — a deliberate departure from the other warehouses' integer
 cents, documented in `db/enron-schema.sql`.)
 
-## The LSEG fundamentals demo (live vendor data)
-
-The Enron warehouse is a historical case; a fourth warehouse points the same
-machinery at *live vendor market data*. It holds company fundamentals of the kind
-an analyst pulls from **LSEG** (London Stock Exchange Group, formerly Refinitiv)
-by `TR.*` field code through the `lseg-data` library, addressed by real RICs
-(`IBM.N`, `AAPL.O`, `VOD.L`). Vanguard MCP reconciles a reported figure against
-the line items that compose it, with provenance down to the exact LSEG field code.
-
-```bash
-node bin/vanguard.js lseg seed                        # instruments, TR.* field dictionary, fundamentals + prices
-node bin/vanguard.js lseg fundamentals IBM.N FY2023   # attested snapshot, each concept -> its blessed TR.* field
-node bin/vanguard.js lseg reconcile IBM.N FY2023      # integrity: Gross Profit = Revenue - Cost of Revenue, attested
-node bin/vanguard.js lseg basis IBM.N FY2022          # data check: standardized (COA) vs as-reported (real variance)
-node bin/vanguard.js lseg reconcile IBM.N FY2021 --as-of 2022-06-01  # bitemporal: the vintage known on that date
-node bin/vanguard.js lseg prices IBM.N --from 2024-03-26 --to 2024-03-28  # daily close series (own grain, get_history)
-node bin/vanguard.js lseg retention                   # cache-TTL + licensing governance (C1.1); --purge deletes stale
-node bin/vanguard.js lseg license                     # per-source usage class / TTL / redistribution posture
-node bin/vanguard.js lseg ingest IBM.N --period FY2024            # land data via the ingest seam (synthetic session)
-node bin/vanguard.js lseg ingest IBM.N --period FY2023 --live     # real data: needs LSEG_APP_KEY + lseg-data
-node bin/vanguard.js lseg audit                       # verify the LSEG audit chain
-```
-
-It pairs with the open-source [`lseg-mcp`](https://github.com/GreenGrassBlueOcean/lseg_mcp)
-server, which resolves the correct `TR.*` field for a concept and drafts the
-retrieval call. The division of labour: **lseg-mcp gets the field mapping right;
-Vanguard MCP makes the resulting number auditable.** The join point is the
-ingest seam (`src/lseg-ingest.js`), where an `LsegSession` lands vendor rows into
-the warehouse with provenance. A `FakeLsegSession` runs the whole path with no
-entitlement (the demo); a `RealLsegSession` is the credential-swap seam for a live
-LSEG Workspace. See [`mcp/README.md`](./mcp/README.md) for the end-to-end workflow.
-
-**Real:** the instrument RICs and the `TR.*` field codes are real LSEG
-identifiers (validate codes via lseg-mcp before real ingest). **Synthetic:** every
-value in the `fundamentals` table, authored so the accounting identities hold
-exactly, and labelled synthetic in `db/lseg-anchor.md`. Real identifiers,
-fabricated values, fabrication labelled — the same discipline as the Enron demo.
-
 ## What is real here, and what is not
 
 **Real:** the guard (table *and* column allow-lists, a wall-clock query budget,
