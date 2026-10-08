@@ -1,0 +1,315 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="assets/civic-chain-logo.svg" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Civic Chain · Vanguard MCP — The Enron Reporting Gap</title>
+    <meta name="description" content="Enron's reported FY2000 figures set against what the underlying rows support — every number grounded, hashed, and tamper-evident." />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=DM+Serif+Text&family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="assets/civic.css" />
+    <style>
+      html { scroll-behavior: smooth; }
+      .hero { padding: 72px 0 40px; }
+      .hero h1 .thin { display: block; font-weight: 400; }
+      .section { padding: 28px 0; }
+
+      /* provenance block — "Ink" tone */
+      .prov { background: var(--blue-900); color: var(--cream-50); border-radius: 14px; padding: 22px 24px; font-family: var(--font-code); font-size: 13px; }
+      .prov .k { color: color-mix(in oklab, var(--cream-50) 55%, transparent); }
+      .prov .row { padding: 5px 0; overflow-wrap: anywhere; }
+      .pill { color: var(--green-300); }
+
+      /* provenance pipeline chips */
+      .pipe { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; font-family: var(--font-code); font-size: 13px; color: var(--slate-700); margin-top: 6px; }
+      .pipe .step { padding: 6px 10px; border: 1px solid var(--border); border-radius: 8px; background: var(--surface); color: var(--foreground); }
+      .pipe .arw { color: var(--blue-600); }
+
+      .src { font-size: 12px; color: var(--slate-700); margin-top: 10px; }
+      .src code { color: var(--slate-800); }
+
+      /* CLI block rides civic.css `pre` (Ink tone); tint its spans */
+      pre.cli .c { color: color-mix(in oklab, var(--cream-50) 50%, transparent); }
+      pre.cli .p { color: var(--blue-300); }
+
+      /* architectural comparison table */
+      .cmp-wrap { overflow-x: auto; border: 1px solid var(--border); border-radius: 14px; background: var(--surface); }
+      table.cmp { width: 100%; border-collapse: collapse; font-size: 13px; min-width: 620px; }
+      table.cmp th, table.cmp td { text-align: left; vertical-align: top; padding: 13px 16px; border-bottom: 1px solid var(--border); }
+      table.cmp tr:last-child td, table.cmp tr:last-child th { border-bottom: none; }
+      table.cmp thead th { color: var(--slate-700); font-weight: 600; text-transform: uppercase; letter-spacing: .06em; font-size: 11px; }
+      table.cmp th.feat { width: 150px; color: var(--foreground); font-weight: 700; }
+      table.cmp td.std { color: var(--slate-700); }
+      table.cmp td.ft { color: var(--slate-800); }
+      table.cmp td.ft b, table.cmp th.feat b { color: var(--foreground); }
+
+      .distinct { margin: 18px 0 0; padding-left: 0; list-style: none; }
+      .distinct li { padding: 12px 0; border-top: 1px dashed var(--border); font-size: 14px; color: var(--slate-800); }
+      .distinct li:first-child { border-top: none; }
+      .distinct b { color: var(--foreground); }
+
+      /* interactive reporting-gap panel (investor vs reality) */
+      .gappanel { background: var(--surface); border: 1px solid var(--border); border-radius: 16px; padding: 8px; box-shadow: var(--shadow-sm); }
+      .gp-toggle { display: flex; gap: 6px; background: var(--cream-200); border: 1px solid var(--border); border-radius: 12px; padding: 6px; }
+      .gp-toggle button { flex: 1 1 0; appearance: none; cursor: pointer; border: 1px solid transparent; background: transparent; color: var(--slate-700); font: 600 14px var(--font-sans); padding: 12px 10px; border-radius: 9px; transition: background .18s ease, color .18s ease, border-color .18s ease; }
+      .gp-toggle button:hover { color: var(--foreground); }
+      .gp-toggle button.active[data-view="investor"] { background: color-mix(in oklab, var(--blue-600) 12%, transparent); border-color: color-mix(in oklab, var(--blue-600) 38%, transparent); color: var(--blue-700); }
+      .gp-toggle button.active[data-view="reality"] { background: color-mix(in oklab, var(--rose-600) 14%, transparent); border-color: color-mix(in oklab, var(--rose-600) 42%, transparent); color: var(--rose-700); }
+      .gp-body { padding: 22px 18px 4px; }
+      .metric { padding: 18px 0; border-top: 1px dashed var(--border); }
+      .metric:first-child { border-top: none; }
+      .metric .m-top { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; }
+      .metric .m-label { font-size: 14px; color: var(--slate-700); }
+      .metric .m-val { font-family: var(--font-display); font-size: 32px; font-weight: 400; white-space: nowrap; color: var(--foreground); }
+      .bar { position: relative; height: 12px; margin: 12px 0 10px; background: color-mix(in oklab, var(--blue-900) 7%, transparent); border-radius: 999px; overflow: hidden; }
+      .bar .fill { position: absolute; left: 0; top: 0; bottom: 0; width: 0; border-radius: 999px; transition: width .6s cubic-bezier(.4,0,.2,1); }
+      .bar .fill.rev { background: var(--green-600); }
+      .bar .fill.debt { background: var(--rose-600); }
+      .metric .m-note { font-size: 13px; color: var(--slate-700); }
+      .gp-verdict { margin: 4px 8px 10px; padding: 14px 16px; border-radius: 12px; font-size: 14px; color: var(--slate-800); transition: background .25s ease, border-color .25s ease; }
+      .gp-verdict.investor { background: color-mix(in oklab, var(--blue-600) 8%, transparent); border: 1px solid color-mix(in oklab, var(--blue-600) 24%, transparent); }
+      .gp-verdict.reality { background: color-mix(in oklab, var(--rose-600) 9%, transparent); border: 1px solid color-mix(in oklab, var(--rose-600) 26%, transparent); }
+      .gp-verdict b { color: var(--foreground); }
+
+      @media (max-width: 760px) { .hero { padding: 48px 0 28px; } }
+    </style>
+  </head>
+  <body>
+    <header class="site">
+      <div class="wrap">
+        <a class="brand" href="index.html">
+          <img class="mark" src="assets/civic-logo-w-text-horizontal.svg" alt="Civic Chain" />
+          <span class="product"><b>Vanguard MCP</b><span>verified financial intelligence</span></span>
+        </a>
+        <nav class="back">
+          <a href="index.html">Overview</a>
+          <span class="sep">·</span>
+          <a href="controls.html">SOC&nbsp;2 panel</a>
+        </nav>
+      </div>
+    </header>
+
+    <main class="wrap">
+      <section class="hero">
+        <p class="kicker">Case study · reporting-gap attestation</p>
+        <h1>The Enron reporting gap<br /><span class="thin">what was reported, versus what the rows support.</span></h1>
+        <p class="lede">
+          Enron's FY2000 annual report is the case the whole thesis is haunted by: numbers that
+          were internally consistent on paper and disconnected from reality. Vanguard MCP runs
+          the same verified pipeline over it, computing the <em>reported</em> figure and the
+          <em>underlying</em> figure in one guarded query, so the distance between them is a
+          grounded, hash-chained, tamper-evident result, not an assertion.
+        </p>
+      </section>
+
+      <section class="section">
+        <h2>See the gap for yourself</h2>
+        <p class="lede" style="font-size:16px;max-width:760px">
+          One switch, two views of the same company: the story Enron told investors, and what the
+          underlying rows actually support. Flip it.
+        </p>
+        <div class="gappanel">
+          <div class="gp-toggle" role="tablist" aria-label="View">
+            <button class="active" data-view="investor" role="tab" aria-selected="true">What investors saw</button>
+            <button data-view="reality" role="tab" aria-selected="false">What was actually true</button>
+          </div>
+          <div class="gp-body">
+            <div class="metric">
+              <div class="m-top">
+                <span class="m-label">Revenue <span class="tag real" data-tag="revenue">real 10-K</span></span>
+                <span class="m-val" data-val="revenue">$100,789m</span>
+              </div>
+              <div class="bar"><span class="fill rev" data-fill="revenue" style="width:100%"></span></div>
+              <div class="m-note" data-note="revenue">Booked &ldquo;gross&rdquo;: the full value of every energy trade counted as revenue.</div>
+            </div>
+            <div class="metric">
+              <div class="m-top">
+                <span class="m-label">Debt <span class="tag real" data-tag="debt">real 10-K</span></span>
+                <span class="m-val" data-val="debt">$10,229m</span>
+              </div>
+              <div class="bar"><span class="fill debt" data-fill="debt" style="width:47%"></span></div>
+              <div class="m-note" data-note="debt">The debt on the balance sheet investors could see.</div>
+            </div>
+          </div>
+          <div class="gp-verdict investor" id="gp-verdict"><b>On paper, a healthy giant.</b> $100bn of revenue against a modest $10bn of debt, the story every investor was shown.</div>
+        </div>
+        <div class="disc" style="margin-top:18px">
+          <b>How Vanguard MCP proves it:</b> it computes the reported figure <em>and</em> the
+          underlying figure in one guarded, read-only query, then hash-chains the result, so the
+          distance between the story and the rows is a reproducible, tamper-evident fact, not an
+          opinion. It is the same pipeline you can run yourself below.
+        </div>
+      </section>
+
+      <section class="section">
+        <h2>How this differs from previous solutions</h2>
+        <p class="lede" style="font-size:16px;max-width:760px">
+          The individual patterns here (AST parsing, read-only database flags, regex output checks,
+          and cryptographic hash logs) are standard computer-science primitives. Combining them into a
+          zero-tolerance <b>ground-or-refuse pipeline with cryptographic
+          attestation</b> is an uncommon design choice next to standard financial AI tools.
+        </p>
+        <div class="disc" style="margin:18px 0 24px">
+          Most commercial text-to-SQL and financial-AI platforms prioritise <b>helpfulness and
+          flexibility</b>, handing the user a best-guess answer. Vanguard MCP prioritises
+          <b>non-repudiation and hard refusal</b>.
+        </div>
+
+        <div class="cmp-wrap">
+          <table class="cmp">
+            <thead>
+              <tr><th class="feat">Feature</th><th>Standard financial AI / text-to-SQL</th><th>Vanguard MCP architecture</th></tr>
+            </thead>
+            <tbody>
+              <tr>
+                <th class="feat">SQL safety</th>
+                <td class="std">System prompts (&ldquo;only write SELECT&rdquo;) or generic DB permissions</td>
+                <td class="ft">Pre-execution AST parsing (<code class="inl">guard.js</code>) enforcing SELECT-only, CTE allow-lists, and forced <code class="inl">LIMIT</code> bounds</td>
+              </tr>
+              <tr>
+                <th class="feat">Numeric accuracy</th>
+                <td class="std">LLM-as-a-judge or prompt engineering to format DB rows</td>
+                <td class="ft">Deterministic post-prose verification (<code class="inl">grounding.js</code>) that matches <b>every</b> number back to SQL row outputs</td>
+              </tr>
+              <tr>
+                <th class="feat">Failure mode</th>
+                <td class="std">Best-guess response with potential rounding or hallucination errors</td>
+                <td class="ft"><b>Explicit refusal.</b> If a single number in the prose can't be mapped to the raw data, the response is destroyed</td>
+              </tr>
+              <tr>
+                <th class="feat">Audit logging</th>
+                <td class="std">Standard cloud event logs (CloudWatch / Datadog, SOC 2 trails)</td>
+                <td class="ft">Cryptographic hash-chaining (<code class="inl">audit.js</code>) where altering a past prompt, query, or output breaks chain verification</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <h2 style="margin-top:34px">What makes it distinct</h2>
+        <ul class="distinct">
+          <li><b>Zero-tolerance output verification.</b> Guardrail frameworks like NeMo or Guardrails AI
+          evaluate semantic safety or prompt injection. Vanguard MCP treats numbers like foreign keys:
+          if the narrative claims <code class="inl">$100,789m</code> and that exact figure (or its unit
+          transform) isn't in the returned dataset, the pipeline aborts.</li>
+          <li><b>Trade-surveillance attestation.</b> Most AI audit logs track <em>who</em> sent a prompt,
+          for billing or security. Attaching a cryptographic hash-chain to regulatory queries (MiFID II /
+          MAR trade-abuse findings) stops internal operators from backdating or quietly altering a
+          surveillance flag.</li>
+        </ul>
+
+        <div class="disc" style="margin-top:22px">
+          <b>The main trade-off:</b> this architecture trades conversational fluidity for legal and audit
+          safety. It will refuse queries far more often than tools like ChatGPT or Koyfin whenever SQL
+          translation is imperfect or the math falls outside the verifier's allowed rules. For regulatory
+          reporting, forensic accounting, or internal compliance, that trade-off is usually the requirement.
+        </div>
+      </section>
+
+      <section class="section">
+        <h2>Every figure carries its provenance</h2>
+        <div class="pipe">
+          <span class="step">question</span><span class="arw">&rarr;</span>
+          <span class="step">guard</span><span class="arw">&rarr;</span>
+          <span class="step">read-only SQL</span><span class="arw">&rarr;</span>
+          <span class="step">grounding</span><span class="arw">&rarr;</span>
+          <span class="step">lineage + hash</span><span class="arw">&rarr;</span>
+          <span class="step">signed audit chain</span>
+        </div>
+        <div class="prov" style="margin-top:18px">
+          <div class="row"><span class="k">scenario     </span> debt_reported_vs_true &nbsp; FY2000</div>
+          <div class="row"><span class="k">result hash  </span> b69b15dc732765b05462230971ec51cc…</div>
+          <div class="row"><span class="k">audit entry  </span> #1 &nbsp; 667df404bc8d3235… &nbsp; <span class="pill">chain INTACT</span></div>
+          <div class="row"><span class="k">compliance   </span> off-balance-sheet · leverage · reproducible</div>
+        </div>
+        <p class="src">
+          The figures compute <em>in SQL</em> and pin to a deterministic seed, so re-running
+          reproduces the same result hash exactly &mdash; an auditor can recompute and compare.
+          Edit a recorded attestation after the fact and <code>verify()</code> reports the precise
+          entry that changed.
+        </p>
+      </section>
+
+      <section class="section">
+        <h2>Run it yourself</h2>
+        <pre class="cli"><span class="c"># no credential needed — canonical queries over real 10-K anchors</span>
+node bin/vanguard.js <span class="p">enron seed</span>
+node bin/vanguard.js <span class="p">enron revenue</span>    <span class="c"># gross vs net revenue, attested</span>
+node bin/vanguard.js <span class="p">enron debt</span>       <span class="c"># reported vs true debt incl. SPEs</span>
+node bin/vanguard.js <span class="p">enron audit</span>      <span class="c"># verify the hash chain</span></pre>
+      </section>
+
+      <section class="section">
+        <h2>What is real, and what is synthetic</h2>
+        <div class="disc">
+          <b>The aggregates are real.</b> Total revenues, net income, and reported debt reconcile
+          to Enron's actual reported figures, transcribed verbatim from the filing and stored with
+          the citation on every row. <b>The transaction-level rows are synthetic</b> &mdash; there is
+          no public Enron general ledger &mdash; and the off-balance-sheet SPE amounts are
+          illustrative of the mechanism, not a claimed exact historical total. For a tool about
+          traceable figures, fabricated data labelled as fabricated is fine; fabricated data
+          presented as real is the exact failure this project exists to prevent. Nothing here is a
+          compliance claim.
+          <div class="src">
+            Source: ENRON CORP 10-K, fiscal year ended Dec 31 2000, filed 2001-04-02 &mdash;
+            SEC EDGAR accession <code>0001024401-01-500010</code> (public domain).
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <footer class="site">
+      <div class="wrap">
+        <span>Civic Chain · Vanguard MCP &mdash; financial answers you can audit. The model writes SQL, the database
+        produces the numbers, and every figure is verified before you see it.</span>
+      </div>
+    </footer>
+
+    <script>
+      // Interactive reporting-gap panel: flip between the story Enron told investors
+      // and what the underlying rows support. Same figures as the CLI (enron revenue
+      // / debt); the investor view is the static default so it works without JS.
+      (function () {
+        var VIEWS = {
+          investor: {
+            revenue: { val: '$100,789m', pct: 100, tag: 'real 10-K', tagcls: 'real', note: 'Booked “gross”: the full value of every energy trade counted as revenue.' },
+            debt:    { val: '$10,229m',  pct: 47,  tag: 'real 10-K', tagcls: 'real', note: 'The debt on the balance sheet investors could see.' },
+            verdict: '<b>On paper, a healthy giant.</b> $100bn of revenue against a modest $10bn of debt, the story every investor was shown.'
+          },
+          reality: {
+            revenue: { val: '$1,953m',  pct: 1.9, tag: 'modelled',     tagcls: 'synth', note: 'The margin actually kept, about 1.9% of the headline. Like a broker booking each house’s full sale price as income, not the commission they earned.' },
+            debt:    { val: '$21,729m', pct: 100, tag: 'illustrative', tagcls: 'synth', note: 'Debt parked in off-balance-sheet entities (JEDI, Chewco, LJM, Raptor, Whitewing), now consolidated, more than doubling the leverage.' },
+            verdict: '<b>The rows tell a different story.</b> Only ~$2bn was really earned, and true debt more than doubled to ~$22bn once the hidden entities are counted.'
+          }
+        };
+        var panel = document.querySelector('.gappanel');
+        if (!panel) return;
+        var btns = panel.querySelectorAll('.gp-toggle button');
+        var verdict = panel.querySelector('#gp-verdict');
+        function apply(view) {
+          var v = VIEWS[view];
+          if (!v) return;
+          ['revenue', 'debt'].forEach(function (m) {
+            var d = v[m];
+            panel.querySelector('[data-val="' + m + '"]').textContent = d.val;
+            panel.querySelector('[data-note="' + m + '"]').textContent = d.note;
+            panel.querySelector('[data-fill="' + m + '"]').style.width = d.pct + '%';
+            var tag = panel.querySelector('[data-tag="' + m + '"]');
+            tag.textContent = d.tag;
+            tag.className = 'tag ' + d.tagcls;
+          });
+          verdict.innerHTML = v.verdict;
+          verdict.className = 'gp-verdict ' + view;
+          btns.forEach(function (b) {
+            var on = b.getAttribute('data-view') === view;
+            b.classList.toggle('active', on);
+            b.setAttribute('aria-selected', on ? 'true' : 'false');
+          });
+        }
+        btns.forEach(function (b) { b.addEventListener('click', function () { apply(b.getAttribute('data-view')); }); });
+        apply('investor');
+      })();
+    </script>
+  </body>
+</html>

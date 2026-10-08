@@ -1,0 +1,3 @@
+# Clean URLs for the standalone Civic Chain demo pages
+/enron     /enron.html     200
+/controls  /controls.html  200

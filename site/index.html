@@ -1,0 +1,135 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="assets/civic-chain-logo.svg" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Civic Chain · Vanguard MCP — financial answers you can audit</title>
+    <meta name="description" content="Vanguard MCP, a Civic Chain product. The model writes SQL, the database produces the numbers, and every figure is verified against the data before you see it — or you get an honest refusal." />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=DM+Serif+Text&family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="assets/civic.css" />
+    <style>
+      .hero{padding:72px 0 40px}
+      .hero h1{max-width:16ch}
+      .hero .lede{margin-top:4px;font-size:20px;max-width:60ch}
+      .cta{display:flex;flex-wrap:wrap;gap:12px;margin-top:28px}
+      .section{padding:40px 0}
+      .section > .kicker{margin-bottom:10px}
+      .pipe-wrap{margin-top:20px}
+      pre.pipe{font-size:13px}
+      pre.pipe .ref{color:var(--rose-300)}
+      .guar{display:grid;grid-template-columns:repeat(2,1fr);gap:16px;margin-top:22px}
+      .guar .card h4{margin:0 0 8px;font-family:var(--font-display)}
+      .guar .card p{margin:0;font-size:14px;line-height:1.55;opacity:.92}
+      .guar .card .mono{font-size:12.5px}
+      .split{display:grid;grid-template-columns:1fr 1fr;gap:18px;margin-top:22px}
+      .split .card{display:flex;flex-direction:column;gap:10px}
+      .split .card h3{margin:0}
+      .split .card p{margin:0;font-size:15px;color:var(--slate-800)}
+      .split .card .go{margin-top:auto}
+      .lead-figure{font-family:var(--font-display);font-size:clamp(2rem,4vw,2.8rem);line-height:1.1}
+      @media (max-width:760px){.guar,.split{grid-template-columns:1fr}.hero{padding:48px 0 28px}}
+    </style>
+  </head>
+  <body>
+    <header class="site">
+      <div class="wrap">
+        <a class="brand" href="index.html">
+          <img class="mark" src="assets/civic-logo-w-text-horizontal.svg" alt="Civic Chain" />
+          <span class="product"><b>Vanguard MCP</b><span>verified financial intelligence</span></span>
+        </a>
+        <nav class="back">
+          <a href="enron.html">Enron case study</a>
+          <span class="sep">·</span>
+          <a href="controls.html">SOC&nbsp;2 panel</a>
+        </nav>
+      </div>
+    </header>
+
+    <main class="wrap">
+      <section class="hero">
+        <p class="kicker">Civic Chain · verified financial intelligence</p>
+        <h1>Financial answers you can audit.</h1>
+        <p class="lede">
+          The model writes the SQL. The database produces the numbers. Every figure in the
+          answer is checked against the data before you see it — or you get an honest refusal.
+          Never an unverified paragraph presented as fact.
+        </p>
+        <div class="cta">
+          <a class="btn" href="enron.html">See the Enron reporting gap →</a>
+          <a class="btn ghost" href="controls.html">SOC 2 evidence panel →</a>
+        </div>
+      </section>
+
+      <section class="section">
+        <p class="kicker">The pipeline</p>
+        <h2>One query. A grounded answer, or a refusal.</h2>
+        <p class="lede">
+          A language model is excellent at turning a question into SQL, and should never be
+          trusted with the arithmetic. So it isn't. The model writes the query having never seen
+          a row; a read-only database returns the rows; a verifier confirms every number in the
+          prose actually came from them.
+        </p>
+        <div class="pipe-wrap">
+<pre class="pipe">question
+   ├─ <b>plan</b>      model writes SQL, having never seen a row of data
+   ├─ <b>guard</b>     parsed, SELECT-only, allow-listed, LIMIT enforced   <span class="ref">← refuses here</span>
+   ├─ <b>execute</b>   read-only connection                                <span class="ref">← refuses here</span>
+   ├─ <b>narrate</b>   prose written, then every number checked against the rows
+   ├─ <b>lineage</b>   SQL + tables + columns + row count + result hash
+   └─ <b>audit</b>     appended to a hash-chained log</pre>
+        </div>
+      </section>
+
+      <section class="section">
+        <p class="kicker">The four guarantees</p>
+        <h2>A claim is only worth what enforces it.</h2>
+        <p class="lede">Each guarantee is backed by a mechanism and a test that would fail if it broke — not by a promise.</p>
+        <div class="guar">
+          <div class="card sage">
+            <h4>The model can't write to the database</h4>
+            <p>A connection opened <span class="mono">readOnly: true</span>; the database refuses writes below anything the code can reach.</p>
+          </div>
+          <div class="card sky">
+            <h4>Only SELECT, only allow-listed, always bounded</h4>
+            <p><span class="mono">guard.js</span> parses SQL to an AST and inspects the full table list, including subqueries and CTE bodies.</p>
+          </div>
+          <div class="card gold">
+            <h4>Every figure came from the data</h4>
+            <p><span class="mono">grounding.js</span> extracts each number and matches it to a returned value, allowing only legitimate transforms.</p>
+          </div>
+          <div class="card slate">
+            <h4>A past answer can't be altered unnoticed</h4>
+            <p><span class="mono">audit.js</span> hash-chains each entry to the one before it; <span class="mono">verify()</span> reports the first index where the chain breaks.</p>
+          </div>
+        </div>
+      </section>
+
+      <section class="section">
+        <p class="kicker">See it for yourself</p>
+        <h2>Two ways in.</h2>
+        <div class="split">
+          <div class="card">
+            <h3>The Enron reporting gap</h3>
+            <p>FY2000 reported figures set against what the underlying rows support — revenue booked gross versus the net margin actually earned, and reported debt versus the true total once the off-balance-sheet vehicles are included. Grounded and hash-chained.</p>
+            <div class="go"><a class="btn" href="enron.html">Open the case study →</a></div>
+          </div>
+          <div class="card">
+            <h3>SOC 2 evidence panel</h3>
+            <p>One-click controls that return PASS or EXCEPTION with a verifiable evidence trail — the same ground-or-refuse pipeline pointed at continuous compliance instead of a single number.</p>
+            <div class="go"><a class="btn ghost" href="controls.html">Open the panel →</a></div>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <footer class="site">
+      <div class="wrap">
+        <span>Civic Chain · Vanguard MCP — prototype. Figures are verified against the underlying data or refused.</span>
+        <span>Aggregates cite real filings; transaction-level rows are synthetic and labelled.</span>
+      </div>
+    </footer>
+  </body>
+</html>

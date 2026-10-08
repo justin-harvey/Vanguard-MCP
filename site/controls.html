@@ -1,0 +1,441 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="assets/civic-chain-logo.svg" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Civic Chain · Vanguard MCP — SOC 2 Evidence Panel</title>
+    <meta name="description" content="One-click SOC 2 controls: each runs a blessed query, asserts PASS or EXCEPTION, and produces a verifiable evidence packet." />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=DM+Serif+Text&family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="assets/civic.css" />
+    <style>
+      .hero { padding: 44px 0 8px; }
+
+      .banner {
+        margin: 22px 0 6px; padding: 12px 16px; border-radius: 10px; font-size: 13px;
+        background: color-mix(in oklab, var(--blue-600) 7%, transparent);
+        border: 1px solid color-mix(in oklab, var(--blue-600) 22%, transparent); color: var(--slate-800);
+      }
+      .banner b { color: var(--foreground); }
+
+      .toolbar { display: flex; align-items: center; gap: 14px; margin: 22px 0 18px; flex-wrap: wrap; }
+      .roles { display: inline-flex; border: 1px solid var(--border-strong); border-radius: 10px; overflow: hidden; }
+      .roles button {
+        background: transparent; color: var(--slate-700); border: 0; padding: 8px 16px; cursor: pointer;
+        font-family: var(--font-sans); font-size: 13px; font-weight: 600;
+      }
+      .roles button.active { background: var(--blue-600); color: var(--cream-50); }
+      .rolehint { font-size: 13px; color: var(--slate-700); }
+
+      .layout { display: grid; grid-template-columns: 380px 1fr; gap: 22px; align-items: start; padding-bottom: 56px; }
+      @media (max-width: 860px) { .layout { grid-template-columns: 1fr; } }
+
+      .list { display: flex; flex-direction: column; gap: 10px; }
+      .ctl {
+        text-align: left; width: 100%; cursor: pointer; color: var(--foreground);
+        background: var(--surface); border: 1px solid var(--border); border-radius: 12px;
+        padding: 14px 16px; font-family: var(--font-sans); box-shadow: var(--shadow-sm);
+        transition: border-color .12s ease, box-shadow .12s ease;
+      }
+      .ctl:hover { border-color: color-mix(in oklab, var(--blue-600) 45%, transparent); }
+      .ctl.sel { border-color: var(--blue-600); box-shadow: 0 0 0 1px var(--blue-600); }
+      .ctl .top { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+      .ctl .cid { font-family: var(--font-code); font-size: 12px; color: var(--foreground); }
+      .ctl .crit { font-size: 13px; color: var(--slate-700); margin-top: 6px; }
+      .whtag { font-family: var(--font-code); font-size: 10px; letter-spacing: .06em; text-transform: uppercase;
+        color: var(--slate-700); border: 1px solid var(--border-strong); border-radius: 999px; padding: 2px 7px; }
+
+      .dot { width: 9px; height: 9px; border-radius: 50%; display: inline-block; flex: none; }
+      .dot.PASS { background: var(--green-600); box-shadow: 0 0 8px color-mix(in oklab, var(--green-600) 45%, transparent); }
+      .dot.EXCEPTION { background: var(--rose-600); box-shadow: 0 0 8px color-mix(in oklab, var(--rose-600) 45%, transparent); }
+
+      .detail { background: var(--surface); border: 1px solid var(--border); border-radius: 14px; padding: 24px; min-height: 320px; box-shadow: var(--shadow-sm); }
+      .detail .placeholder { color: var(--slate-700); font-size: 15px; }
+      .detail h2 { font-family: var(--font-code); font-size: 15px; font-weight: 600; letter-spacing: 0; color: var(--foreground); margin: 14px 0 6px; overflow-wrap: anywhere; }
+      .detail .crit2 { color: var(--slate-700); font-size: 13px; margin: 0 0 18px; line-height: 1.55; }
+      .exc { margin: 0 0 16px; padding: 10px 14px; border-radius: 10px; background: color-mix(in oklab, var(--rose-600) 9%, transparent);
+        border: 1px solid color-mix(in oklab, var(--rose-600) 30%, transparent); color: var(--rose-900); font-size: 13px; }
+
+      table.figs { width: 100%; border-collapse: collapse; margin: 8px 0 20px; }
+      table.figs td { padding: 9px 0; border-top: 1px solid var(--border); font-size: 14px; }
+      table.figs tr:first-child td { border-top: 0; }
+      table.figs td.lbl { color: var(--slate-700); }
+      table.figs td.val { text-align: right; font-family: var(--font-code); font-weight: 500; color: var(--foreground); }
+      td.val.zero { color: var(--green-600); }
+      td.val.neg { color: var(--rose-600); }
+
+      .sec { font-size: 11px; text-transform: uppercase; letter-spacing: .1em; color: var(--slate-700); margin: 18px 0 7px; }
+      .evi { background: var(--blue-900); border-radius: 10px; padding: 12px 14px;
+        font-family: var(--font-code); font-size: 12px; color: var(--cream-50); overflow-x: auto; line-height: 1.55; }
+      .evi .q { color: var(--cream-50); }
+      .hash { overflow-wrap: anywhere; color: var(--green-300); }
+      .actions { margin-top: 18px; display: flex; gap: 10px; flex-wrap: wrap; }
+      .note { margin-top: 12px; font-size: 12px; color: var(--slate-700); }
+
+      .custom { margin-top: 20px; background: var(--cream-100); border: 1px dashed var(--border-strong); border-radius: 12px; padding: 18px; }
+      .custom h3 { margin: 0 0 4px; font-size: 1.05rem; }
+      .custom textarea { width: 100%; margin-top: 10px; background: var(--control-bg); color: var(--foreground); border: 1px solid var(--border);
+        border-radius: 8px; padding: 10px; font-family: var(--font-code); font-size: 13px; resize: vertical; }
+      .custom[hidden] { display: none; }
+    </style>
+  </head>
+  <body>
+    <header class="site">
+      <div class="wrap">
+        <a class="brand" href="index.html">
+          <img class="mark" src="assets/civic-logo-w-text-horizontal.svg" alt="Civic Chain" />
+          <span class="product"><b>Vanguard MCP</b><span>verified financial intelligence</span></span>
+        </a>
+        <nav class="back">
+          <a href="index.html">Overview</a>
+          <span class="sep">·</span>
+          <a href="enron.html">Enron case study</a>
+        </nav>
+      </div>
+    </header>
+
+    <main class="wrap">
+      <section class="hero">
+        <p class="kicker">SOC 2 · processing-integrity evidence</p>
+        <h1>Controls, not dashboards.</h1>
+        <p class="lede">
+          Each control runs a single blessed query, checks one thing, and returns <b>PASS</b> or
+          <b>EXCEPTION</b> with a full provenance trail. Every figure was computed in SQL over a
+          read-only warehouse and hash-chained into a tamper-evident log — the packet an auditor
+          can recompute, not a chart to trust.
+        </p>
+        <div class="banner">
+          <b>Live-data preview.</b> The results below are <b>real, captured attestations</b> from the
+          engine (<code>vanguard controls run …</code>), embedded so the panel works before the backend
+          is wired. Once the MCP proxy is live, each button runs its control on demand and streams the
+          same result — the contract is identical.
+        </div>
+      </section>
+
+      <div class="toolbar">
+        <div class="roles" role="tablist" aria-label="Role">
+          <button id="role-standard" class="active" onclick="setRole('standard')">Standard user</button>
+          <button id="role-auditor" onclick="setRole('auditor')">Senior auditor</button>
+        </div>
+        <span class="rolehint" id="rolehint">Standard users run pre-approved control templates.</span>
+      </div>
+
+      <div class="layout">
+        <div class="list" id="list"></div>
+        <div>
+          <div class="detail" id="detail">
+            <p class="placeholder">Select a control on the left to see its result and evidence.</p>
+          </div>
+          <div class="custom" id="custom" hidden>
+            <h3>Custom attested query <span class="whtag">auditor only</span></h3>
+            <div class="note">A senior auditor may issue a custom question; it still passes the guard, is grounded, and is hash-chained like any control. Enabled once the backend is connected.</div>
+            <textarea rows="3" placeholder="e.g. Net position in DYNE at market close on 2026-03-02" disabled></textarea>
+            <div class="actions"><button class="btn" disabled>Run (requires backend)</button></div>
+          </div>
+        </div>
+      </div>
+    </main>
+
+    <footer class="site">
+      <div class="wrap">
+        <span>Civic Chain · Vanguard MCP — a green control means evidence produced and verified, not a certification.
+        SOC 2 is an attestation a CPA firm issues about an organisation; this is the evidence it rests on.</span>
+      </div>
+    </footer>
+
+    <script>
+      const DATA = /* REAL captured control results */ [
+  {
+    "id": "PI1.2-enron-debt-reconciliation",
+    "warehouse": "enron",
+    "criterion": "Processing Integrity (PI1.2) — reported figures reconcile to source records",
+    "description": "Reported debt computed from the ledger ties out to the figure as filed in the 10-K.",
+    "status": "PASS",
+    "exception": null,
+    "figures": [
+      {
+        "label": "Reported debt (from ledger)",
+        "value": 10229,
+        "unit": "usd_millions"
+      },
+      {
+        "label": "Reported debt (as filed, 10-K)",
+        "value": 10229,
+        "unit": "usd_millions"
+      },
+      {
+        "label": "Variance",
+        "value": 0,
+        "unit": "usd_millions"
+      }
+    ],
+    "intent": "FY2000 reported debt: ledger-computed reconciled to the figure as filed in the 10-K",
+    "sql": "SELECT (SELECT SUM(CASE WHEN on_balance_sheet = 1 THEN principal_usd_millions ELSE 0 END) FROM debt_instruments WHERE fiscal_year = ?) AS ledger_reported_usd_millions, (SELECT SUM(amount_usd_millions) FROM reported_financials WHERE fiscal_year = ? AND line_item IN ('Short-term debt', 'Long-term debt')) AS filed_reported_usd_millions LIMIT 1000",
+    "resultHash": "8e78e3a05863359aac7e383f3b1aaaa0060b9a742cd989c9b4aaac2b67b7b13e",
+    "verification": null
+  },
+  {
+    "id": "PI1.1-enron-revenue-reconciliation",
+    "warehouse": "enron",
+    "criterion": "Processing Integrity (PI1.1) — revenue recognised on the correct basis",
+    "description": "Gross revenue booked in the deal ledger ties out to total revenues as filed in the 10-K.",
+    "status": "PASS",
+    "exception": null,
+    "figures": [
+      {
+        "label": "Gross revenue (from ledger)",
+        "value": 100789,
+        "unit": "usd_millions"
+      },
+      {
+        "label": "Total revenues (as filed, 10-K)",
+        "value": 100789,
+        "unit": "usd_millions"
+      },
+      {
+        "label": "Variance",
+        "value": 0,
+        "unit": "usd_millions"
+      }
+    ],
+    "intent": "FY2000 gross revenue reconciled to total revenues as filed in the 10-K",
+    "sql": "SELECT (SELECT SUM(gross_notional_usd_millions) FROM revenue_transactions WHERE fiscal_year = ?) AS ledger_gross_usd_millions, (SELECT SUM(amount_usd_millions) FROM reported_financials WHERE fiscal_year = ? AND line_item = 'Total revenues') AS filed_revenue_usd_millions LIMIT 1000",
+    "resultHash": "47c7d1e1c8cc746ab3290c5f3cc7cf8d7551fde49c81b21b7e5a093408a1a2c1",
+    "verification": null
+  },
+  {
+    "id": "PI1.2-saas-mrr-reconciliation",
+    "warehouse": "saas",
+    "criterion": "Processing Integrity (PI1.2) — MRR reconciles across independent sources",
+    "description": "Current MRR from the movements ledger ties out to active subscriptions plus recorded adjustments.",
+    "status": "PASS",
+    "exception": null,
+    "figures": [
+      {
+        "label": "Current MRR (from ledger)",
+        "value": 32476072,
+        "unit": "cents"
+      },
+      {
+        "label": "Current MRR (subscriptions + adjustments)",
+        "value": 32476072,
+        "unit": "cents"
+      },
+      {
+        "label": "Variance",
+        "value": 0,
+        "unit": "cents"
+      }
+    ],
+    "intent": "Current MRR reconciled: movements ledger versus active subscriptions plus recorded adjustments",
+    "sql": "SELECT (SELECT SUM(amount_cents) FROM mrr_movements) AS ledger_mrr_cents, (SELECT SUM(mrr_cents) FROM subscriptions WHERE canceled_at IS NULL) + (SELECT SUM(amount_cents) FROM mrr_movements WHERE movement IN ('expansion', 'contraction')) AS reconstructed_mrr_cents LIMIT 1000",
+    "resultHash": "183e8d4b266e0ac7442b0ef30a5308ca6b9c5431d58d76a2ab9ad256bce3a117",
+    "verification": null
+  },
+  {
+    "id": "PI1.2-markets-position-reconciliation",
+    "warehouse": "markets",
+    "criterion": "Processing Integrity (PI1.2) — derived positions reconcile to the recorded book",
+    "description": "Net position derived from the execution ledger ties out to the end-of-day positions snapshot.",
+    "status": "PASS",
+    "exception": null,
+    "figures": [
+      {
+        "label": "Net position (derived from executions)",
+        "value": -100,
+        "unit": "shares"
+      },
+      {
+        "label": "Net position (recorded snapshot)",
+        "value": -100,
+        "unit": "shares"
+      },
+      {
+        "label": "Variance",
+        "value": 0,
+        "unit": "shares"
+      }
+    ],
+    "intent": "Net position in ACME at 2026-03-02: derived from executions reconciled to the positions snapshot",
+    "sql": "SELECT (SELECT SUM(CASE WHEN side = 'buy' THEN qty ELSE -qty END) FROM executions WHERE ticker = ?) AS derived_net_qty, (SELECT SUM(net_qty) FROM positions WHERE ticker = ? AND date = ?) AS snapshot_net_qty LIMIT 1000",
+    "resultHash": "1d4c4310a8b40782abc3f1ed8ab111f6918663c81ae0647bb3ff43da4aa0020a",
+    "verification": null
+  },
+  {
+    "id": "CC7.3-figure-reproducibility",
+    "warehouse": "markets",
+    "criterion": "Common Criteria (CC7.3) — a past figure reproduces exactly",
+    "description": "Re-running an as-of query reproduces the identical result hash, so an auditor can recompute and compare.",
+    "status": "PASS",
+    "exception": null,
+    "figures": [
+      {
+        "label": "Result hash (run 1)",
+        "value": "1af5cec39e9277f99dae2cf1e5f1d6ee1e28ba92255098d5004981419b25a607",
+        "unit": "sha256"
+      },
+      {
+        "label": "Result hash (run 2)",
+        "value": "1af5cec39e9277f99dae2cf1e5f1d6ee1e28ba92255098d5004981419b25a607",
+        "unit": "sha256"
+      }
+    ],
+    "intent": "Net position in ACME as of 2026-03-02T21:00:00.000Z",
+    "sql": "SELECT \"account_id\", \"ticker\", SUM(CASE WHEN \"side\" = 'buy' THEN \"qty\" ELSE -\"qty\" END) AS \"net_qty\" FROM \"executions\" WHERE \"ticker\" = ? AND \"executed_at_ms\" <= ? GROUP BY \"account_id\", \"ticker\" ORDER BY \"account_id\" ASC LIMIT 1000",
+    "resultHash": "1af5cec39e9277f99dae2cf1e5f1d6ee1e28ba92255098d5004981419b25a607",
+    "verification": null
+  },
+  {
+    "id": "CC7.2-audit-chain-integrity",
+    "warehouse": "audit",
+    "criterion": "Common Criteria (CC7.2) — the audit trail is tamper-evident and intact",
+    "description": "The hash-chained audit log verifies end to end; any altered or dropped entry is detected.",
+    "status": "PASS",
+    "exception": null,
+    "figures": [
+      {
+        "label": "Entries in chain",
+        "value": 7,
+        "unit": "count"
+      },
+      {
+        "label": "Chain state",
+        "value": "INTACT",
+        "unit": null
+      }
+    ],
+    "intent": null,
+    "sql": null,
+    "resultHash": null,
+    "verification": {
+      "ok": true,
+      "entries": 7,
+      "brokenAt": null,
+      "reason": null
+    }
+  }
+];
+      // An illustrative EXCEPTION (the tamper case from the test suite) so the failed state is visible.
+      const EXCEPTION_EXAMPLE = {
+        id: "PI1.2-enron-debt-reconciliation", warehouse: "enron",
+        criterion: "Processing Integrity (PI1.2) — reported figures reconcile to source records",
+        description: "Illustrative: the debt control after a $500m ledger edit (the tamper case from the test suite).",
+        status: "EXCEPTION",
+        exception: "ledger-computed reported debt $9,729m does not tie to the filed $10,229m (variance $-500m)",
+        figures: [
+          { label: "Reported debt (from ledger)", value: 9729, unit: "usd_millions" },
+          { label: "Reported debt (as filed, 10-K)", value: 10229, unit: "usd_millions" },
+          { label: "Variance", value: -500, unit: "usd_millions" }
+        ],
+        intent: "FY2000 reported debt: ledger-computed reconciled to the figure as filed in the 10-K",
+        sql: null, resultHash: "e5540e7e091fd38b397bc7197e748194", verification: null, isExample: true
+      };
+      const ALL = DATA.concat([EXCEPTION_EXAMPLE]);
+
+      // Set window.VANGUARD_PROXY_URL to the deployed Supabase function to run live
+      // (see supabase/README.md). Unset → the panel uses the embedded attestations.
+      const PROXY_URL = (typeof window !== 'undefined' && window.VANGUARD_PROXY_URL) || '';
+      const AUTH = (typeof window !== 'undefined' && window.VANGUARD_AUTH_TOKEN) || '';
+
+      function fmt(v, unit) {
+        if (unit === "usd_millions") return "$" + Number(v).toLocaleString("en-US") + "m";
+        if (unit === "usd") return "$" + Number(v).toLocaleString("en-US");
+        if (unit === "cents") return "$" + (Number(v) / 100).toLocaleString("en-US", { minimumFractionDigits: 2 });
+        if (unit === "shares") return Number(v).toLocaleString("en-US") + " sh";
+        if (unit === "rows") return Number(v).toLocaleString("en-US") + (Number(v) === 1 ? " row" : " rows");
+        if (unit === "sha256") return String(v).slice(0, 20) + "…";
+        if (unit === "count") return Number(v).toLocaleString("en-US");
+        return String(v);
+      }
+      function shortId(id) { return id.split("-")[0]; }
+
+      function renderList() {
+        const el = document.getElementById("list");
+        el.innerHTML = "";
+        ALL.forEach((c, i) => {
+          const b = document.createElement("button");
+          b.className = "ctl"; b.id = "ctl-" + i;
+          b.onclick = () => select(i);
+          b.innerHTML =
+            '<div class="top"><span class="cid"><span class="dot ' + c.status + '"></span> ' +
+            shortId(c.id) + (c.isExample ? " · example" : "") + '</span><span class="whtag">' + c.warehouse + '</span></div>' +
+            '<div class="crit">' + c.criterion + '</div>';
+          el.appendChild(b);
+        });
+      }
+
+      function select(i) {
+        document.querySelectorAll(".ctl").forEach((n) => n.classList.remove("sel"));
+        const node = document.getElementById("ctl-" + i);
+        if (node) node.classList.add("sel");
+        const c = ALL[i];
+        const figs = c.figures.map((f) => {
+          const cls = f.unit === "sha256" ? "" : (Number(f.value) === 0 ? "zero" : (Number(f.value) < 0 ? "neg" : ""));
+          return '<tr><td class="lbl">' + f.label + '</td><td class="val ' + cls + '">' + fmt(f.value, f.unit) + '</td></tr>';
+        }).join("");
+        const evidence =
+          (c.intent ? '<div class="sec">Intent</div><div class="evi"><span class="q">' + c.intent + '</span></div>' : "") +
+          (c.sql ? '<div class="sec">Validated SQL</div><div class="evi">' + c.sql + '</div>' : "") +
+          (c.resultHash ? '<div class="sec">Result hash</div><div class="evi hash">' + c.resultHash + '</div>' : "") +
+          (c.verification ? '<div class="sec">Chain verification</div><div class="evi">entries: ' + c.verification.entries + ' · ' + (c.verification.ok ? "INTACT" : "BROKEN") + '</div>' : "");
+        const canExport = !!c.resultHash;
+        document.getElementById("detail").innerHTML =
+          '<span class="badge ' + c.status + '"><span class="dot ' + c.status + '"></span>' + c.status + (c.live ? ' · live' : '') + '</span>' +
+          '<h2>' + c.id + '</h2>' +
+          '<p class="crit2">' + c.criterion + '<br>' + c.description + '</p>' +
+          (c.exception ? '<div class="exc">' + c.exception + '</div>' : "") +
+          '<table class="figs">' + figs + '</table>' +
+          evidence +
+          '<div class="actions">' +
+            (canExport ? '<button class="btn" onclick="alert(\'The signed evidence packet (intent → SQL → CSV → hash + signature) is generated by the engine: vanguard controls run ' + c.id + ' --export packet.json\')">Export evidence packet</button>' : '') +
+            '<button class="btn ghost" onclick="rerunById(\'' + c.id + '\')">Re-run live</button>' +
+          '</div>' +
+          (canExport ? "" : '<div class="note">This control reads existing state (a hash chain or licensing metadata), not a new query, so there is no query packet to export.</div>');
+      }
+
+      function setRole(role) {
+        document.getElementById("role-standard").classList.toggle("active", role === "standard");
+        document.getElementById("role-auditor").classList.toggle("active", role === "auditor");
+        document.getElementById("custom").hidden = role !== "auditor";
+        document.getElementById("rolehint").textContent = role === "auditor"
+          ? "Auditors also issue custom attested queries (guarded and audited)."
+          : "Standard users run pre-approved control templates.";
+      }
+
+      async function rerunById(id) {
+        if (!PROXY_URL) {
+          alert('Live runs go through the deployed proxy. Set window.VANGUARD_PROXY_URL to the Supabase function URL — see supabase/README.md.');
+          return;
+        }
+        const headers = { 'content-type': 'application/json' };
+        if (AUTH) headers.authorization = 'Bearer ' + AUTH;
+        try {
+          const res = await fetch(PROXY_URL, { method: 'POST', headers, body: JSON.stringify({ tool: 'run_control', args: { id } }) });
+          const data = await res.json();
+          const r = data.result || {};
+          const idx = ALL.findIndex((x) => x.id === id && !x.isExample);
+          if (idx >= 0 && r.control) {
+            ALL[idx] = Object.assign({}, ALL[idx], {
+              status: r.control.status,
+              exception: r.control.exception,
+              figures: r.control.figures,
+              resultHash: (r.provenance && r.provenance.resultHash) || ALL[idx].resultHash,
+              live: true,
+            });
+            renderList();
+            select(idx);
+          } else {
+            alert('The proxy responded without a control result' + (data.error ? ': ' + data.error : '') + '.');
+          }
+        } catch (e) {
+          alert('Live run failed: ' + e.message);
+        }
+      }
+
+      renderList();
+      select(0);
+    </script>
+  </body>
+</html>
