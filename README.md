@@ -1,5 +1,5 @@
 # Vanguard MCP
-Live: https://vanguard-mcp.netlify.app/enron
+Live: https://vanguard-mcp.netlify.app/
 
 **Financial answers you can audit. The model writes SQL, the database produces the numbers, and every figure in the answer is verified against the data before you see it.**
 
