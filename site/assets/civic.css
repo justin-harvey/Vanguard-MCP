@@ -22,7 +22,7 @@
   --page-bg:var(--cream-200);--foreground:var(--blue-900);--control-bg:var(--cream-50);
   --surface:var(--cream-100);--surface-raised:var(--cream-50);
   --border:color-mix(in oklab,var(--blue-900) 10%,transparent);
-  --border-strong:color-mix(in oklab,var(--blue-900) 18%,transparent);
+  --border-strong:color-mix(in oklab,var(--blue-900) 20%,transparent);
   --ring:color-mix(in oklab,var(--blue-900) 24%,transparent);
 
   /* ---- legacy demo vars remapped onto civic, so inherited component CSS re-themes for free ---- */
@@ -120,4 +120,72 @@ footer.site a{color:var(--slate-700)}
 @media (max-width:640px){
   .wrap{padding:0 18px}
   .brand .product{display:none}
+}
+
+/* =========================================================================
+   Civic Chain — full brand ramps + materials  (source: civicchain-v2.vercel.app/brand)
+   "Hue is rhythm; material is meaning; density controls the card inset."
+   Material semantics — one material per surface, NEVER stack them, keep them
+   subordinate to the text ("proof before decoration"):
+     paper      → history, context, process, human civic framing
+     banknote   → payment, savings, audit
+     blueprint  → architecture, planning, workflow logic
+     notebook   → field notes, roles, operational examples
+     grid       → quiet structural overlay
+     guilloche  → verification / secure-instrument overlay
+   ========================================================================= */
+:root{
+  /* ---- complete the ramps the brand defines (previously only key steps) ---- */
+  --gold-50:oklch(.96 .015 70);--gold-100:oklch(.94 .02 70);--gold-200:oklch(.93 .03 70);
+  --gold-700:oklch(.4 .08 70);--gold-800:oklch(.3 .08 70);
+  --green-50:oklch(.98 .015 150);--green-100:oklch(.96 .01 150);--green-200:oklch(.94 .015 150);--green-800:oklch(.42 .03 150);
+  --rose-50:oklch(.98 .02 20);--rose-100:oklch(.96 .02 20);--rose-200:oklch(.94 .02 20);--rose-800:oklch(.3 .08 20);
+  --orange-50:oklch(.97 .05 50);--orange-100:oklch(.95 .05 50);--orange-200:oklch(.92 .05 50);
+  --orange-600:oklch(.59 .1 50);--orange-800:oklch(.42 .1 50);--orange-900:oklch(.35 .1 50);
+
+  /* ---- semantic surface roles (brand names) ---- */
+  --display-foreground:var(--blue-800);
+  --surface-base:var(--cream-100);--surface-subtle:var(--cream-50);--surface-muted:var(--cream-300);
+  --control-surface:var(--cream-50);
+
+  /* ---- material textures: deep-indigo civic ink, kept faint ---- */
+  --tex-blueprint:url("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' width='24' height='24'><path d='M24 0H0V24' fill='none' stroke='%231f1a4d' stroke-opacity='0.12' stroke-width='1'/></svg>");
+  --tex-grid:url("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' width='20' height='20'><circle cx='1.5' cy='1.5' r='1' fill='%231f1a4d' fill-opacity='0.16'/></svg>");
+  --tex-notebook:url("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' width='28' height='28'><path d='M0 27.5H28' stroke='%231f1a4d' stroke-opacity='0.1' stroke-width='1'/></svg>");
+  --tex-paper:url("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' width='140' height='140'><filter id='p'><feTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/><feColorMatrix type='saturate' values='0'/></filter><rect width='140' height='140' filter='url(%23p)' opacity='0.05'/></svg>");
+  --tex-banknote:url("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' width='60' height='16'><g fill='none' stroke='%231f1a4d' stroke-opacity='0.1' stroke-width='0.8'><path d='M0 8 Q7.5 2 15 8 T30 8 T45 8 T60 8'/><path d='M0 8 Q7.5 14 15 8 T30 8 T45 8 T60 8'/></g></svg>");
+  --tex-guilloche:url("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' width='40' height='40'><g fill='none' stroke='%231f1a4d' stroke-opacity='0.08' stroke-width='0.6'><circle cx='20' cy='20' r='6'/><circle cx='20' cy='20' r='12'/><circle cx='20' cy='20' r='18'/><circle cx='0' cy='0' r='12'/><circle cx='40' cy='40' r='12'/><circle cx='0' cy='40' r='12'/><circle cx='40' cy='0' r='12'/></g></svg>");
+}
+
+/* ---- cream tone card (brand: cream-100 surface / blue-800 ink) ---- */
+.card.cream{background:var(--surface-base);color:var(--blue-800);border-color:var(--border)}
+
+/* ---- density ladder: tone + content stay; only the inset changes ---- */
+.card[data-density="none"]{padding:0}
+.card[data-density="roomy"]{padding:32px}
+
+/* ---- material overlays: compose with any tone, e.g. class="card gold mat-banknote" ---- */
+.mat-paper,.mat-banknote,.mat-blueprint,.mat-notebook,.mat-grid,.mat-guilloche{background-repeat:repeat}
+.mat-paper{background-image:var(--tex-paper)}
+.mat-banknote{background-image:var(--tex-banknote)}
+.mat-guilloche{background-image:var(--tex-guilloche)}
+.mat-blueprint{background-image:var(--tex-blueprint);background-size:24px 24px}
+.mat-grid{background-image:var(--tex-grid);background-size:20px 20px}
+.mat-notebook{background-image:var(--tex-notebook);background-size:28px 28px}
+
+/* ---- section-scale wash: material behind content, faded so it never competes ---- */
+.wash{position:relative;isolation:isolate}
+.wash::before{content:"";position:absolute;inset:0;z-index:-1;background-repeat:repeat;opacity:.6;pointer-events:none;
+  -webkit-mask-image:radial-gradient(130% 92% at 50% 0%,#000 28%,transparent 80%);
+          mask-image:radial-gradient(130% 92% at 50% 0%,#000 28%,transparent 80%)}
+.wash.paper::before{background-image:var(--tex-paper)}
+.wash.banknote::before{background-image:var(--tex-banknote)}
+.wash.guilloche::before{background-image:var(--tex-guilloche)}
+.wash.blueprint::before{background-image:var(--tex-blueprint);background-size:26px 26px}
+.wash.notebook::before{background-image:var(--tex-notebook);background-size:28px 28px}
+
+/* ---- accessibility: drop decorative texture when the user asks for more contrast ---- */
+@media (prefers-contrast:more){
+  .wash::before{display:none}
+  .mat-paper,.mat-banknote,.mat-blueprint,.mat-notebook,.mat-grid,.mat-guilloche{background-image:none}
 }
