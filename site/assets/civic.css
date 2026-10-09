@@ -1,4 +1,4 @@
-/* Civic Chain brand system — shared tokens + base components.
+/* Civic-Chain brand system, shared tokens + base components.
    Mirrors civicchain-v2.vercel.app/brand : warm cream canvas, blue civic ink,
    DM Serif Text display / DM Sans UI / system mono. Light, editorial, "proof before decoration". */
 
@@ -123,9 +123,9 @@ footer.site a{color:var(--slate-700)}
 }
 
 /* =========================================================================
-   Civic Chain — full brand ramps + materials  (source: civicchain-v2.vercel.app/brand)
+   Civic-Chain, full brand ramps + materials  (source: civicchain-v2.vercel.app/brand)
    "Hue is rhythm; material is meaning; density controls the card inset."
-   Material semantics — one material per surface, NEVER stack them, keep them
+   Material semantics, one material per surface, NEVER stack them, keep them
    subordinate to the text ("proof before decoration"):
      paper      → history, context, process, human civic framing
      banknote   → payment, savings, audit

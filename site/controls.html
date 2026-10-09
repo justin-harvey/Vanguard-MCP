@@ -4,7 +4,7 @@
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="assets/civic-chain-logo.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Civic Chain · Vanguard MCP — SOC 2 Evidence Panel</title>
+    <title>Civic-Chain · Vanguard MCP, SOC 2 Evidence Panel</title>
     <meta name="description" content="One-click SOC 2 controls: each runs a blessed query, asserts PASS or EXCEPTION, and produces a verifiable evidence packet." />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -85,7 +85,7 @@
     <header class="site">
       <div class="wrap">
         <a class="brand" href="index.html">
-          <img class="mark" src="assets/civic-logo-w-text-horizontal.svg" alt="Civic Chain" />
+          <img class="mark" src="assets/civic-logo-w-text-horizontal.svg" alt="Civic-Chain" />
           <span class="product"><b>Vanguard MCP</b><span>verified financial intelligence</span></span>
         </a>
         <nav class="back">
@@ -103,14 +103,14 @@
         <p class="lede">
           Each control runs a single blessed query, checks one thing, and returns <b>PASS</b> or
           <b>EXCEPTION</b> with a full provenance trail. Every figure was computed in SQL over a
-          read-only warehouse and hash-chained into a tamper-evident log — the packet an auditor
+          read-only warehouse and hash-chained into a tamper-evident log, the packet an auditor
           can recompute, not a chart to trust.
         </p>
         <div class="banner">
           <b>Live-data preview.</b> The results below are <b>real, captured attestations</b> from the
           engine (<code>vanguard controls run …</code>), embedded so the panel works before the backend
           is wired. Once the MCP proxy is live, each button runs its control on demand and streams the
-          same result — the contract is identical.
+          same result; the contract is identical.
         </div>
       </section>
 
@@ -140,7 +140,7 @@
 
     <footer class="site">
       <div class="wrap">
-        <span>Civic Chain · Vanguard MCP — a green control means evidence produced and verified, not a certification.
+        <span>Civic-Chain · Vanguard MCP, a green control means evidence produced and verified, not a certification.
         SOC 2 is an attestation a CPA firm issues about an organisation; this is the evidence it rests on.</span>
       </div>
     </footer>
@@ -150,7 +150,7 @@
   {
     "id": "PI1.2-enron-debt-reconciliation",
     "warehouse": "enron",
-    "criterion": "Processing Integrity (PI1.2) — reported figures reconcile to source records",
+    "criterion": "Processing Integrity (PI1.2), reported figures reconcile to source records",
     "description": "Reported debt computed from the ledger ties out to the figure as filed in the 10-K.",
     "status": "PASS",
     "exception": null,
@@ -179,7 +179,7 @@
   {
     "id": "PI1.1-enron-revenue-reconciliation",
     "warehouse": "enron",
-    "criterion": "Processing Integrity (PI1.1) — revenue recognised on the correct basis",
+    "criterion": "Processing Integrity (PI1.1), revenue recognised on the correct basis",
     "description": "Gross revenue booked in the deal ledger ties out to total revenues as filed in the 10-K.",
     "status": "PASS",
     "exception": null,
@@ -208,7 +208,7 @@
   {
     "id": "PI1.2-saas-mrr-reconciliation",
     "warehouse": "saas",
-    "criterion": "Processing Integrity (PI1.2) — MRR reconciles across independent sources",
+    "criterion": "Processing Integrity (PI1.2), MRR reconciles across independent sources",
     "description": "Current MRR from the movements ledger ties out to active subscriptions plus recorded adjustments.",
     "status": "PASS",
     "exception": null,
@@ -237,7 +237,7 @@
   {
     "id": "PI1.2-markets-position-reconciliation",
     "warehouse": "markets",
-    "criterion": "Processing Integrity (PI1.2) — derived positions reconcile to the recorded book",
+    "criterion": "Processing Integrity (PI1.2), derived positions reconcile to the recorded book",
     "description": "Net position derived from the execution ledger ties out to the end-of-day positions snapshot.",
     "status": "PASS",
     "exception": null,
@@ -266,7 +266,7 @@
   {
     "id": "CC7.3-figure-reproducibility",
     "warehouse": "markets",
-    "criterion": "Common Criteria (CC7.3) — a past figure reproduces exactly",
+    "criterion": "Common Criteria (CC7.3), a past figure reproduces exactly",
     "description": "Re-running an as-of query reproduces the identical result hash, so an auditor can recompute and compare.",
     "status": "PASS",
     "exception": null,
@@ -290,7 +290,7 @@
   {
     "id": "CC7.2-audit-chain-integrity",
     "warehouse": "audit",
-    "criterion": "Common Criteria (CC7.2) — the audit trail is tamper-evident and intact",
+    "criterion": "Common Criteria (CC7.2), the audit trail is tamper-evident and intact",
     "description": "The hash-chained audit log verifies end to end; any altered or dropped entry is detected.",
     "status": "PASS",
     "exception": null,
@@ -320,7 +320,7 @@
       // An illustrative EXCEPTION (the tamper case from the test suite) so the failed state is visible.
       const EXCEPTION_EXAMPLE = {
         id: "PI1.2-enron-debt-reconciliation", warehouse: "enron",
-        criterion: "Processing Integrity (PI1.2) — reported figures reconcile to source records",
+        criterion: "Processing Integrity (PI1.2), reported figures reconcile to source records",
         description: "Illustrative: the debt control after a $500m ledger edit (the tamper case from the test suite).",
         status: "EXCEPTION",
         exception: "ledger-computed reported debt $9,729m does not tie to the filed $10,229m (variance $-500m)",
@@ -406,7 +406,7 @@
 
       async function rerunById(id) {
         if (!PROXY_URL) {
-          alert('Live runs go through the deployed proxy. Set window.VANGUARD_PROXY_URL to the Supabase function URL — see supabase/README.md.');
+          alert('Live runs go through the deployed proxy. Set window.VANGUARD_PROXY_URL to the Supabase function URL; see supabase/README.md.');
           return;
         }
         const headers = { 'content-type': 'application/json' };
