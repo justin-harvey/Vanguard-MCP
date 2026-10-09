@@ -30,9 +30,27 @@ A claim is only worth what enforces it. Each guarantee is backed by a mechanism 
 | The model cannot write to the database | A connection opened `readOnly: true`; SQLite refuses writes below anything the code can reach |
 | Only SELECT, only allow-listed tables/columns, always bounded | `guard.js` parses SQL to an AST and inspects the full table list, including subqueries and CTE bodies |
 | Every figure in the prose came from the data | `grounding.js` extracts each number and matches it to a returned value, allowing only legitimate transforms (cents to currency, ratio to percent) |
-| A past answer cannot be altered unnoticed | `audit.js` hash-chains each entry to the one before it; `verify()` reports the first index where the chain breaks |
+| A past answer cannot be altered unnoticed | `audit.js` hash-chains each entry to the one before it; `verify()` reports the first index where the chain breaks. Optional Ed25519 signing and a pluggable external anchor extend this to a full rewrite of history |
 
 The engine is **schema-agnostic**: the guard, grounding, lineage and audit chain are identical regardless of the data. Pointing it at a municipal chart of accounts, a grant ledger, or a checkbook register is a new schema and allow-list, not new plumbing.
+
+## How the hashing works: two hashes, three layers
+
+The system uses hashing for two separate jobs, and keeping them separate is the whole point. The full account is in **[HASHING.md](HASHING.md)**; the short version:
+
+- **The result hash** answers *does the answer reproduce?* It is computed over the **rows the database returned**, after canonicalizing them (stable row order, stable value formatting). Re-run the same SQL at the same as-of date against the same snapshot and you get the same hash; a different hash means the data, the query, or the as-of date changed. The question is deliberately *not* part of it, because the same question can produce different SQL on different days. This is what an auditor recomputes, what an eval compares against a canonical query, and what makes caching safe.
+
+- **The entry hash** answers *was anything edited?* Every query is written to an append-only log (JSON Lines). Each entry records the event, the question, SQL, tables/columns, the result hash, and whether narration was grounded, and each entry's hash includes the hash of the entry before it. Editing or dropping any past entry breaks that entry's hash, breaks the next entry's `prevHash`, and fails every entry after it; `verify()` reports the first index where the chain breaks. (The prose answer itself is *not* stored, only the grounding verdict, since the prose is reproducible from the SQL and data.)
+
+A plain hash chain has one gap: someone with full write access could rewrite *every* entry from an edit point onward and recompute all the hashes. Two optional layers close it:
+
+| Layer | Protects against | Status |
+|-------|------------------|--------|
+| **Hash chain** | Accidental corruption; editing or dropping a single entry | Always on |
+| **+ Ed25519 signing** | Rewriting the chain without the private key | Implemented, opt-in via a signer |
+| **+ External anchor** | An admin *with* the key rewriting history | Pluggable hook, not yet wired to a destination |
+
+The external anchor **does not have to be a blockchain**, publishing each checkpoint hash to WORM storage, an RFC 3161 timestamp authority, or simply handing it to the auditor all work; a public chain is for the trust-no-one case. For a regulated client, signed entries plus periodic anchoring to WORM storage or a timestamp authority is usually the better fit. And the honest framing throughout: the log is **tamper-evident**, not immutable, it makes changes detectable, it does not make them impossible.
 
 ## What's in this repo
 
@@ -42,6 +60,9 @@ The engine is **schema-agnostic**: the guard, grounding, lineage and audit chain
 | [`site/`](site/) | **The web demo.** A static site: the thesis, the reporting-gap case study, and the evidence panel. |
 | [`site/enron.html`](site/enron.html) | **The reporting-gap case study**, reported figures set against what the underlying rows support, each grounded and hash-chained. |
 | [`site/controls.html`](site/controls.html) | **The evidence panel**, one-click controls that return PASS/EXCEPTION with a verifiable evidence trail. |
+| [`site/value.html`](site/value.html) | **The value-proposition page**, why this brings Big-Four-caliber assurance to a municipality at software cost. |
+| [`HASHING.md`](HASHING.md) | **The hashing explainer**, the result hash vs the entry hash, the chain, and the signing/anchoring layers above it, in full. |
+| [`COMPARISON.md`](COMPARISON.md) | **The landscape**, how this relates to and differs from governed text-to-SQL, claim verifiers, and database ledgers. |
 
 The demo makes the case; the core makes it executable. Start with the [`vanguard-core/` README](vanguard-core/README.md) for the full technical account.
 
@@ -54,6 +75,23 @@ The included case study uses Enron's FY2000 figures because they are public and 
 ## Continuous attestation
 
 The evidence panel turns a question into a one-click **control** that returns **PASS** or **EXCEPTION** with a full provenance trail: processing-integrity checks (do reported figures reconcile to source records?), figure reproducibility, and audit-chain integrity. For a municipality, this is the mechanism behind "show me the evidence, not the dashboard", a packet an auditor can recompute, not a chart to trust.
+
+## Why this matters: Big-Four assurance on a municipal budget
+
+A Big Four audit is deep, skilled work. It is also periodic, sampled, retrospective, and priced for large entities: a firm tests a slice of the transactions, forms a judgment, and issues an opinion you are asked to trust, while the evidence stays in the firm's workpapers. The smaller the government, a town, a school district, a county, the less continuous assurance it can afford, exactly where every dollar is most visible to a resident.
+
+Vanguard MCP does not replace the auditor. It produces the evidence an audit rests on, and makes it something a resident, a council member, and the auditor can all recompute:
+
+| | Traditional audit engagement | Vanguard MCP |
+|---|---|---|
+| **Coverage** | A sample of transactions | Every figure in every answer |
+| **Cadence** | Annual, quarterly at most | Continuous, on every question |
+| **Latency** | Months after the period closes | At the moment you ask |
+| **Deliverable** | An opinion you are asked to trust | An evidence packet you can recompute |
+| **Tamper evidence** | Held in the firm's workpapers | A hash-chained log anyone can verify |
+| **Cost** | A six-figure engagement | Software |
+
+None of the underlying parts are new, guarded text-to-SQL, verification of AI-generated figures, and tamper-evident ledgers all exist on their own. The contribution is binding them so a resident or council member cannot receive an unverified figure, and every answer leaves a reproducible, tamper-evident record. [`COMPARISON.md`](COMPARISON.md) sets this against governed text-to-SQL (Snowflake Cortex Analyst, Databricks Genie), claim verifiers, database ledgers, and generic AI guardrails in detail; [`site/value.html`](site/value.html) is the same case for a municipal reader.
 
 ## Quick start
 

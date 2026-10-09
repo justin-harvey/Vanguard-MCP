@@ -41,6 +41,8 @@
           <span class="product"><b>Vanguard MCP</b><span>verified financial intelligence</span></span>
         </a>
         <nav class="back">
+          <a href="value.html">Why it matters</a>
+          <span class="sep">·</span>
           <a href="enron.html">Enron case study</a>
           <span class="sep">·</span>
           <a href="controls.html">SOC&nbsp;2 panel</a>
@@ -102,9 +104,46 @@
           </div>
           <div class="card slate">
             <h4>A past answer can't be altered unnoticed</h4>
-            <p><span class="mono">audit.js</span> hash-chains each entry to the one before it; <span class="mono">verify()</span> reports the first index where the chain breaks.</p>
+            <p><span class="mono">audit.js</span> hash-chains each entry to the one before it; <span class="mono">verify()</span> reports the first index where the chain breaks. Optional Ed25519 signing and an external anchor extend this to a full rewrite of history.</p>
           </div>
         </div>
+      </section>
+
+      <section class="section wash blueprint">
+        <p class="kicker">How the proof works</p>
+        <h2>Two hashes, doing two different jobs.</h2>
+        <p class="lede">
+          Keeping them separate is the whole point. One proves the answer reproduces from the
+          data; the other proves the record of what was asked and answered hasn't been edited since.
+        </p>
+        <div class="split">
+          <div class="card">
+            <h3>The result hash</h3>
+            <p><b>Does the answer reproduce?</b> Computed over the rows the database returned, in a
+            canonical form (stable row order, stable formatting). Re-run the same SQL at the same
+            as-of date against the same snapshot and you get the same hash; a different hash means
+            the data, the query, or the as-of date changed. The question is deliberately not part of
+            it, because the same question can yield different SQL on different days. This is what an
+            auditor recomputes.</p>
+          </div>
+          <div class="card">
+            <h3>The entry hash</h3>
+            <p><b>Was anything edited?</b> Every query is written to an append-only log; each
+            entry records the question, the SQL, the result hash and the grounding verdict, and each
+            entry's hash includes the hash of the one before it. Edit or drop any past entry and its
+            hash changes, the next entry's link no longer matches, and every entry after it fails
+            verification. The log is tamper&#8209;<i>evident</i>, not immutable: it makes changes
+            detectable, not impossible.</p>
+          </div>
+        </div>
+        <p class="lede" style="margin-top:22px">
+          A plain chain has one gap: whoever can write the whole file could rewrite every entry from
+          an edit point onward. Two optional layers close it, <b>Ed25519 signing</b> (a rewrite now
+          needs the private key) and an <b>external anchor</b> that publishes each checkpoint hash
+          somewhere outside your control. The anchor need not be a blockchain: WORM storage, an
+          RFC&nbsp;3161 timestamp, or simply handing the checkpoint to the auditor all work; a public
+          chain is only for the trust&#8209;no&#8209;one case.
+        </p>
       </section>
 
       <section class="section">
