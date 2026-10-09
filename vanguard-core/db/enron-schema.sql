@@ -4,20 +4,20 @@
 -- capital-markets demos. It tells the sharpest version of the whole thesis: a
 -- reported figure set against what the underlying rows actually support, with a
 -- tamper-evident provenance chain over the gap. Enron is the case study because
--- its collapse *was* that gap — revenue booked gross to look 2.5x larger, and
+-- its collapse *was* that gap, revenue booked gross to look 2.5x larger, and
 -- billions of debt parked in off-balance-sheet SPEs.
 --
 -- Grain and units: this warehouse operates at the financial-reporting aggregate
 -- grain, denominated in INTEGER USD MILLIONS, exactly as a 10-K prints them.
 -- That is a deliberate departure from the integer-cents convention of the other
--- two warehouses — the cents rule exists to keep money float-free, and integer
+-- two warehouses, the cents rule exists to keep money float-free, and integer
 -- millions is equally float-free while matching the grain and letting a figure
 -- ground against the filing verbatim (a cell of 100789 matches "100,789").
 --
 -- Claim discipline (see db/enron-anchor.md): the aggregates reconcile to Enron's
 -- REAL reported 2000 / 1999 figures, cited to the 10-K. The transaction-level
--- rows are SYNTHETIC and labelled synthetic — there is no public Enron general
--- ledger — and the off-balance-sheet SPE amounts are illustrative of the
+-- rows are SYNTHETIC and labelled synthetic, there is no public Enron general
+-- ledger, and the off-balance-sheet SPE amounts are illustrative of the
 -- mechanism, not a claimed exact historical number. Real anchor figures are
 -- real; fabricated rows are fabricated. Nothing here is a compliance claim.
 

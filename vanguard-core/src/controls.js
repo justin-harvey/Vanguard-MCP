@@ -1,5 +1,5 @@
 /**
- * The control catalog — the layer that turns a query into a SOC 2 control.
+ * The control catalog, the layer that turns a query into a SOC 2 control.
  *
  * A scenario answers a question and returns a figure. A *control* asserts
  * something about that figure and reports PASS or EXCEPTION, then hands back
@@ -8,7 +8,7 @@
  * the warehouse it reads, and a `run()` that executes the blessed query and
  * evaluates the result the one agreed way.
  *
- * This is the first-class object the M9 buttons resolve against — a sibling to
+ * This is the first-class object the M9 buttons resolve against, a sibling to
  * the metric registry, but for controls. It is deliberately small and additive:
  * each control reuses the existing, guarded, grounded, audited query functions;
  * nothing here reaches the database except through them.
@@ -71,7 +71,7 @@ function reconciliation({
     // Coverage gate. A missing component surfaces as an explicit presence count
     // of 0, or as a NULL figure (a field-keyed sum over an absent row is NULL,
     // not 0). Either way the identity is not computable, so the honest result is
-    // N/A — reporting PASS on a `0 − 0 = 0` that only means "we have no data"
+    // N/A, reporting PASS on a `0 − 0 = 0` that only means "we have no data"
     // would be a false assurance, the dangerous failure mode for regulated use.
     const missing = (requiredPresence ?? []).filter(({ key }) => !Number(r[key])).map(({ label }) => label);
     const figureAbsent = r[leftKey] == null || r[rightKey] == null;
@@ -87,7 +87,7 @@ function reconciliation({
             figures: [
                 { label: leftLabel, value: r[leftKey] ?? null, unit },
                 { label: rightLabel, value: r[rightKey] ?? null, unit },
-                { label: 'Coverage', value: `N/A — ${detail}` },
+                { label: 'Coverage', value: `N/A, ${detail}` },
             ],
         });
         return { control, entry, rows, lineage };
@@ -95,7 +95,7 @@ function reconciliation({
 
     // FX / basis gate. Subtracting or comparing figures is only valid when they
     // share a currency, scale and periodicity. A mix is not a variance to measure
-    // — it is incomparable data, so fail loudly rather than return a bogus number
+    //, it is incomparable data, so fail loudly rather than return a bogus number
     // (the silent-wrong-answer-on-multi-currency-data failure mode, finding #2).
     const mixed = (consistencyKeys ?? []).filter(({ key }) => Number(r[key]) > 1).map(({ label }) => label);
     if (mixed.length > 0) {
@@ -105,7 +105,7 @@ function reconciliation({
             description,
             status: CONTROL_STATUS.EXCEPTION,
             exception:
-                `cannot reconcile across mixed ${mixed.join(', ')} — figures must share currency, scale and ` +
+                `cannot reconcile across mixed ${mixed.join(', ')}, figures must share currency, scale and ` +
                 'periodicity; normalise (e.g. convert to one currency at one FX basis) before reconciling',
             figures: [
                 { label: leftLabel, value: r[leftKey] ?? null, unit },
@@ -161,7 +161,7 @@ export function controlCatalog() {
     return [
         {
             id: 'PI1.2-enron-debt-reconciliation',
-            criterion: 'Processing Integrity (PI1.2) — reported figures reconcile to source records',
+            criterion: 'Processing Integrity (PI1.2), reported figures reconcile to source records',
             warehouse: 'enron',
             description: 'Reported debt computed from the ledger ties out to the figure as filed in the 10-K.',
             run(options = {}) {
@@ -181,7 +181,7 @@ export function controlCatalog() {
         },
         {
             id: 'PI1.1-enron-revenue-reconciliation',
-            criterion: 'Processing Integrity (PI1.1) — revenue recognised on the correct basis',
+            criterion: 'Processing Integrity (PI1.1), revenue recognised on the correct basis',
             warehouse: 'enron',
             description: 'Gross revenue booked in the deal ledger ties out to total revenues as filed in the 10-K.',
             run(options = {}) {
@@ -201,7 +201,7 @@ export function controlCatalog() {
         },
         {
             id: 'PI1.2-saas-mrr-reconciliation',
-            criterion: 'Processing Integrity (PI1.2) — MRR reconciles across independent sources',
+            criterion: 'Processing Integrity (PI1.2), MRR reconciles across independent sources',
             warehouse: 'saas',
             description: 'Current MRR from the movements ledger ties out to active subscriptions plus recorded adjustments.',
             run(options = {}) {
@@ -221,7 +221,7 @@ export function controlCatalog() {
         },
         {
             id: 'PI1.2-markets-position-reconciliation',
-            criterion: 'Processing Integrity (PI1.2) — derived positions reconcile to the recorded book',
+            criterion: 'Processing Integrity (PI1.2), derived positions reconcile to the recorded book',
             warehouse: 'markets',
             description: 'Net position derived from the execution ledger ties out to the end-of-day positions snapshot.',
             run(options = {}) {
@@ -241,7 +241,7 @@ export function controlCatalog() {
         },
         {
             id: 'PI1.1-lseg-gross-profit-reconciliation',
-            criterion: 'Processing Integrity (PI1.1) — the standardized model is internally consistent and untampered',
+            criterion: 'Processing Integrity (PI1.1), the standardized model is internally consistent and untampered',
             warehouse: 'lseg',
             description:
                 'On LSEG\'s standardized basis Gross Profit is defined as Revenue − Cost of Revenue, so this identity ' +
@@ -274,7 +274,7 @@ export function controlCatalog() {
         },
         {
             id: 'PI1.1-lseg-standardized-vs-as-reported',
-            criterion: 'Processing Integrity (PI1.1) — the vendor-standardized figure reconciles to the company\'s own filing',
+            criterion: 'Processing Integrity (PI1.1), the vendor-standardized figure reconciles to the company\'s own filing',
             warehouse: 'lseg',
             description:
                 'LSEG standardized (COA) gross profit ties out to as-reported gross profit; a variance is a real ' +
@@ -305,7 +305,7 @@ export function controlCatalog() {
         },
         {
             id: 'C1.1-lseg-data-retention',
-            criterion: 'Confidentiality (C1.1) — cached vendor data is tagged with its licensing terms and retained only within its licensed window',
+            criterion: 'Confidentiality (C1.1), cached vendor data is tagged with its licensing terms and retained only within its licensed window',
             warehouse: 'lseg',
             description:
                 'Every persisted LSEG source carries a usage class + retention TTL (finding #7), and no cached ' +
@@ -336,7 +336,7 @@ export function controlCatalog() {
         },
         {
             id: 'CC7.3-figure-reproducibility',
-            criterion: 'Common Criteria (CC7.3) — a past figure reproduces exactly',
+            criterion: 'Common Criteria (CC7.3), a past figure reproduces exactly',
             warehouse: 'markets',
             description: 'Re-running an as-of query reproduces the identical result hash, so an auditor can recompute and compare.',
             run(options = {}) {
@@ -361,7 +361,7 @@ export function controlCatalog() {
         },
         {
             id: 'CC7.2-audit-chain-integrity',
-            criterion: 'Common Criteria (CC7.2) — the audit trail is tamper-evident and intact',
+            criterion: 'Common Criteria (CC7.2), the audit trail is tamper-evident and intact',
             warehouse: 'audit',
             description: 'The hash-chained audit log verifies end to end; any altered or dropped entry is detected.',
             run(options = {}) {
@@ -388,7 +388,7 @@ export function controlCatalog() {
 }
 
 /**
- * Resolve a control by id, or throw — an unknown control is a bug to surface,
+ * Resolve a control by id, or throw, an unknown control is a bug to surface,
  * not a query to invent.
  *
  * @param {string} id

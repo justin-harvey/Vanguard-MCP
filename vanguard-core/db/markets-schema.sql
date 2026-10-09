@@ -2,15 +2,15 @@
 --
 -- This is the second warehouse the engine runs against, alongside the SaaS
 -- finance demo. It exists to tell the story the whole project is built for: a
--- number you can put in front of a regulator. The questions it answers —
--- net position at close, market-abuse surveillance — are ones where "roughly
+-- number you can put in front of a regulator. The questions it answers,
+-- net position at close, market-abuse surveillance, are ones where "roughly
 -- right, trust me" is not an acceptable answer, and where the provenance chain
 -- and grounded verification earn their place.
 --
 -- Conventions, matching the SaaS warehouse:
 --   Money is INTEGER CENTS, never floats.
 --   Share quantities are INTEGER.
---   Timestamps are INTEGER milliseconds since the Unix epoch — surveillance
+--   Timestamps are INTEGER milliseconds since the Unix epoch, surveillance
 --   patterns (a cancel arriving 400ms after an order) live or die on
 --   millisecond resolution, so seconds would erase the very thing being tested.
 
@@ -54,7 +54,7 @@ CREATE TABLE prices (
 
 -- End-of-day position snapshot, seeded to reconcile exactly with the signed
 -- sum of executions. Having both lets a query cross-check a derived figure
--- against an independently stored one — the reconciliation an auditor wants.
+-- against an independently stored one, the reconciliation an auditor wants.
 CREATE TABLE positions (
     account_id     INTEGER NOT NULL REFERENCES accounts(id),
     ticker         TEXT    NOT NULL,

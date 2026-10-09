@@ -1,5 +1,5 @@
 /**
- * The narrator — result set in, prose out, every figure verified.
+ * The narrator, result set in, prose out, every figure verified.
  *
  * This is the risky step, and the one the thesis is really about. Turning rows
  * into a sentence is where a model can quietly introduce a number that was
@@ -14,7 +14,7 @@
  * Step 4 is the part that makes the guarantee unconditional. A system that
  * retries and then gives up returns something unverified at the end; this one
  * degrades to prose that is dull but provably true, and labels it as such. The
- * caller always receives a `grounded: true` answer or an explicit refusal —
+ * caller always receives a `grounded: true` answer or an explicit refusal,
  * never an unverified paragraph presented as fact.
  */
 
@@ -27,7 +27,7 @@ You describe the result of a database query for a finance audience.
 
 Absolute rule: every number you write must appear in the result rows you were given, or be
 a direct restatement of one (cents shown as currency, a ratio shown as a percentage). You
-may round, and you should — write "36.7%", not "36.7241%".
+may round, and you should, write "36.7%", not "36.7241%".
 
 Never introduce: totals you computed yourself, comparisons to periods not in the data,
 industry benchmarks, growth rates that are not in the rows, or any figure you cannot point

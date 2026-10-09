@@ -52,16 +52,16 @@ test that would fail if it broke.
 | Guarantee | Enforced by | Not by |
 |---|---|---|
 | The model cannot write to the database | A connection opened `readOnly: true`; SQLite refuses below anything this code can reach | Asking the model not to |
-| Only SELECT, only four tables, always bounded | `src/guard.js` — parses to an AST and inspects it | A `/^SELECT/i` regex |
-| Every figure in the prose came from the data | `src/grounding.js` — extracts each number and matches it to a returned value | The model's good intentions |
-| A past answer cannot be altered unnoticed | `src/audit.js` — each entry hashes the one before it | An append-only convention |
+| Only SELECT, only four tables, always bounded | `src/guard.js`, parses to an AST and inspects it | A `/^SELECT/i` regex |
+| Every figure in the prose came from the data | `src/grounding.js`, extracts each number and matches it to a returned value | The model's good intentions |
+| A past answer cannot be altered unnoticed | `src/audit.js`, each entry hashes the one before it | An append-only convention |
 
 ### The guard parses, it does not pattern-match
 
 `SELECT 1 FROM customers; DROP TABLE customers` passes a `/^\s*SELECT/i` test.
 So does a CTE wrapping a DELETE, and a subquery reaching `sqlite_master`. The
-guard builds an AST, walks the statement's full table list — including
-subqueries and CTE bodies — and rejects anything unparseable rather than
+guard builds an AST, walks the statement's full table list, including
+subqueries and CTE bodies, and rejects anything unparseable rather than
 assuming it is probably fine.
 
 It also has to *not* over-reject: the parser reports CTE aliases alongside real
@@ -71,7 +71,7 @@ gets switched off, so that case has its own test.
 
 ### Grounding is what makes the headline claim testable
 
-Scoping the model to SQL generation handles most of the risk — the figures come
+Scoping the model to SQL generation handles most of the risk, the figures come
 from the warehouse. But asking a model to *narrate* a result set reopens it: a
 total it summed itself, an estimated percentage, a comparison to a period
 nobody queried. That sentence reads exactly like the true ones beside it.
@@ -86,7 +86,7 @@ cents → currency  32,476,072¢  → "$324,760.72"
 ratio → percent   1.087        → "108.7%"
 ```
 
-Tolerance is **half a unit in the last place written** — the rounding rule a
+Tolerance is **half a unit in the last place written**, the rounding rule a
 human actually follows. `36.7%` admits `[36.65, 36.75)`; `$1.2M` admits
 `[1.15M, 1.25M)`. Stricter than a flat percentage for precise figures, looser
 for deliberately rounded ones.
@@ -94,7 +94,7 @@ for deliberately rounded ones.
 If a number has no source, the narrator is told exactly which one and asked
 again. If it fails twice, the system stops asking and emits a mechanical
 summary built directly from the rows. **The caller always receives a verified
-answer or an explicit refusal — never an unverified paragraph presented as
+answer or an explicit refusal, never an unverified paragraph presented as
 fact.**
 
 One of the grounding tests uses `$412,000` as its fabricated figure. That is
@@ -109,13 +109,13 @@ historical record breaks the chain from that point forward; `verify()` reports
 the first index where it breaks.
 
 The tests cover the naive tamper (edit an entry), the *informed* tamper
-(recompute that entry's own hash so it is self-consistent — the break simply
+(recompute that entry's own hash so it is self-consistent, the break simply
 moves one position along), and deletion from the middle.
 
 They also cover the honest limitation: **truncating the newest entries leaves a
 valid shorter chain.** Nothing local can prevent that, which is exactly why a
 real deployment anchors the head hash somewhere it does not control. That is
-what [TLaaS](https://github.com/justin-harvey/TLaaS) already does — this log is
+what [TLaaS](https://github.com/justin-harvey/TLaaS) already does, this log is
 the same construction minus the on-chain step, and the two compose directly.
 
 ## Trade-surveillance attestation
@@ -123,7 +123,7 @@ the same construction minus the on-chain step, and the two compose directly.
 The SaaS warehouse shows the engine works. A second warehouse shows it where
 the thesis matters most: capital markets, where "roughly right, trust me" is
 not an answer a regulator accepts. The same guard, grounding, lineage and audit
-chain are pointed at a different schema and allow-list — the boundary is
+chain are pointed at a different schema and allow-list, the boundary is
 identical, only the domain changes.
 
 ```bash
@@ -143,7 +143,7 @@ Three scenarios, framed against real regimes:
 
 Two things make these more than a report. The net-position figure is computed
 *in SQL* and pinned with an as-of cutoff, so re-running it reproduces the same
-result hash exactly — an auditor can recompute and compare. And every alert is
+result hash exactly, an auditor can recompute and compare. And every alert is
 appended to the hash-chained, optionally-signed log, so a surveillance finding
 cannot be quietly walked back after the fact. The data is synthetic and
 deterministic; two of the six accounts are seeded to exhibit the place-and-cancel
@@ -169,7 +169,7 @@ node bin/vanguard.js enron audit      # verify the Enron audit chain
 
 | Scenario | What it shows | The real anchor |
 |----------|---------------|-----------------|
-| **Revenue basis** | Revenue booked *gross* (full trade notional) versus the *net* merchant margin actually earned | Gross reconciles to the reported **$100,789m** total revenues; net margin is **$1,953m** — the gross-basis booking is what turned $40bn into $100bn |
+| **Revenue basis** | Revenue booked *gross* (full trade notional) versus the *net* merchant margin actually earned | Gross reconciles to the reported **$100,789m** total revenues; net margin is **$1,953m**, the gross-basis booking is what turned $40bn into $100bn |
 | **Hidden debt** | Debt on the reported balance sheet versus the true total once the SPEs are included | Reported reconciles to the **$10,229m** short + long-term debt on the 10-K; the SPE vehicles (JEDI, Chewco, LJM1/2, Raptor, Whitewing) add the leverage that stayed off it |
 | **Tamper test** | Alter a recorded attestation and re-verify | The audit chain reports the exact entry that changed |
 
@@ -177,13 +177,13 @@ The distinction that matters here is the one the rest of the project turns on.
 **The aggregates are real:** they reconcile to Enron's actual reported figures,
 transcribed verbatim from the filing (SEC accession `0001024401-01-500010`) into
 `db/enron-anchor.md` and stored in a `reported_financials` table that carries the
-citation on every row. **The transaction-level rows are synthetic** — there is no
-public Enron general ledger — and the off-balance-sheet SPE amounts are
+citation on every row. **The transaction-level rows are synthetic**, there is no
+public Enron general ledger, and the off-balance-sheet SPE amounts are
 illustrative of the mechanism, not a claimed exact historical total. Real anchor
 figures are labelled real; fabricated rows are labelled fabricated. That
 labelling is not incidental to the demo; it *is* the demo. (Money here is integer
 USD millions, the grain a 10-K prints, so a computed figure grounds against the
-filing verbatim — a deliberate departure from the other warehouses' integer
+filing verbatim, a deliberate departure from the other warehouses' integer
 cents, documented in `db/enron-schema.sql`.)
 
 ## What is real here, and what is not
@@ -199,7 +199,7 @@ hook, grounding verification (unit-aware, and able to check derived figures the
 query returns), a control-result shape and an offline-verifiable evidence packet
 (intent → SQL → CSV → hash + signature, `vanguard enron … --export`), a SOC 2
 control catalog whose entries assert PASS/EXCEPTION and emit that packet
-(`vanguard controls run …`; six controls across all three warehouses — reconciliation,
+(`vanguard controls run …`; six controls across all three warehouses, reconciliation,
 reproducibility, and audit-chain integrity), an MCP server that exposes the
 controls, canonical queries and audit verification as tools and each warehouse's
 live schema as a resource (`vanguard mcp`, stdio) plus a token-guarded HTTP API for a
@@ -207,7 +207,7 @@ web proxy (`vanguard serve`), the CLI, and 125 tests that run offline.
 
 **Synthetic:** the data. 416 customers over six months, generated
 deterministically from a fixed seed so that the same question always produces
-the same result hash — reproducibility is the point of publishing a hash.
+the same result hash, reproducibility is the point of publishing a hash.
 The numbers are invented and internally consistent; they describe no real
 company. For a tool about traceable figures, fabricated data clearly labelled
 as fabricated is fine. Fabricated data presented as real is the exact failure
@@ -215,7 +215,7 @@ this project exists to prevent.
 
 **Reference implementations, real but not production-grade:** authentication and
 row-level security resolve a token to a principal and confine that principal to
-its book via the guard's scope hook — the mechanism is enforced and tested, but
+its book via the guard's scope hook, the mechanism is enforced and tested, but
 the token registry is an in-memory demo, not an IdP. The warehouse connector is
 a live interface with a working SQLite adapter and a Snowflake adapter *shape*
 (no network integration ships). The metric registry is first-class and the
@@ -225,7 +225,7 @@ local stub.
 **Not built:** a real IdP behind the auth layer, a live cloud-warehouse adapter,
 PII detection for the GDPR annotation, a production external anchor, and any UI.
 The audit entries carry `SOX` and `GDPR: no PII` tags because the query path is
-read-only over a schema with no personal data — that is a true statement about
+read-only over a schema with no personal data, that is a true statement about
 *this* configuration, not a compliance claim.
 
 ## On compliance vocabulary

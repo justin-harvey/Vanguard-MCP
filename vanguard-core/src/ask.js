@@ -96,7 +96,7 @@ export async function ask(question, {
             };
         }
         // Reaching here means the guard approved a statement the warehouse
-        // would not run — a syntax quirk, an unknown column, or (importantly) a
+        // would not run, a syntax quirk, an unknown column, or (importantly) a
         // write the read-only connection refused. Worth surfacing distinctly.
         return {
             ok: false,

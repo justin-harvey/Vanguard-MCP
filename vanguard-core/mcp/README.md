@@ -13,7 +13,7 @@ The two servers do different jobs, and that is the whole point of pairing them:
 |---|---|---|
 | **Role** | Resolve LSEG `TR.*` field codes and **draft** the retrieval code | **Verify** and **attest** figures over a read-only warehouse |
 | **Returns** | Field mappings, validations, runnable `lseg-data` / R boilerplate | Grounded results, PASS/EXCEPTION controls, hash-chained evidence |
-| **Touches market data?** | No — *"never connects to LSEG, only resolves fields and drafts code"* | No — reads the warehouse the data was landed into |
+| **Touches market data?** | No, *"never connects to LSEG, only resolves fields and drafts code"* | No, reads the warehouse the data was landed into |
 | **Needs an LSEG entitlement?** | No | No (a paid entitlement is only needed to *execute* the drafted call) |
 
 `lseg-mcp` gets the field mapping right; Vanguard MCP makes the resulting number
@@ -34,7 +34,7 @@ auditable. The join point is **ingestion** (see `src/lseg-ingest.js`), not runti
 ## Field validation (done 2026-09-24)
 
 The nine `TR.*` codes this warehouse uses were validated live against lseg-mcp's
-`validate_lseg_formula` — **all nine returned `status: OK`**, with their COA codes
+`validate_lseg_formula`, **all nine returned `status: OK`**, with their COA codes
 recorded in `db/lseg-anchor.md`. `validate_lseg_formula` (the mapping matrix) is
 authoritative; the fuzzy `search_data_dictionary` has a smaller sample seed and
 misses some multi-word concepts, so trust validate. Re-run any time:
@@ -65,7 +65,7 @@ into your client config (Claude Desktop, Claude Code, Cursor, VS Code). Set the
      `node bin/vanguard.js lseg ingest IBM.N --period FY2023 --live` (reads
      `$LSEG_APP_KEY`, or pass `--app-key <KEY>`). `RealLsegSession` shells out to
      `scripts/lseg_fetch.py`, which opens an `lseg-data` session, runs `get_data`,
-     and returns wide rows — no other code changes. Requires `pip install lseg-data`
+     and returns wide rows, no other code changes. Requires `pip install lseg-data`
      and a running Workspace/entitlement. Point `$LSEG_PYTHON` at the interpreter
      that has `lseg-data` if it is not the default `python3`.
    - **Without one (demo):** `node bin/vanguard.js lseg ingest IBM.N --period FY2024`
@@ -75,17 +75,17 @@ into your client config (Claude Desktop, Claude Code, Cursor, VS Code). Set the
    refuses to run without `LSEG_APP_KEY`/`--app-key` rather than returning nothing;
    `FakeLsegSession` needs no credential. Set the key once and `--live` works.
 5. **Verify + attest.** Vanguard MCP runs over the landed snapshot:
-   - `node bin/vanguard.js lseg reconcile IBM.N FY2024` — asserts Gross Profit =
+   - `node bin/vanguard.js lseg reconcile IBM.N FY2024`, asserts Gross Profit =
      Revenue − Cost of Revenue and hash-chains the result.
    - or via MCP: `run_control PI1.1-lseg-gross-profit-reconciliation`.
 
 Field codes are validated against the warehouse dictionary (`lseg_fields`) at
-ingest time too — an unknown code is refused with a pointer back to lseg-mcp, so
+ingest time too, an unknown code is refused with a pointer back to lseg-mcp, so
 the "real identifiers" half of the claim discipline holds at the boundary.
 
 ## Claim discipline
 
 The RICs and `TR.*` field codes are real LSEG identifiers; the seeded values are
 synthetic and labelled synthetic (see `db/lseg-anchor.md`). Swapping in a real
-`RealLsegSession` is the only change needed to attest genuine LSEG data — the
+`RealLsegSession` is the only change needed to attest genuine LSEG data, the
 guard, grounding, and audit chain do not change.

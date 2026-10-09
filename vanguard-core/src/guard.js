@@ -1,5 +1,5 @@
 /**
- * The SQL guard — the security boundary between a language model and a
+ * The SQL guard, the security boundary between a language model and a
  * database.
  *
  * The product claim is "the model generates SQL, the data returns the answer."
@@ -13,7 +13,7 @@
  *    `SELECT 1; DROP TABLE customers`, by a leading comment, by a CTE that
  *    wraps a DELETE, and by a dozen other shapes nobody thinks of up front.
  *    This module parses the statement into an AST and inspects that. A
- *    statement that does not parse is rejected — if we cannot describe what it
+ *    statement that does not parse is rejected, if we cannot describe what it
  *    does, we cannot call it safe.
  *
  * 2. Defence in depth. This guard is the second line, not the only one: the
@@ -168,7 +168,7 @@ export function guard(sql, options = {}) {
     const trimmed = sql.trim().replace(/;\s*$/, '');
 
     // A single trailing semicolon is normal and stripped above. One that
-    // survives means a second statement follows it — the classic injection
+    // survives means a second statement follows it, the classic injection
     // shape, and the reason this check precedes parsing. The scan runs on a
     // copy with string literals and comments blanked out, so a semicolon inside
     // a value like `WHERE ticker = 'BRK;A'` is not mistaken for a separator.
@@ -249,7 +249,7 @@ export function guard(sql, options = {}) {
     // demo is unaffected; a warehouse with sensitive columns (PII, a book it
     // must not cross) turns it on to keep a generated query away from them.
     // columnList entries are shaped 'operation::table::column' and cover columns
-    // in SELECT, JOIN, WHERE, GROUP BY and ORDER BY alike — so a forbidden
+    // in SELECT, JOIN, WHERE, GROUP BY and ORDER BY alike, so a forbidden
     // column cannot be reached by filtering on it either.
     const columnsReferenced = [];
     if (allowedColumns) {
@@ -261,7 +261,7 @@ export function guard(sql, options = {}) {
         }
         // Output aliases (SELECT ... AS x) are names the query defines, not
         // stored columns; a HAVING or ORDER BY that refers to one must not be
-        // read as touching a forbidden column — the same treatment CTE names get.
+        // read as touching a forbidden column, the same treatment CTE names get.
         const aliases = new Set();
         for (const column of statement.columns ?? []) {
             if (column && typeof column.as === 'string' && column.as) aliases.add(column.as.toLowerCase());
@@ -272,7 +272,7 @@ export function guard(sql, options = {}) {
             if (column === '(.*)') {
                 throw new SqlRejected(
                     'wildcard_not_allowed',
-                    'A column allow-list is in force, so SELECT * is refused — name the columns explicitly.',
+                    'A column allow-list is in force, so SELECT * is refused, name the columns explicitly.',
                 );
             }
             const table = rawTable && rawTable !== 'null' ? rawTable.toLowerCase() : null;
@@ -294,7 +294,7 @@ export function guard(sql, options = {}) {
 
     // Injected predicates. A principal's scope (`column = value`) and an as-of
     // cutoff (`column <= value`) are AND-ed into the top-level WHERE, each value
-    // bound as a parameter — sqlify does not escape string literals, so a value
+    // bound as a parameter, sqlify does not escape string literals, so a value
     // must never be inlined. Injected after column extraction, so an injected
     // column is not itself subject to the column allow-list. With neither, the
     // original text is returned untouched, preserving lineage fidelity. The

@@ -1,17 +1,17 @@
 /**
- * Numeric grounding — the check that makes the central claim testable.
+ * Numeric grounding, the check that makes the central claim testable.
  *
  * The thesis is "nothing is hallucinated into the output". Scoping the model
  * to SQL generation gets most of the way there: the figures come from the
  * warehouse. But the moment you ask a model to *narrate* a result set, it can
- * introduce a number that was never in the data — a total it summed wrong, a
+ * introduce a number that was never in the data, a total it summed wrong, a
  * percentage it estimated, a prior-year comparison nobody queried. That
  * sentence reads exactly like the true ones around it.
  *
  * So the narration is verified rather than trusted. Every number in the prose
  * is extracted and matched against the values the query actually returned. A
  * number with no source is reported. The pipeline then decides what to do with
- * it — this module only establishes the fact.
+ * it, this module only establishes the fact.
  *
  * ── Matching rules ────────────────────────────────────────────────────────
  *
@@ -36,7 +36,7 @@
  * Tolerance is *half a unit in the last expressed place*, which is exactly the
  * rounding rule a human follows. "36.7%" admits anything in [36.65, 36.75);
  * "$1.2M" admits [1.15M, 1.25M). This is stricter than a flat percentage for
- * precise figures and looser for deliberately rounded ones — the behaviour you
+ * precise figures and looser for deliberately rounded ones, the behaviour you
  * want in both directions.
  */
 
@@ -53,7 +53,7 @@ const DATE_PATTERN = /\b\d{4}-\d{2}(?:-\d{2})?\b/g;
  *
  * Two details are load-bearing:
  *
- *   The leading lookbehind rejects digits attached to a label — the "1" in
+ *   The leading lookbehind rejects digits attached to a label, the "1" in
  *   "Q1" or "H2" is a period name, not a claim that something equals one.
  *
  *   Comma groups must be exactly three digits (`1,200`), so a comma that is
@@ -83,7 +83,7 @@ function unitOf(text) {
  * Parse one prose number into its value, the precision it was written to, and
  * the unit it was expressed in.
  *
- * `ulp` is the unit in the last place — the granularity the writer expressed.
+ * `ulp` is the unit in the last place, the granularity the writer expressed.
  * For "36.7" that is 0.1; for "563K" it is 1000; for "42" it is 1.
  *
  * @param {string} raw
@@ -163,7 +163,7 @@ const PERCENT_TO_BPS = ['percent_to_bps', (v) => v * 100];
 
 /**
  * The transforms worth trying for a figure written in a given unit. Narrower
- * than "all of them" on purpose — see the module header on false positives.
+ * than "all of them" on purpose, see the module header on false positives.
  *
  * @param {string} unit
  * @returns {Array<[string, (v: number) => number]>}

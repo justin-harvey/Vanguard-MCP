@@ -3,7 +3,7 @@
  *
  * The log's value rests on one property: a past entry cannot be changed
  * without detection. These tests tamper with a written log and assert the
- * tampering is found — including the subtle cases (deleting a middle entry,
+ * tampering is found, including the subtle cases (deleting a middle entry,
  * rewriting an entry's own hash to match its new content).
  */
 
@@ -67,7 +67,7 @@ test('recomputing the edited entry hash still breaks the chain', () => {
     seedThree(path);
 
     // A tamperer who knows the scheme fixes the entry's own hash. That makes
-    // entry 0 self-consistent, but entry 1 still points at the old hash — the
+    // entry 0 self-consistent, but entry 1 still points at the old hash, the
     // break simply moves one position along.
     const entries = readLog(path);
     entries[0].rowCount = 9999;

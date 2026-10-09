@@ -1,4 +1,4 @@
-# Vanguard MCP — M7 deployment (proxy + engine)
+# Vanguard MCP, M7 deployment (proxy + engine)
 
 The browser never touches the engine or the warehouse. It calls a Supabase Edge
 Function (`functions/query`), which verifies the caller's role, gates which tool
@@ -26,15 +26,15 @@ container). Build/run:
 ```bash
 cd vanguard-core
 npm ci
-node bin/vanguard.js seed        # + markets seed, enron seed — build the warehouses
+node bin/vanguard.js seed        # + markets seed, enron seed, build the warehouses
 ENGINE_SERVICE_TOKEN=<long-random> PORT=8787 node bin/vanguard.js serve
 ```
 
-- `ENGINE_SERVICE_TOKEN` — required in production; every non-`/health` route
+- `ENGINE_SERVICE_TOKEN`, required in production; every non-`/health` route
   demands `Authorization: Bearer <token>`.
-- `ANTHROPIC_API_KEY` — only needed if you expose `execute_financial_query`
+- `ANTHROPIC_API_KEY`, only needed if you expose `execute_financial_query`
   (free-text). The control/canonical tools need no credential.
-- `VANGUARD_SIGNING_KEY` / `VANGUARD_SIGNING_KEY_FILE` — optional Ed25519 key to sign
+- `VANGUARD_SIGNING_KEY` / `VANGUARD_SIGNING_KEY_FILE`, optional Ed25519 key to sign
   attestations. Keep it off the client and out of the repo.
 - The audit chain is an append-only JSONL file, so give the host a persistent
   volume (single instance for now; move the chain to Postgres before scaling out).
@@ -64,13 +64,13 @@ it the proxy URL. Set it (e.g. in the page or an injected script):
 ```
 
 With that set, the panel's **Re-run live** buttons call the proxy and render the
-live result — the payload shape is identical to the embedded data, so nothing
+live result, the payload shape is identical to the embedded data, so nothing
 else in the UI changes.
 
 ## Trust boundary
 
 - Secrets (`ENGINE_SERVICE_TOKEN`, `ANTHROPIC_API_KEY`, the signing key, warehouse
-  credentials) live on the engine host and the proxy's secret store — never in
+  credentials) live on the engine host and the proxy's secret store, never in
   the browser.
 - The proxy sanitises arguments, so a caller cannot point a control at an
   arbitrary path; it only forwards the fields each tool legitimately takes.

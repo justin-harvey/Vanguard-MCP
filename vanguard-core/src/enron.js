@@ -4,7 +4,7 @@
  * The SaaS demo shows the engine works; the markets demo shows it where a number
  * has to face a regulator. This shows it against a case where the reported
  * numbers and the underlying reality had famously come apart: Enron's FY2000
- * 10-K. Two scenarios reconstruct the two mechanics of that gap —
+ * 10-K. Two scenarios reconstruct the two mechanics of that gap,
  *
  *   1. revenue booked GROSS (full trade notional) to make $40bn look like
  *      $100bn, versus the far smaller net merchant margin actually earned;
@@ -13,7 +13,7 @@
  *
  * Both compute the reported figure and the underlying figure in a single guarded
  * query, ground each against the returned rows, and append a signed, hash-chained
- * audit entry — so the gap between "as reported" and "what the rows support" is
+ * audit entry, so the gap between "as reported" and "what the rows support" is
  * itself an attested, tamper-evident record.
  *
  * Data discipline: the AGGREGATES reconcile to Enron's real reported figures
@@ -41,7 +41,7 @@ export const ENRON_SCHEMA_PATH = join(here, '..', 'db', 'enron-schema.sql');
 export const ENRON_DB_PATH = join(here, '..', 'db', 'enron.db');
 export const ENRON_LOG_PATH = join(here, '..', 'db', 'enron-audit.jsonl');
 
-/** The fiscal year the scenarios default to — Enron's last full year reported. */
+/** The fiscal year the scenarios default to, Enron's last full year reported. */
 export const FISCAL_YEAR = 2000;
 
 /** The filing every real anchor figure is cited to. */
@@ -92,16 +92,16 @@ const ENTITIES = [
  * income. Enron entity (id 1). All figures USD millions.
  */
 const REVENUE_TRANSACTIONS = [
-    // FY2000 — total gross 100,789 (reported total revenues), net 1,953 (operating income).
-    { fy: 2000, segment: 'natural gas', counterparty: 'EnronOnline — Henry Hub gas supply', gross: 30_300, net: 540 },
+    // FY2000, total gross 100,789 (reported total revenues), net 1,953 (operating income).
+    { fy: 2000, segment: 'natural gas', counterparty: 'EnronOnline, Henry Hub gas supply', gross: 30_300, net: 540 },
     { fy: 2000, segment: 'natural gas', counterparty: 'West-coast gas trading book', gross: 20_200, net: 360 },
     { fy: 2000, segment: 'electricity', counterparty: 'California ISO power sales', gross: 20_000, net: 420 },
     { fy: 2000, segment: 'electricity', counterparty: 'PJM merchant power book', gross: 13_823, net: 280 },
     { fy: 2000, segment: 'metals', counterparty: 'MG plc metals trading (London)', gross: 9_234, net: 150 },
     { fy: 2000, segment: 'other', counterparty: 'Broadband intermediation', gross: 4_000, net: 100 },
     { fy: 2000, segment: 'other', counterparty: 'Weather & other derivatives', gross: 3_232, net: 103 },
-    // FY1999 — total gross 40,112, net 802. No metals segment yet.
-    { fy: 1999, segment: 'natural gas', counterparty: 'EnronOnline — Henry Hub gas supply', gross: 19_536, net: 400 },
+    // FY1999, total gross 40,112, net 802. No metals segment yet.
+    { fy: 1999, segment: 'natural gas', counterparty: 'EnronOnline, Henry Hub gas supply', gross: 19_536, net: 400 },
     { fy: 1999, segment: 'electricity', counterparty: 'California ISO power sales', gross: 15_238, net: 300 },
     { fy: 1999, segment: 'other', counterparty: 'Broadband intermediation', gross: 5_338, net: 102 },
 ];
@@ -145,7 +145,7 @@ const REPORTED_FINANCIALS = [
 
 /**
  * Build the Enron warehouse: schema plus the deterministic synthetic activity
- * above. No randomness — every row is authored so the aggregates reconcile
+ * above. No randomness, every row is authored so the aggregates reconcile
  * exactly to the real reported figures.
  *
  * @param {string} [path]
@@ -196,7 +196,7 @@ export function seedEnron(path = ENRON_DB_PATH) {
 const guardOptions = { allowedTables: ENRON_ALLOWED_TABLES, allowedColumns: ENRON_ALLOWED_COLUMNS };
 
 /**
- * Scenario 1 — revenue as reported (gross) versus merchant revenue (net margin).
+ * Scenario 1, revenue as reported (gross) versus merchant revenue (net margin).
  *
  * Computes both figures in one guarded query using the canonical metrics, so the
  * gross-vs-net gap that turned $40bn into $100bn is a grounded, attested result.
@@ -239,7 +239,7 @@ export function revenueByBasis({
 }
 
 /**
- * Scenario 2 — reported debt versus true debt including off-balance-sheet SPEs.
+ * Scenario 2, reported debt versus true debt including off-balance-sheet SPEs.
  *
  * One guarded query returns both the on-balance-sheet total (which reconciles to
  * the reported $10,229m) and the total across every entity, so the hidden
@@ -283,7 +283,7 @@ export function debtWithHiddenLeverage({
 }
 
 /**
- * Reconciliation query — the reported debt computed from the ledger versus the
+ * Reconciliation query, the reported debt computed from the ledger versus the
  * figure as filed in the 10-K, both in one attested statement. Two scalar
  * subqueries (one per table) rather than a UNION, because the guard's column
  * allow-list resolves scalar-subquery columns but rejects a union's synthesised
@@ -330,7 +330,7 @@ export function reconcileReportedDebt({
 }
 
 /**
- * Reconciliation query — gross revenue computed from the deal ledger versus the
+ * Reconciliation query, gross revenue computed from the deal ledger versus the
  * total revenues figure as filed in the 10-K, in one attested statement. A
  * processing-integrity control passes only when they tie out; a variance means
  * the booked deals no longer sum to what was reported.

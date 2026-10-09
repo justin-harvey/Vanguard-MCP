@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * vanguard — command line for the Vanguard MCP core.
+ * vanguard, command line for the Vanguard MCP core.
  *
  *   vanguard seed                        build the demo warehouse
  *   vanguard ask "question"              answer a question, record the lineage
@@ -103,7 +103,7 @@ async function main() {
                 `Seeded warehouse: ${result.customers} customers, ` +
                     `${result.movements} MRR movements, ${result.spendRows} spend rows.`,
             );
-            console.log('Data is synthetic and deterministic — the same seed always produces the same rows.');
+            console.log('Data is synthetic and deterministic, the same seed always produces the same rows.');
             break;
         }
 
@@ -198,7 +198,7 @@ async function main() {
 
             const integrity = verify(undefined, { verifier });
             console.log(
-                `Audit chain: ${integrity.entries} entries — ${integrity.ok ? 'INTACT' : 'BROKEN'}` +
+                `Audit chain: ${integrity.entries} entries, ${integrity.ok ? 'INTACT' : 'BROKEN'}` +
                     `${verifier ? ' (signatures checked)' : ''}`,
             );
             if (!integrity.ok) {
@@ -248,7 +248,7 @@ async function main() {
                 }
                 case 'surveillance': {
                     const { rows, entry } = surveillanceRapidCancels({ signer });
-                    console.log('\nMarket-abuse surveillance — rapid place-and-cancel (spoofing/layering)\n');
+                    console.log('\nMarket-abuse surveillance, rapid place-and-cancel (spoofing/layering)\n');
                     if (rows.length === 0) {
                         console.log('  No accounts breached the threshold.');
                     } else {
@@ -264,7 +264,7 @@ async function main() {
                     const verifier = signer ? { publicKey: signer.publicKey } : null;
                     const integrity = verify(MARKETS_LOG_PATH, { verifier });
                     console.log(
-                        `Markets audit chain: ${integrity.entries} entries — ${integrity.ok ? 'INTACT' : 'BROKEN'}` +
+                        `Markets audit chain: ${integrity.entries} entries, ${integrity.ok ? 'INTACT' : 'BROKEN'}` +
                             `${verifier ? ' (signatures checked)' : ''}`,
                     );
                     if (!integrity.ok) {
@@ -304,7 +304,7 @@ async function main() {
                 case 'revenue': {
                     const { rows, lineage, entry } = revenueByBasis({ signer });
                     const r = rows[0] ?? {};
-                    console.log(`\nFY${FISCAL_YEAR} revenue — as reported (gross) versus merchant margin (net)\n`);
+                    console.log(`\nFY${FISCAL_YEAR} revenue, as reported (gross) versus merchant margin (net)\n`);
                     printRows(rows);
                     console.log(
                         `\n  Reported gross revenue : $${Number(r.revenue_gross_usd_millions).toLocaleString('en-US')}m` +
@@ -325,7 +325,7 @@ async function main() {
                             publicKey: signer?.publicKey ?? null,
                             control: controlResult({
                                 controlId: 'PI1.1',
-                                criterion: 'Processing Integrity — revenue recognised on the correct basis',
+                                criterion: 'Processing Integrity, revenue recognised on the correct basis',
                                 description: `FY${FISCAL_YEAR} revenue as reported (gross) versus merchant margin (net).`,
                                 status: CONTROL_STATUS.PASS,
                                 figures: [
@@ -340,7 +340,7 @@ async function main() {
                 case 'debt': {
                     const { rows, lineage, entry } = debtWithHiddenLeverage({ signer });
                     const r = rows[0] ?? {};
-                    console.log(`\nFY${FISCAL_YEAR} debt — reported versus true, including off-balance-sheet SPEs\n`);
+                    console.log(`\nFY${FISCAL_YEAR} debt, reported versus true, including off-balance-sheet SPEs\n`);
                     printRows(rows);
                     console.log(
                         `\n  Reported debt          : $${Number(r.reported_debt_usd_millions).toLocaleString('en-US')}m` +
@@ -362,7 +362,7 @@ async function main() {
                             publicKey: signer?.publicKey ?? null,
                             control: controlResult({
                                 controlId: 'PI1.2',
-                                criterion: 'Processing Integrity — reported figures reconcile to underlying records',
+                                criterion: 'Processing Integrity, reported figures reconcile to underlying records',
                                 description: `FY${FISCAL_YEAR} reported debt versus true debt including off-balance-sheet SPEs.`,
                                 status: CONTROL_STATUS.PASS,
                                 figures: [
@@ -378,7 +378,7 @@ async function main() {
                     const verifier = signer ? { publicKey: signer.publicKey } : null;
                     const integrity = verify(ENRON_LOG_PATH, { verifier });
                     console.log(
-                        `Enron audit chain: ${integrity.entries} entries — ${integrity.ok ? 'INTACT' : 'BROKEN'}` +
+                        `Enron audit chain: ${integrity.entries} entries, ${integrity.ok ? 'INTACT' : 'BROKEN'}` +
                             `${verifier ? ' (signatures checked)' : ''}`,
                     );
                     if (!integrity.ok) {
@@ -439,7 +439,7 @@ async function main() {
                 case 'fundamentals': {
                     const { rows, lineage, entry } = fundamentalsSnapshot({ ric, period, asOf, signer });
                     const r = rows[0] ?? {};
-                    console.log(`\n${ric} ${period} — fundamentals snapshot (LSEG TR.* fields)${asOf ? ` — as of ${asOf}` : ''}\n`);
+                    console.log(`\n${ric} ${period}, fundamentals snapshot (LSEG TR.* fields)${asOf ? `, as of ${asOf}` : ''}\n`);
                     console.log(`  Revenue            : ${usdW(r.revenue_usd)}   (TR.Revenue)`);
                     console.log(`  Cost of revenue    : ${usdW(r.cost_of_revenue_usd)}   (TR.CostOfRevenueTotal)`);
                     console.log(`  Gross profit       : ${usdW(r.gross_profit_usd)}   (TR.GrossProfit)`);
@@ -456,7 +456,7 @@ async function main() {
                     const { rows, lineage, entry } = reconcileGrossProfit({ ric, period, asOf, signer });
                     const r = rows[0] ?? {};
                     // Coverage first: an absent component (presence 0, or a NULL
-                    // field-keyed sum) is not computable — report N/A, never a
+                    // field-keyed sum) is not computable, report N/A, never a
                     // false PASS on a 0 that only means "we have no data".
                     const absent = [
                         ['Revenue', r.revenue_present],
@@ -480,7 +480,7 @@ async function main() {
                         : isMixed || variance !== 0
                             ? CONTROL_STATUS.EXCEPTION
                             : CONTROL_STATUS.PASS;
-                    console.log(`\n${ric} ${period} — gross profit reconciliation${asOf ? ` — as of ${asOf}` : ''}\n`);
+                    console.log(`\n${ric} ${period}, gross profit reconciliation${asOf ? `, as of ${asOf}` : ''}\n`);
                     if (isNA) {
                         const detail = absent.length > 0 ? `absent: ${absent.join(', ')}` : 'a required figure is absent';
                         console.log(`  Coverage                  : ⚠ N/A   (${detail})`);
@@ -503,10 +503,10 @@ async function main() {
                             figures = [
                                 { label: 'Gross profit (Revenue − Cost of Revenue)', value: r.identity_gross_usd ?? null, unit: 'usd' },
                                 { label: 'Gross profit (reported, TR.GrossProfit)', value: r.reported_gross_usd ?? null, unit: 'usd' },
-                                { label: 'Coverage', value: `N/A — ${absent.length > 0 ? `absent: ${absent.join(', ')}` : 'a required figure is absent'}` },
+                                { label: 'Coverage', value: `N/A, ${absent.length > 0 ? `absent: ${absent.join(', ')}` : 'a required figure is absent'}` },
                             ];
                         } else if (isMixed) {
-                            exception = `cannot reconcile across mixed ${mixed.join(', ')} — normalise to one currency/scale/periodicity first`;
+                            exception = `cannot reconcile across mixed ${mixed.join(', ')}, normalise to one currency/scale/periodicity first`;
                             figures = [
                                 { label: 'Gross profit (Revenue − Cost of Revenue)', value: identity, unit: 'usd' },
                                 { label: 'Gross profit (reported, TR.GrossProfit)', value: reported, unit: 'usd' },
@@ -526,7 +526,7 @@ async function main() {
                             publicKey: signer?.publicKey ?? null,
                             control: controlResult({
                                 controlId: 'PI1.1',
-                                criterion: 'Processing Integrity — vendor figures reconcile to their component line items',
+                                criterion: 'Processing Integrity, vendor figures reconcile to their component line items',
                                 description: `${ric} ${period} gross profit: Revenue − Cost of Revenue vs reported TR.GrossProfit.`,
                                 status,
                                 exception,
@@ -560,7 +560,7 @@ async function main() {
                         : isMixed || variance !== 0
                             ? CONTROL_STATUS.EXCEPTION
                             : CONTROL_STATUS.PASS;
-                    console.log(`\n${ric} ${period} — gross profit: standardized (COA) vs as-reported${asOf ? ` — as of ${asOf}` : ''}\n`);
+                    console.log(`\n${ric} ${period}, gross profit: standardized (COA) vs as-reported${asOf ? `, as of ${asOf}` : ''}\n`);
                     if (isNA) {
                         console.log(`  Coverage                  : ⚠ N/A   (absent: ${absent.join(', ')})`);
                     } else if (isMixed) {
@@ -588,7 +588,7 @@ async function main() {
                     const to = toIdx >= 0 ? rest[toIdx + 1] : null;
                     const { rows, lineage, entry } = priceCloseSeries({ ric, from, to, signer });
                     const span = from || to ? `  ${from ?? '…'}..${to ?? '…'}` : '';
-                    console.log(`\n${ric} — closing-price series (LSEG TR.PriceClose, get_history grain)${span}\n`);
+                    console.log(`\n${ric}, closing-price series (LSEG TR.PriceClose, get_history grain)${span}\n`);
                     if (rows.length === 0) {
                         console.log('  (no prices for this instrument/range)');
                     } else {
@@ -613,7 +613,7 @@ async function main() {
                         universe.push(rest[i]);
                     }
                     if (universe.length === 0) universe.push('IBM.N');
-                    // Fundamentals only — TR.PriceClose is a Pricing time series
+                    // Fundamentals only, TR.PriceClose is a Pricing time series
                     // (finding #6) and ingests via the history path, not here.
                     const fields = [
                         'TR.Revenue', 'TR.CostOfRevenueTotal', 'TR.GrossProfit', 'TR.OperatingIncome',
@@ -641,21 +641,21 @@ async function main() {
                 case 'retention': {
                     // Cache retention + licensing-tag governance (finding #7).
                     const report = retentionReport({ asOf });
-                    console.log(`\nLSEG cache retention & licensing tags${asOf ? ` — as of ${asOf}` : ''}\n`);
+                    console.log(`\nLSEG cache retention & licensing tags${asOf ? `, as of ${asOf}` : ''}\n`);
                     for (const s of report.sources) {
-                        const ttl = s.ttlSet ? `${s.retentionDays}d` : '—';
-                        console.log(`  ${(s.usageClass ?? 'UNTAGGED').padEnd(12)} TTL ${ttl.padStart(5)}  rows ${String(s.rows).padStart(3)}  stale ${String(s.stale).padStart(3)}  oldest ${s.oldest ?? '—'}`);
+                        const ttl = s.ttlSet ? `${s.retentionDays}d` : ', ';
+                        console.log(`  ${(s.usageClass ?? 'UNTAGGED').padEnd(12)} TTL ${ttl.padStart(5)}  rows ${String(s.rows).padStart(3)}  stale ${String(s.stale).padStart(3)}  oldest ${s.oldest ?? ', '}`);
                         console.log(`      ${s.source}`);
                     }
                     if (report.ok) {
-                        console.log('\n  ✓ PASS — every source tagged, TTL set, nothing held past it');
+                        console.log('\n  ✓ PASS, every source tagged, TTL set, nothing held past it');
                     } else {
                         const gaps = [
                             report.untagged.length ? `${report.untagged.length} untagged` : null,
                             report.missingTtl.length ? `${report.missingTtl.length} no-TTL` : null,
                             report.staleTotal ? `${report.staleTotal} past TTL` : null,
                         ].filter(Boolean).join(', ');
-                        console.log(`\n  ✗ EXCEPTION — data-governance gap(s): ${gaps}`);
+                        console.log(`\n  ✗ EXCEPTION, data-governance gap(s): ${gaps}`);
                     }
                     if (rest.includes('--purge')) {
                         const purge = purgeExpired({ asOf });
@@ -668,20 +668,20 @@ async function main() {
                 case 'license': {
                     // The licensing/redistribution posture, read from the data_sources tags.
                     const report = retentionReport({});
-                    console.log('\nLSEG licensing / redistribution — sign off before a live key\n');
+                    console.log('\nLSEG licensing / redistribution, sign off before a live key\n');
                     for (const s of report.sources) {
                         console.log(`  - ${s.source}`);
-                        console.log(`      usage: ${s.usageClass ?? 'UNTAGGED'}   cache TTL: ${s.ttlSet ? s.retentionDays + ' days' : 'NOT SET'}   redistribution: ${s.redistribution ?? '—'}`);
+                        console.log(`      usage: ${s.usageClass ?? 'UNTAGGED'}   cache TTL: ${s.ttlSet ? s.retentionDays + ' days' : 'NOT SET'}   redistribution: ${s.redistribution ?? ', '}`);
                     }
                     console.log('\n  Full sign-off checklist: vanguard-core/db/lseg-licensing.md');
-                    console.log('  These tags encode a policy; they do not grant a right — confirm terms against the LSEG agreement.');
+                    console.log('  These tags encode a policy; they do not grant a right, confirm terms against the LSEG agreement.');
                     break;
                 }
                 case 'audit': {
                     const verifier = signer ? { publicKey: signer.publicKey } : null;
                     const integrity = verify(LSEG_LOG_PATH, { verifier });
                     console.log(
-                        `LSEG audit chain: ${integrity.entries} entries — ${integrity.ok ? 'INTACT' : 'BROKEN'}` +
+                        `LSEG audit chain: ${integrity.entries} entries, ${integrity.ok ? 'INTACT' : 'BROKEN'}` +
                             `${verifier ? ' (signatures checked)' : ''}`,
                     );
                     if (!integrity.ok) {
@@ -721,7 +721,7 @@ async function main() {
                     for (const c of controlCatalog()) {
                         console.log(`  ${c.id}`);
                         console.log(`    ${c.criterion}`);
-                        console.log(`    warehouse: ${c.warehouse} — ${c.description}\n`);
+                        console.log(`    warehouse: ${c.warehouse}, ${c.description}\n`);
                     }
                     break;
                 }
@@ -742,7 +742,7 @@ async function main() {
                         process.exitCode = 2;
                         return;
                     }
-                    console.log(`\n${control.controlId} — ${control.criterion}`);
+                    console.log(`\n${control.controlId}, ${control.criterion}`);
                     console.log(`  status: ${control.status}${control.exception ? `  (${control.exception})` : ''}\n`);
                     for (const f of control.figures) {
                         console.log(`  ${f.label.padEnd(32)} ${f.value}${f.unit ? ' ' + f.unit : ''}`);
@@ -757,7 +757,7 @@ async function main() {
                     if (out && entry) {
                         writePacket(out, { control, rows, entry, publicKey: signer?.publicKey ?? null });
                     } else if (out) {
-                        console.log('\n  (this control verifies an existing chain; the chain itself is the evidence — no query packet)');
+                        console.log('\n  (this control verifies an existing chain; the chain itself is the evidence, no query packet)');
                     }
                     if (control.status !== CONTROL_STATUS.PASS) process.exitCode = 1;
                     break;
@@ -779,7 +779,7 @@ async function main() {
             await startApiServer({ port });
             const authed = Boolean(process.env.ENGINE_SERVICE_TOKEN);
             console.error(
-                `vanguard HTTP API on :${port} — ${authed ? 'bearer-token required' : 'NO TOKEN (dev; set ENGINE_SERVICE_TOKEN)'}. ` +
+                `vanguard HTTP API on :${port}, ${authed ? 'bearer-token required' : 'NO TOKEN (dev; set ENGINE_SERVICE_TOKEN)'}. ` +
                     `Routes: GET /health, GET /tools, POST /tools/<name>, GET /resources.`,
             );
             break;
@@ -793,7 +793,7 @@ async function main() {
                 // The stdio transport keeps the process alive to serve requests.
             } catch (error) {
                 if (error.code === 'ERR_MODULE_NOT_FOUND') {
-                    console.error('The MCP server needs @modelcontextprotocol/sdk — run `npm install` first.');
+                    console.error('The MCP server needs @modelcontextprotocol/sdk, run `npm install` first.');
                     process.exitCode = 1;
                     return;
                 }

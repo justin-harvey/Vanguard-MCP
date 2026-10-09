@@ -5,9 +5,9 @@
 -- historical reporting gap, this one shows it against *vendor market data*: the
 -- kind of company fundamentals an analyst pulls from LSEG (London Stock Exchange
 -- Group, formerly Refinitiv) by `TR.*` field code through the `lseg-data`
--- library. The thesis lands the same way — a figure the vendor reports set
+-- library. The thesis lands the same way, a figure the vendor reports set
 -- against what the underlying line items support, reconciled in one guarded
--- query and hash-chained — but now the source is a live financial-data feed.
+-- query and hash-chained, but now the source is a live financial-data feed.
 --
 -- Where the data comes from. LSEG fundamentals are addressed by field code
 -- (`TR.Revenue`, `TR.GrossProfit`, ...) and returned by `lseg.data.get_data`.
@@ -18,22 +18,22 @@
 -- Grain and units: one row per (instrument, field, reporting period) in
 -- `fundamentals`. Money is stored as an INTEGER in the field's native minor-free
 -- unit recorded on the field itself (monetary line items in whole USD; a price
--- in USD cents; a ratio in basis points) — the same float-free discipline the
+-- in USD cents; a ratio in basis points), the same float-free discipline the
 -- other warehouses keep, generalised because LSEG fields are heterogeneous.
 --
 -- Claim discipline (see db/lseg-anchor.md): the instrument RICs and the `TR.*`
--- field codes are REAL LSEG identifiers and must stay accurate — validate them
+-- field codes are REAL LSEG identifiers and must stay accurate, validate them
 -- through lseg-mcp before any real ingest. The *values* in `fundamentals` are
 -- SYNTHETIC and labelled synthetic (no LSEG entitlement is bundled), authored so
 -- the accounting identities hold exactly (Gross Profit = Revenue − Cost of
 -- Revenue). Real identifiers, fabricated values, fabrication labelled. Nothing
 -- here is investment advice or a claim about any real company's actual results.
 
--- The ENTITY (issuer/organization), keyed by its LSEG **Org PermID** — a
+-- The ENTITY (issuer/organization), keyed by its LSEG **Org PermID**, a
 -- permanent, opaque identifier (permid.org) that survives ticker changes,
 -- exchange moves and M&A. This is the correct key for entity-level data like
 -- company fundamentals: a RIC is not (see below). Org PermIDs are real LSEG
--- identifiers and must stay accurate — validate before real ingest, like the
+-- identifiers and must stay accurate, validate before real ingest, like the
 -- RICs and TR.* codes (see db/lseg-anchor.md).
 CREATE TABLE organizations (
     org_permid TEXT PRIMARY KEY,     -- LSEG Org PermID (e.g. '4295904307' = IBM)
@@ -45,8 +45,8 @@ CREATE TABLE organizations (
 -- an instrument *at a venue* (e.g. 'IBM.N' is IBM on the NYSE) and is **mutable**:
 -- a ticker rename, an exchange move, or an M&A event can reassign it. So here a
 -- RIC is an **alias** onto two stable PermIDs:
---   org_permid   — the ISSUER (entity), for entity-level fundamentals.
---   quote_permid — the QUOTE/instrument PermID, the stable quote-level key a
+--   org_permid, the ISSUER (entity), for entity-level fundamentals.
+--   quote_permid, the QUOTE/instrument PermID, the stable quote-level key a
 --                  price keys on (a price belongs to a listing at a venue, not to
 --                  the issuer). This is the deferred key from finding #1, landed
 --                  now with the pricing-grain fix (finding #6): pricing lives in
@@ -54,9 +54,9 @@ CREATE TABLE organizations (
 --                  `fundamentals`. Quote PermIDs must be real & validated before a
 --                  live ingest, like the RICs / Org PermIDs / TR.* codes.
 CREATE TABLE instruments (
-    ric          TEXT PRIMARY KEY,   -- Reuters Instrument Code — MUTABLE alias (instrument × venue)
+    ric          TEXT PRIMARY KEY,   -- Reuters Instrument Code, MUTABLE alias (instrument × venue)
     org_permid   TEXT NOT NULL REFERENCES organizations(org_permid),
-    quote_permid TEXT UNIQUE,        -- LSEG quote/instrument PermID — stable QUOTE-level key (pricing)
+    quote_permid TEXT UNIQUE,        -- LSEG quote/instrument PermID, stable QUOTE-level key (pricing)
     isin         TEXT,               -- ISIN, where applicable
     exchange     TEXT NOT NULL,      -- listing venue
     currency     TEXT NOT NULL       -- reporting/listing currency
@@ -79,7 +79,7 @@ CREATE TABLE lseg_fields (
 
 -- The fact table: one datapoint per (organization, field, reporting period,
 -- basis). Fundamentals are ENTITY-level, so they key on the stable **Org
--- PermID**, not on a RIC (a mutable quote alias) — the identifier fix in
+-- PermID**, not on a RIC (a mutable quote alias), the identifier fix in
 -- finding #1. To read by the familiar RIC, join through `instruments`
 -- (ric → org_permid). Each row carries the provenance an audit needs: which
 -- field code it came from, on which reporting basis, when it was retrieved, and
@@ -87,11 +87,11 @@ CREATE TABLE lseg_fields (
 -- declared on `lseg_fields.unit`.
 --
 -- `basis` distinguishes the two alignments LSEG offers for the same figure:
---   'standardized' — LSEG's Chart-of-Accounts (COA) model, every issuer mapped
+--   'standardized', LSEG's Chart-of-Accounts (COA) model, every issuer mapped
 --                    to a common template so figures compare across companies.
 --                    In this model Gross Profit (SGRP) is *defined* as
 --                    Revenue (SREV) − Cost of Revenue (SCOR).
---   'as_reported'  — the figure as the company itself presented it in the
+--   'as_reported', the figure as the company itself presented it in the
 --                    filing, before LSEG's normalisation reclassifies line items.
 -- The two can diverge when LSEG's standardisation moves an item across the
 -- gross-profit line, which is exactly what makes a standardized-vs-as-reported
@@ -102,21 +102,21 @@ CREATE TABLE lseg_fields (
 -- Field PARAMETERS on the grain (finding #2). A TR.* value is only meaningful
 -- alongside the parameters the request carried; a bare number silently produces
 -- wrong answers when they differ. So each row records them explicitly:
---   currency        — the `Curn` a monetary value is in. Revenue − Cost is only
+--   currency, the `Curn` a monetary value is in. Revenue − Cost is only
 --                     valid within one currency at one FX basis. Reconciliations
 --                     REFUSE to combine mixed currencies (see lseg.js).
---   scale           — LSEG's `Scale`: a power of ten, so actual = value * 10^scale
+--   scale, LSEG's `Scale`: a power of ten, so actual = value * 10^scale
 --                     (0 = raw/full units). Storing a scaled value without its
 --                     scale is a 10^n magnitude error waiting to happen.
---   periodicity     — the `Period` shape: 'FY' (annual) | 'FQ' (quarter) | 'LTM'
+--   periodicity, the `Period` shape: 'FY' (annual) | 'FQ' (quarter) | 'LTM'
 --                     (trailing twelve months). You cannot reconcile across these.
---   reporting_state — 'original' | 'reported' | 'restated'. Which vintage of the
+--   reporting_state, 'original' | 'reported' | 'restated'. Which vintage of the
 --                     figure this row is (see the bitemporal model below).
 --
 -- Bitemporal model (finding #5). A fundamental has two time axes, and conflating
 -- them is what makes a legitimate restatement look like tampering:
---   period          — the fiscal period the figure is ABOUT (valid time).
---   knowledge_date  — the date the figure became KNOWN / as-reported (transaction
+--   period, the fiscal period the figure is ABOUT (valid time).
+--   knowledge_date, the date the figure became KNOWN / as-reported (transaction
 --                     time): when the vendor first published it, or republished a
 --                     restatement. Distinct from `retrieved_at`, which is merely
 --                     when WE pulled the row into this warehouse.
@@ -125,15 +125,15 @@ CREATE TABLE lseg_fields (
 -- default to the latest vintage known as of now; an as-of read reproduces a
 -- figure as it stood at a past knowledge date (see lseg.js). Because the prior
 -- vintage is retained rather than mutated, the hash-chained audit stays intact
--- across a restatement — a new knowledge-time fact, not an alteration of an old
--- one — so CC7.3 reproducibility survives the first time LSEG restates a number.
+-- across a restatement, a new knowledge-time fact, not an alteration of an old
+-- one, so CC7.3 reproducibility survives the first time LSEG restates a number.
 CREATE TABLE fundamentals (
     id           INTEGER PRIMARY KEY,
     org_permid   TEXT    NOT NULL REFERENCES organizations(org_permid),
     field_code   TEXT    NOT NULL REFERENCES lseg_fields(field_code),
-    period       TEXT    NOT NULL,   -- 'FY2023', 'FY2022', ... (Financial Period Absolute) — VALID time
+    period       TEXT    NOT NULL,   -- 'FY2023', 'FY2022', ... (Financial Period Absolute), VALID time
     value        INTEGER NOT NULL,   -- in lseg_fields.unit, before `scale`
-    currency     TEXT    NOT NULL,   -- `Curn` — currency of a monetary value, else the org's reporting currency
+    currency     TEXT    NOT NULL,   -- `Curn`, currency of a monetary value, else the org's reporting currency
     basis        TEXT    NOT NULL DEFAULT 'standardized',  -- 'standardized' (COA) | 'as_reported' (filing)
     scale        INTEGER NOT NULL DEFAULT 0,               -- `Scale`: actual = value * 10^scale
     periodicity  TEXT    NOT NULL DEFAULT 'FY',            -- 'FY' | 'FQ' | 'LTM'
@@ -181,9 +181,9 @@ CREATE INDEX idx_prices_quote ON prices(quote_permid, field_code, price_date);
 -- Rather than duplicate that policy on every fundamentals/prices row (the source
 -- string is constant per batch), it lives here once, keyed by the same `source`
 -- string those rows carry. The retention report/control (src/lseg-retention.js)
--- reads this to flag rows past their TTL and any source with no policy at all —
+-- reads this to flag rows past their TTL and any source with no policy at all,
 -- so no persisted vendor data is silently untagged. This encodes the policy; it
--- does not grant a right — the terms must be signed off against the actual LSEG
+-- does not grant a right, the terms must be signed off against the actual LSEG
 -- agreement before a live key (see db/lseg-licensing.md).
 CREATE TABLE data_sources (
     source         TEXT PRIMARY KEY,   -- matches fundamentals.source / prices.source

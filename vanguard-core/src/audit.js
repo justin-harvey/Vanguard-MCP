@@ -1,5 +1,5 @@
 /**
- * The audit log — append-only and tamper-evident.
+ * The audit log, append-only and tamper-evident.
  *
  * "Append-only" as a convention is worth very little: a file anyone can edit
  * is a file that can be quietly edited. What makes a log actually evidentiary
@@ -12,7 +12,7 @@
  * breaks. Deleting an entry from the middle breaks it in the same way.
  *
  * This is the same construction as the anchoring layer in TLaaS, minus the
- * on-chain step. It does not prevent tampering — nothing local can — it makes
+ * on-chain step. It does not prevent tampering, nothing local can, it makes
  * tampering impossible to hide, which is what an auditor actually needs.
  *
  * Storage is JSON Lines: one entry per line, appended, never rewritten.
@@ -138,7 +138,7 @@ export function verify(path = DEFAULT_LOG_PATH, { verifier = null } = {}) {
                 ok: false,
                 entries: entries.length,
                 brokenAt: index,
-                reason: `entry at position ${index} claims seq ${entry.seq} — an entry was removed or reordered`,
+                reason: `entry at position ${index} claims seq ${entry.seq}, an entry was removed or reordered`,
             };
         }
         if (verifier && entry.signature && !verifyHash(entry.hash, entry.signature, verifier.publicKey)) {
@@ -156,7 +156,7 @@ export function verify(path = DEFAULT_LOG_PATH, { verifier = null } = {}) {
 }
 
 /**
- * The chain head — the hash of the most recent entry, or null for an empty
+ * The chain head, the hash of the most recent entry, or null for an empty
  * log. This is the value an external anchor should publish.
  *
  * @param {string} [path]

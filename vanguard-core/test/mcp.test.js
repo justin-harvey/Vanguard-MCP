@@ -1,5 +1,5 @@
 /**
- * MCP handler tests — the tool and resource surface, exercised offline with no
+ * MCP handler tests, the tool and resource surface, exercised offline with no
  * SDK and no running server (the transport in mcp-server.js is the only thing
  * that needs the dependency). Covers a schema-resource read, the control tools,
  * a canonical query, audit verification, and the free-text tool's warehouse gate.

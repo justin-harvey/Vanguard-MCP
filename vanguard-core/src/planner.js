@@ -1,10 +1,10 @@
 /**
- * The planner — natural language in, SQL out.
+ * The planner, natural language in, SQL out.
  *
  * This is the only place a model is asked to produce something, and it is
  * asked for exactly one thing: a SELECT statement. It is never shown a row of
  * data and never asked for a figure, which means at this stage it is not
- * merely discouraged from inventing numbers — it has none to invent from.
+ * merely discouraged from inventing numbers, it has none to invent from.
  *
  * The output is constrained with a schema rather than parsed out of prose. A
  * model asked for "just the SQL" will, often enough to matter, return a
@@ -30,7 +30,7 @@ const PlanSchema = z.object({
         .string()
         .describe(
             'One or two sentences on how the question was interpreted: which metric definition was used, ' +
-                'what period was assumed, any ambiguity resolved. No figures — you have not seen the data.',
+                'what period was assumed, any ambiguity resolved. No figures, you have not seen the data.',
         ),
 });
 
@@ -66,7 +66,7 @@ Rules:
 - Return at most a few hundred rows. Aggregate rather than dumping raw rows.
 - Compute EVERY figure the answer will state INSIDE this query, returned as its own column.
   That includes derived figures: deltas, period-over-period growth, ratios, retention,
-  spreads, averages. Do not leave arithmetic for the narration to perform — a number the
+  spreads, averages. Do not leave arithmetic for the narration to perform, a number the
   query did not return cannot be verified against the data and will be rejected. For a
   "how much did X grow" question, return the start value, the end value, AND the computed
   change (and growth %, if asked) as separate columns. Round percentages/ratios in SQL to the
@@ -109,7 +109,7 @@ export async function plan(question, { client = new Anthropic(), model = MODEL }
         if (/Could not resolve authentication|apiKey or authToken/i.test(error?.message ?? '')) {
             throw new PlanningFailed(
                 'No Anthropic credential found. Set ANTHROPIC_API_KEY, or run `ant auth login`. ' +
-                    'Everything except planning and narration works without one — try `vanguard explain "SELECT ..."`.',
+                    'Everything except planning and narration works without one, try `vanguard explain "SELECT ..."`.',
                 error,
             );
         }
@@ -128,7 +128,7 @@ export async function plan(question, { client = new Anthropic(), model = MODEL }
         throw error;
     }
 
-    // A refusal is a normal response, not an exception — check before reading.
+    // A refusal is a normal response, not an exception, check before reading.
     if (response.stop_reason === 'refusal') {
         throw new PlanningFailed(
             `The model declined to answer (${response.stop_details?.category ?? 'unspecified'}).`,

@@ -1,7 +1,7 @@
 /**
  * The warehouse connector abstraction.
  *
- * Everything above this line — the guard, grounding, lineage, the audit chain —
+ * Everything above this line, the guard, grounding, lineage, the audit chain,
  * is independent of where the data actually lives. Today it lives in a local
  * `node:sqlite` file; in a real deployment it lives in Snowflake or BigQuery.
  * This interface is the seam that lets the engine target either without the
@@ -11,7 +11,7 @@
  *
  *   1. Read-only. A connector must not expose a way to mutate the warehouse.
  *   2. Bounded. Every query runs under a wall-clock budget and aborts if it
- *      exceeds it — LIMIT bounds rows, not work.
+ *      exceeds it, LIMIT bounds rows, not work.
  *
  * A connector exposes one method:
  *
@@ -56,14 +56,14 @@ export class SqliteWarehouse {
 }
 
 /**
- * The shape a cloud-warehouse adapter takes. Not a live integration — it exists
+ * The shape a cloud-warehouse adapter takes. Not a live integration, it exists
  * to pin the interface and to fail loudly and usefully if reached, so the seam
  * is real and documented rather than implied.
  *
  * A real implementation would open a read-only connection (a role with SELECT
  * and nothing else), translate `?` placeholders to the driver's binding style,
  * apply a statement timeout on the session, and map result rows to plain
- * objects — preserving the read-only and bounded contract above.
+ * objects, preserving the read-only and bounded contract above.
  */
 export class SnowflakeWarehouse {
     /** @param {object} [config] */
@@ -82,7 +82,7 @@ export class SnowflakeWarehouse {
             'SnowflakeWarehouse is an interface shape, not a live adapter. A real implementation ' +
                 'opens a read-only (SELECT-only role) connection, binds parameters in the driver\'s ' +
                 'style, sets STATEMENT_TIMEOUT_IN_SECONDS on the session, and returns plain-object ' +
-                'rows — honouring the read-only and bounded contract in warehouse.js.',
+                'rows, honouring the read-only and bounded contract in warehouse.js.',
         );
     }
 }

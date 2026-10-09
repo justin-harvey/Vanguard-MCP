@@ -19,7 +19,7 @@ import {
     DEFAULT_FIXTURE,
 } from '../src/lseg-ingest.js';
 
-// Fundamentals only — TR.PriceClose is a Pricing time series (finding #6) and is
+// Fundamentals only, TR.PriceClose is a Pricing time series (finding #6) and is
 // ingested via the history path, not ingestFundamentals.
 const FIELDS = [
     'TR.Revenue',
@@ -54,7 +54,7 @@ test('a fake session lands a new period, and the ingested data reconciles', () =
     assert.equal(result.datapoints, FIELDS.length);
 
     // The freshly ingested period flows through the guarded, grounded pipeline
-    // and satisfies the same gross-profit identity — a credential swap away from
+    // and satisfies the same gross-profit identity, a credential swap away from
     // real LSEG data doing the same.
     const { rows } = reconcileGrossProfit({ ric: 'IBM.N', period: 'FY2024', dbPath: db, logPath: join(mkdtempSync(join(tmpdir(), 'l-')), 'a.jsonl') });
     assert.equal(rows[0].identity_gross_usd, rows[0].reported_gross_usd);
@@ -100,7 +100,7 @@ test('ingest upserts an unseen instrument (a new RIC can be introduced)', () => 
     assert.equal(rows[0].identity_gross_usd, rows[0].reported_gross_usd);
 });
 
-test('ingestFundamentals refuses a Pricing field — it belongs in the history path (P7)', () => {
+test('ingestFundamentals refuses a Pricing field, it belongs in the history path (P7)', () => {
     const db = freshDb();
     assert.throws(
         () =>

@@ -1,5 +1,5 @@
 /**
- * Grounding tests — the ones that make the product claim testable.
+ * Grounding tests, the ones that make the product claim testable.
  *
  * "Nothing is hallucinated into the output" is either a property you can
  * demonstrate failing on hallucinated input, or it is marketing copy. These
@@ -81,11 +81,11 @@ test('accepts the row count as a quotable fact', () => {
 
 test('tolerance is half a unit in the last place written', () => {
     const rows = [{ v: 36.7241 }];
-    // 36.7 admits [36.65, 36.75) — 36.7241 is inside.
+    // 36.7 admits [36.65, 36.75), 36.7241 is inside.
     assert.ok(checkGrounding({ narration: 'It is 36.7.', rows }).ok);
-    // 36.72 admits [36.715, 36.725) — still inside.
+    // 36.72 admits [36.715, 36.725), still inside.
     assert.ok(checkGrounding({ narration: 'It is 36.72.', rows }).ok);
-    // 36.8 admits [36.75, 36.85) — outside, so flagged.
+    // 36.8 admits [36.75, 36.85), outside, so flagged.
     assert.equal(checkGrounding({ narration: 'It is 36.8.', rows }).ok, false);
 });
 

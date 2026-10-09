@@ -1,5 +1,5 @@
 /**
- * The stdio MCP transport — a thin adapter binding the pure handlers in mcp.js to
+ * The stdio MCP transport, a thin adapter binding the pure handlers in mcp.js to
  * the Model Context Protocol SDK. This is the only file in the project that
  * imports the SDK, and it is dynamically imported by the CLI, so the rest of the
  * engine and the entire test suite never need the dependency installed.
@@ -30,7 +30,7 @@ export async function startMcpServer() {
             return { content: [{ type: 'text', text: JSON.stringify(result, null, 2) }] };
         } catch (error) {
             // Surface the error to the caller as tool output rather than crashing
-            // the transport — a bad tool call is a normal outcome to report.
+            // the transport, a bad tool call is a normal outcome to report.
             return { isError: true, content: [{ type: 'text', text: String(error.message ?? error) }] };
         }
     });

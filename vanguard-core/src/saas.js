@@ -3,7 +3,7 @@
  *
  * The SaaS path is normally model-driven (`ask.js` has the planner write the
  * SQL). A control, though, needs a *blessed* query it can attest without an API
- * call and reproduce byte-for-byte — the same pattern markets.js and enron.js
+ * call and reproduce byte-for-byte, the same pattern markets.js and enron.js
  * already follow for their scenarios. This module is where those canonical SaaS
  * queries live, starting with the MRR reconciliation the PI control resolves to.
  */
@@ -28,13 +28,13 @@ export const SAAS_LOG_PATH = join(here, '..', 'db', 'saas-audit.jsonl');
  *     expansion/contraction adjustments the ledger records.
  *
  * On clean data these tie out exactly. Editing a subscription's MRR, or an
- * expansion movement, without its counterpart breaks the tie — which is the
+ * expansion movement, without its counterpart breaks the tie, which is the
  * whole point of a reconciliation control: the two sources are meant to be
  * derivable from each other, and a divergence is an exception a single figure
  * would never reveal.
  *
  * (There is no SaaS "filed" anchor to reconcile against the way the Enron
- * warehouse has a 10-K — so the two independent internal representations are the
+ * warehouse has a 10-K, so the two independent internal representations are the
  * honest thing to check here.)
  *
  * @param {object} [params]

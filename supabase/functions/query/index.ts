@@ -1,4 +1,4 @@
-// Vanguard MCP — the M7 secure proxy (Supabase Edge Function, Deno).
+// Vanguard MCP, the M7 secure proxy (Supabase Edge Function, Deno).
 //
 // The browser calls THIS; this calls the engine's HTTP API. The engine URL and
 // its service token live only here (server-side), so no secret and no direct
@@ -56,7 +56,7 @@ function roleFromAuth(authHeader: string | null): string {
   }
 }
 
-// Never forward raw client arguments to the engine — a caller must not be able
+// Never forward raw client arguments to the engine, a caller must not be able
 // to point a control at an arbitrary db/log path. Pass only the fields each tool
 // legitimately takes.
 function sanitize(tool: string, args: Record<string, unknown>): Record<string, unknown> {

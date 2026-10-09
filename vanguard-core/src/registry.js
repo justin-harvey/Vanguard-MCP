@@ -3,7 +3,7 @@
  *
  * A metric like "net position" or "VWAP" has exactly one correct definition,
  * and the danger in a model-writes-SQL system is that it gets a slightly
- * different one each time — a sign flipped, a cancel included, a denominator
+ * different one each time, a sign flipped, a cancel included, a denominator
  * off. The registry makes each definition a first-class, named object the rest
  * of the system resolves against, rather than a fragment copied into a query.
  *
@@ -56,7 +56,7 @@ export class MetricRegistry {
     }
 
     /**
-     * Resolve a metric to its definition, or throw if it is not registered —
+     * Resolve a metric to its definition, or throw if it is not registered,
      * an unknown metric is a bug to surface, not a fragment to invent.
      *
      * @param {string} name
@@ -81,7 +81,7 @@ export class MetricRegistry {
      */
     promptFragment() {
         return this.list()
-            .map((metric) => `- ${metric.name} — ${metric.description}\n    ${metric.sql}`)
+            .map((metric) => `- ${metric.name}, ${metric.description}\n    ${metric.sql}`)
             .join('\n');
     }
 }
@@ -113,8 +113,8 @@ export function marketsRegistry() {
 
 /**
  * The registry for the synthetic Enron POC warehouse. The definitions encode the
- * two mechanics of the reporting gap — revenue booked gross versus net margin
- * earned, and reported debt versus true debt including off-balance-sheet SPEs —
+ * two mechanics of the reporting gap, revenue booked gross versus net margin
+ * earned, and reported debt versus true debt including off-balance-sheet SPEs,
  * so each is computed one blessed way. All amounts are USD millions.
  *
  * @returns {MetricRegistry}
@@ -154,7 +154,7 @@ export function enronRegistry() {
  * is missing (an LSEG `<NA>`, an unentitled field, a coverage gap) every branch
  * is NULL and SQLite's `SUM` over all-NULL rows is NULL. Folding absence into 0
  * would turn "we have no Revenue row" into "Revenue = 0", and a reconciliation
- * would then read `0 − 0 = 0` as a PASS — a false pass on missing data, the
+ * would then read `0 − 0 = 0` as a PASS, a false pass on missing data, the
  * dangerous failure mode for regulated use. Callers distinguish the NULL and
  * report N/A instead (see reconcileGrossProfit + the reconciliation control).
  *

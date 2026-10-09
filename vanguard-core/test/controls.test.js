@@ -1,7 +1,7 @@
 /**
  * Control-catalog tests: a query becomes a control that asserts PASS/EXCEPTION,
  * and its result flows into a verifiable evidence packet. The EXCEPTION path is
- * proved by tampering with the ledger so it no longer ties to the filed figure —
+ * proved by tampering with the ledger so it no longer ties to the filed figure,
  * the thing a plain query would never catch, and the reason a control exists.
  */
 
@@ -138,7 +138,7 @@ test('the LSEG reconciliation is N/A (not a false PASS) when a required componen
 
     // A coverage gap: the Revenue row for IBM.N FY2023 is missing (LSEG <NA>,
     // unentitled, or simply not delivered). A field-keyed sum over the absent
-    // row is NULL, so `NULL − cost = NULL` — the identity is not computable.
+    // row is NULL, so `NULL − cost = NULL`, the identity is not computable.
     const w = new DatabaseSync(db);
     // Fundamentals key on Org PermID now (IBM = 4295904307), not RIC.
     w.exec("DELETE FROM fundamentals WHERE org_permid = '4295904307' AND period = 'FY2023' AND field_code = 'TR.Revenue'");
@@ -164,7 +164,7 @@ test('the LSEG reconciliation refuses to reconcile across mixed currencies (FX g
     w.close();
     const { control } = getControl('PI1.1-lseg-gross-profit-reconciliation').run({ ric: 'IBM.N', period: 'FY2023', dbPath: db, logPath: freshLog() });
     // Not a false PASS on a bogus cross-currency subtraction, and not a numeric
-    // variance either — an explicit refusal to reconcile incomparable figures.
+    // variance either, an explicit refusal to reconcile incomparable figures.
     assert.equal(control.status, CONTROL_STATUS.EXCEPTION);
     assert.match(control.exception, /mixed currency/);
     assert.match(control.exception, /normalise/);

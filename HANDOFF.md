@@ -1,4 +1,4 @@
-# Vanguard MCP — Handoff & Next Steps
+# Vanguard MCP, Handoff & Next Steps
 
 _Last updated: 2026-09-23 · `main` @ `abeda13`_
 
@@ -11,35 +11,35 @@ tamper-evident provenance chain. Financial answers you can audit.
 ## Status snapshot
 
 - **Repo:** `justin-harvey/vanguard-mcp` (public). Clone: `/home/nah/Claudia/vanguard-mcp`.
-- **Engine:** `vanguard-core/` — **136 tests, all offline** (Node 22). Green.
+- **Engine:** `vanguard-core/`, **136 tests, all offline** (Node 22). Green.
 - **Live site:** [vanguard-mcp.netlify.app](https://vanguard-mcp.netlify.app/)
   (landing SPA), plus `/enron` (reporting-gap case study) and `/controls` (SOC 2
   evidence panel). Phineas the dolphin mascot on the landing page.
 - **Backend (M7):** code is written and tested end-to-end locally, **but not
-  deployed** — that's the top next step and needs your infra accounts.
+  deployed**, that's the top next step and needs your infra accounts.
 
 ## What's done (milestones)
 
 | | Milestone | State |
 |---|---|---|
 | M0–M5 | engine: guard, grounding, lineage, signed hash-chained audit, warehouse connector, auth/RLS hook, metric registry, SaaS + capital-markets warehouses | ✅ |
-| — | synthetic **Enron** reporting-gap warehouse (real 10-K anchors, synthetic rows) | ✅ |
-| — | **LSEG** fundamentals warehouse + `lseg-mcp` integration (real RICs/`TR.*` codes — all 9 validated OK live via lseg-mcp 2026-09-24; synthetic values; `RealLsegSession` + `LSEG_APP_KEY` Python bridge = credential-swap to real data) | ✅ |
-| M6 | **MCP server** — tools + live schema resources over stdio (`vanguard mcp`) | ✅ |
-| M8 | **evidence packet** — control-result shape + offline-verifiable packet (intent→SQL→CSV→hash+sig) | ✅ core (UI "verify" tab pending) |
+|, | synthetic **Enron** reporting-gap warehouse (real 10-K anchors, synthetic rows) | ✅ |
+|, | **LSEG** fundamentals warehouse + `lseg-mcp` integration (real RICs/`TR.*` codes, all 9 validated OK live via lseg-mcp 2026-09-24; synthetic values; `RealLsegSession` + `LSEG_APP_KEY` Python bridge = credential-swap to real data) | ✅ |
+| M6 | **MCP server**, tools + live schema resources over stdio (`vanguard mcp`) | ✅ |
+| M8 | **evidence packet**, control-result shape + offline-verifiable packet (intent→SQL→CSV→hash+sig) | ✅ core (UI "verify" tab pending) |
 | M9 | **SOC 2 control catalog** (6 controls) + **evidence panel UX** at `/controls` | ✅ controls + UI; server-side role gating pending on M7 |
-| M7 | **frontend↔deployed backend** — engine HTTP API + Supabase Edge Function proxy + panel wiring | 🟡 code done, **deploy pending** |
+| M7 | **frontend↔deployed backend**, engine HTTP API + Supabase Edge Function proxy + panel wiring | 🟡 code done, **deploy pending** |
 
-Full detail lives in **`BUILD-PLAN.md`** (untracked, repo root) — the durable spec.
+Full detail lives in **`BUILD-PLAN.md`** (untracked, repo root), the durable spec.
 
 ## Environment quirks (read before running)
 
 - **Node 22 required** (`node:sqlite`): `export NVM_DIR="$HOME/.nvm"; . "$NVM_DIR/nvm.sh"; nvm use 22` (22.23.2 installed). System node is v18 and will fail.
 - **Model id** is `claude-opus-4-8` everywhere (`claude-opus-5` was a bug).
-- **Pushing:** paste a GitHub PAT inline per session; use it inline in the push URL, don't persist. `git push https://<PAT>@github.com/justin-harvey/vanguard-mcp.git main`. **`main` takes out-of-band edits via the GitHub web UI** (e.g. `README.md`), so `git fetch` + rebase before pushing — a straight push can be rejected as non-fast-forward.
-- **Netlify deploy config gotcha (already fixed, don't regress):** the repo is a *pre-built* static site (no `package.json`). `netlify.toml` must use a **no-op build command** (`echo …`) — a UI-set `npm run build` will otherwise override an empty command and fail — and `publish = "vanguard"`. Asset paths are case-sensitive on Netlify.
+- **Pushing:** paste a GitHub PAT inline per session; use it inline in the push URL, don't persist. `git push https://<PAT>@github.com/justin-harvey/vanguard-mcp.git main`. **`main` takes out-of-band edits via the GitHub web UI** (e.g. `README.md`), so `git fetch` + rebase before pushing, a straight push can be rejected as non-fast-forward.
+- **Netlify deploy config gotcha (already fixed, don't regress):** the repo is a *pre-built* static site (no `package.json`). `netlify.toml` must use a **no-op build command** (`echo …`), a UI-set `npm run build` will otherwise override an empty command and fail, and `publish = "vanguard"`. Asset paths are case-sensitive on Netlify.
 - **The landing page is a compiled Vite/React bundle with NO source in the repo.** `/enron`, `/controls`, and Phineas are standalone HTML / runtime-injected. Rebuilding the frontend from source is its own task (see below).
-- **⚠️ The bundle now carries hand-applied edits that exist in NO source** (`vanguard/assets/index-diyp9xdl.js`, done via surgical string replacement): the **header nav links** to `/enron` and `/controls`; a **neutralized FT badge** (its `onClick` was removed, so the old "Market Impact" modal is now dead/unreachable code); and **all WisdomAI / "PM application" references stripped** from the "About this prototype" modal. A rebuild from source will silently revert every one of these — replicate them in source or diff against this bundle before shipping. `node --check` the bundle after any hand-edit.
+- **⚠️ The bundle now carries hand-applied edits that exist in NO source** (`vanguard/assets/index-diyp9xdl.js`, done via surgical string replacement): the **header nav links** to `/enron` and `/controls`; a **neutralized FT badge** (its `onClick` was removed, so the old "Market Impact" modal is now dead/unreachable code); and **all WisdomAI / "PM application" references stripped** from the "About this prototype" modal. A rebuild from source will silently revert every one of these, replicate them in source or diff against this bundle before shipping. `node --check` the bundle after any hand-edit.
 - **Phineas's spoken content lives in HTML, not the bundle, in three separate copies.** The mascot's `LINES` array (Market-Impact pitch + CPA/audit-market talking points) is in `vanguard/index.html`; **independent copies of the Phin script** are in `vanguard/enron.html` and `vanguard/lseg.html`. Change "what Phin says" in each, as applicable.
 - **Standalone demo pages** (each its own HTML, clean-URL via `_redirects`, cross-linked in the header): `/enron`, `/lseg`, `/controls`. `/lseg` is the LSEG fundamentals page (built from the enron template). Header nav links to all three now live in the compiled bundle + Phineas-adjacent links on the landing page.
 - **Root-level `enron.html` and `index-diyp9xdl.js` are duplicates of the `vanguard/` publish-dir copies and are synced by hand.** Only `vanguard/` deploys (root `netlify.toml` `publish = "vanguard"`). Edit the `vanguard/` copy, then `cp` to root so they don't drift. Root `index.html` is a stub, not the deployed page.
@@ -60,9 +60,9 @@ node bin/vanguard.js mcp                               # stdio MCP server
 
 ## NEXT STEPS (in priority order)
 
-### 1. Deploy M7 — make the SOC 2 panel live  ← the big one
+### 1. Deploy M7, make the SOC 2 panel live  ← the big one
 Everything is written; this is provisioning. Full guide in **`supabase/README.md`**.
-- **Host the engine** (Node 22 + persistent disk — Render / Fly.io / Railway):
+- **Host the engine** (Node 22 + persistent disk, Render / Fly.io / Railway):
   `npm ci`, seed warehouses, `ENGINE_SERVICE_TOKEN=<rand> vanguard serve`.
   _Decision needed:_ pick a host. Recommendation: **Fly.io** (cheap persistent
   volume) or **Render** (simplest). The audit chain is an append-only JSONL file,
@@ -76,7 +76,7 @@ Everything is written; this is provisioning. Full guide in **`supabase/README.md
   (engine URL + LSEG app key, stored in `localStorage`, exposed as
   `window.VANGUARD_LSEG = { engineUrl, appKey }`) that currently only probes the
   engine URL for reachability and shows status. When the engine is deployed, wire
-  its "Connect" to actually drive a live `lseg reconcile` via the engine/proxy —
+  its "Connect" to actually drive a live `lseg reconcile` via the engine/proxy,
   the credential stays server-side (env `LSEG_APP_KEY`); the panel key is a
   convenience for a self-hosted engine, not a substitute for the server env var.
 
@@ -91,7 +91,7 @@ the volume until scaling past one engine instance).
 Proxy already reads `app_metadata.role` from the Supabase JWT (anon→standard,
 `auditor` unlocks `execute_financial_query`). Remaining: actually issue the
 auditor role via Supabase Auth, and note `execute_financial_query` is **SaaS-only
-today** (the planner is SaaS-specific) — multi-warehouse free-text needs the
+today** (the planner is SaaS-specific), multi-warehouse free-text needs the
 planner parameterized (ties into #6).
 
 ### 4. M8 UI "verify" tab
@@ -102,12 +102,12 @@ first broken entry. The engine side (`evidence.js` `verifyPacket`, the
 ### 5. More controls (optional)
 Catalog has 6 (reconciliation ×4, reproducibility, audit-integrity). The
 reconciliation helper makes new ones cheap. Note: **UNION trips the guard's column
-allow-list — use scalar subqueries** for reconciliations.
+allow-list, use scalar subqueries** for reconciliations.
 
 ### 6. Warehouse router (backlog)
 Deterministic front-of-pipeline warehouse inference for free-text (score the
 question against each registry's vocabulary; `warehouses.js` descriptors already
-seed this). Untrusted convenience — the guard stays the boundary. Natural consumer
+seed this). Untrusted convenience, the guard stays the boundary. Natural consumer
 of M6's exposed schema resources.
 
 ### 7. Rebuild the landing frontend from source (bigger)
@@ -130,15 +130,15 @@ wording (update if the SPA copy changes).
 ---
 
 ## Open decisions to make
-1. **Engine host** — Fly.io vs. Render vs. Railway.
-2. **Warehouse timing** — ship M7 on SQLite-on-a-volume first (fastest), or do the
+1. **Engine host**, Fly.io vs. Render vs. Railway.
+2. **Warehouse timing**, ship M7 on SQLite-on-a-volume first (fastest), or do the
    Postgres+RLS upgrade up front? Recommendation: SQLite first, Postgres as #2.
 
 ## Pointers
-- `BUILD-PLAN.md` — full milestone spec + the SOC 2 button catalog + uncovered-features backlog.
-- `supabase/README.md` — the M7 deploy runbook.
-- `vanguard-core/README.md` — engine architecture, the four guarantees, layout.
-- `db/enron-anchor.md` — the real Enron 10-K figures + citation (claim discipline).
-- `db/lseg-anchor.md` — LSEG warehouse: real RICs/`TR.*` codes, synthetic values, validate-via-lseg-mcp discipline.
-- `LSEG-ARCHITECTURE-REVIEW.md` (repo root) — FDE review of the LSEG business logic: gaps (RIC-as-PK, field params/currency/scale, tautological reconciliation, silent-zero on missing data, no bitemporality, ops, licensing) + redundancies, with a prioritized backlog (P1 NULL-vs-0 and P2 reconcile-single-pass are the quick wins; P3 reframe is most valuable). Start here for LSEG hardening.
-- `mcp/README.md` — wiring `lseg-mcp` + Vanguard MCP; the resolve→validate→draft→ingest→attest workflow. `src/lseg-ingest.js` is the license-gated seam (`FakeLsegSession` now, `RealLsegSession` = credential swap).
+- `BUILD-PLAN.md`, full milestone spec + the SOC 2 button catalog + uncovered-features backlog.
+- `supabase/README.md`, the M7 deploy runbook.
+- `vanguard-core/README.md`, engine architecture, the four guarantees, layout.
+- `db/enron-anchor.md`, the real Enron 10-K figures + citation (claim discipline).
+- `db/lseg-anchor.md`, LSEG warehouse: real RICs/`TR.*` codes, synthetic values, validate-via-lseg-mcp discipline.
+- `LSEG-ARCHITECTURE-REVIEW.md` (repo root), FDE review of the LSEG business logic: gaps (RIC-as-PK, field params/currency/scale, tautological reconciliation, silent-zero on missing data, no bitemporality, ops, licensing) + redundancies, with a prioritized backlog (P1 NULL-vs-0 and P2 reconcile-single-pass are the quick wins; P3 reframe is most valuable). Start here for LSEG hardening.
+- `mcp/README.md`, wiring `lseg-mcp` + Vanguard MCP; the resolve→validate→draft→ingest→attest workflow. `src/lseg-ingest.js` is the license-gated seam (`FakeLsegSession` now, `RealLsegSession` = credential swap).

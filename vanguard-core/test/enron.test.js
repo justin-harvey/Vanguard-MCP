@@ -86,7 +86,7 @@ test('an attestation is recorded with provenance and compliance tags', () => {
 test('the enron allow-list refuses a query that reaches outside it', () => {
     const options = { allowedTables: ENRON_ALLOWED_TABLES, allowedColumns: ENRON_ALLOWED_COLUMNS };
     // A column that does not exist in the allow-list must be refused, even when
-    // the table is allowed — the boundary is the same one the other warehouses keep.
+    // the table is allowed, the boundary is the same one the other warehouses keep.
     assert.throws(
         () => guard('SELECT secret_ceo_note FROM debt_instruments', options),
         (error) => error instanceof SqlRejected && error.reason === 'column_not_allowed',

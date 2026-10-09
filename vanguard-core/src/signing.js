@@ -1,5 +1,5 @@
 /**
- * Result signing — turning "internally consistent" into "non-repudiable".
+ * Result signing, turning "internally consistent" into "non-repudiable".
  *
  * The audit chain proves a record has not changed since it was written. It does
  * not prove *who* wrote it, and a party who controls the log could rebuild the
@@ -11,7 +11,7 @@
  * Ed25519 is used rather than an HMAC because the property wanted here is
  * non-repudiation, not just integrity: verification must be possible for a
  * third party who was never trusted with the signing secret. The private key is
- * never in the repository — it is read from the environment (a PEM in
+ * never in the repository, it is read from the environment (a PEM in
  * VANGUARD_SIGNING_KEY, or a path in VANGUARD_SIGNING_KEY_FILE). With no key
  * configured, signing is simply skipped and entries are unsigned; the chain
  * still verifies. Signing is an added guarantee, not a required one.
@@ -59,7 +59,7 @@ export function generateSigner() {
  * @returns {string}
  */
 export function signHash(hashHex, privateKey) {
-    // Ed25519 takes no digest algorithm — the first argument must be null.
+    // Ed25519 takes no digest algorithm, the first argument must be null.
     return cryptoSign(null, Buffer.from(hashHex, 'utf8'), privateKey).toString('base64');
 }
 

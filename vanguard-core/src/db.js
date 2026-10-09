@@ -54,8 +54,8 @@ export class QueryTimeout extends Error {
  * streams past its budget is aborted rather than allowed to run unbounded.
  *
  * The honest limitation: node:sqlite exposes no interrupt or progress handler,
- * so a single step that blocks — one enormous aggregation with no rows emitted
- * until it finishes — cannot be preempted here. The read-only handle, the table
+ * so a single step that blocks, one enormous aggregation with no rows emitted
+ * until it finishes, cannot be preempted here. The read-only handle, the table
  * and column allow-lists, and the injected LIMIT together bound that case; this
  * timeout covers the far more common "produces far too many rows" shape.
  *
@@ -135,8 +135,8 @@ function pickWeighted(rand, weights) {
 /**
  * Build the warehouse from scratch: schema plus deterministic synthetic data.
  *
- * The data is invented. It is internally consistent — the MRR movement ledger
- * reconciles against subscription state, cohorts decay at plausible rates —
+ * The data is invented. It is internally consistent, the MRR movement ledger
+ * reconciles against subscription state, cohorts decay at plausible rates,
  * but it describes no real company. That matters for a tool whose whole point
  * is traceable numbers: fabricated data clearly labelled as fabricated is
  * fine, fabricated data presented as real is the exact failure this project
@@ -203,7 +203,7 @@ export function seed(path = DEFAULT_DB_PATH) {
                 );
 
                 // Does this customer churn before the window ends, and when?
-                // Paid Social and Outbound SDR churn harder — that asymmetry is
+                // Paid Social and Outbound SDR churn harder, that asymmetry is
                 // what makes a cohort question interesting to ask.
                 const churnProneness =
                     channel.name === 'Paid Social' ? 0.34 : channel.name === 'Outbound SDR' ? 0.26 : 0.11;

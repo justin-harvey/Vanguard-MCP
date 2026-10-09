@@ -1,5 +1,5 @@
 /**
- * The LSEG ingest seam — where real vendor data enters the warehouse.
+ * The LSEG ingest seam, where real vendor data enters the warehouse.
  *
  * Everything else in the LSEG stack reads a *read-only* warehouse through the
  * guard. This module is the one place that writes into it, and it is the trust
@@ -10,22 +10,22 @@
  * The seam is a session interface, so the *design* is complete today and the
  * *credential* is the only thing that changes to go live:
  *
- *   - `LsegSession` — the contract: `getData(universe, fields, options)` returns
+ *   - `LsegSession`, the contract: `getData(universe, fields, options)` returns
  *     wide rows (one per instrument), keyed by `TR.*` field code, carrying a
  *     `period`. This is exactly the shape `lseg.data.get_data(...,
  *     use_field_names_in_headers=True)` yields once its DataFrame is turned into
  *     records.
- *   - `FakeLsegSession` — a deterministic in-memory session over a fixture, so
+ *   - `FakeLsegSession`, a deterministic in-memory session over a fixture, so
  *     the whole ingest path is exercised (and unit-tested) with NO LSEG
  *     entitlement. This is what the demo and tests run on.
- *   - `RealLsegSession` — the shape a live session takes. Intentionally not a
+ *   - `RealLsegSession`, the shape a live session takes. Intentionally not a
  *     live integration (no LSEG dependency or network call ships in the core):
- *     it fails loudly and explains precisely what a real implementation does —
+ *     it fails loudly and explains precisely what a real implementation does,
  *     run the `lseg-data` call that lseg-mcp drafted, against an active LSEG
  *     Workspace session, and map the returned DataFrame into wide rows.
  *
  * Field codes are validated against the warehouse's dictionary (`lseg_fields`)
- * before anything is written — an unknown code is refused with a pointer to
+ * before anything is written, an unknown code is refused with a pointer to
  * lseg-mcp, whose whole job is resolving and validating `TR.*` codes. That keeps
  * the "real identifiers" half of the claim discipline honest at the boundary.
  */
@@ -48,7 +48,7 @@ import { LSEG_DB_PATH, LSEG_SCHEMA_PATH, DEFAULT_PERIOD, DEFAULT_RETENTION_DAYS,
 function registerSource(db, { source, usageClass, retentionDays, redistribution }) {
     db.prepare(
         'INSERT OR IGNORE INTO data_sources (source, usage_class, retention_days, redistribution, notes) VALUES (?,?,?,?,?)',
-    ).run(source, usageClass, retentionDays ?? null, redistribution, 'Registered at ingest — confirm terms against the LSEG agreement.');
+    ).run(source, usageClass, retentionDays ?? null, redistribution, 'Registered at ingest, confirm terms against the LSEG agreement.');
 }
 
 const here = dirname(fileURLToPath(import.meta.url));
@@ -103,7 +103,7 @@ export class FakeLsegSession {
     /**
      * The history path: one row per (instrument, trading day) for the requested
      * pricing fields, optionally clipped to [start, end]. Mirrors `get_history`'s
-     * time-series shape — the grain a price actually lives at (finding #6).
+     * time-series shape, the grain a price actually lives at (finding #6).
      *
      * @param {string[]} universe  RICs to pull
      * @param {string[]} fields     pricing field codes (e.g. TR.PriceClose)
@@ -130,7 +130,7 @@ export class FakeLsegSession {
 /**
  * A live LSEG session: fetches real fundamentals through the Python `lseg-data`
  * library via the `scripts/lseg_fetch.py` bridge, returning the same wide rows
- * the fake session does. This is the credential-swap seam — with a valid app key
+ * the fake session does. This is the credential-swap seam, with a valid app key
  * and lseg-data installed, `ingestFundamentals({ session: new RealLsegSession() })`
  * lands genuine LSEG data and nothing downstream changes.
  *
@@ -138,7 +138,7 @@ export class FakeLsegSession {
  * requested fields) is read, in order, from the `appKey` option or `$LSEG_APP_KEY`.
  * Without one it refuses to run rather than silently returning nothing. The exact
  * `lseg-data` call is confirmed via lseg-mcp (`draft_api_call` /
- * `get_package_signature`) — see mcp/README.md.
+ * `get_package_signature`), see mcp/README.md.
  */
 export class RealLsegSession {
     /**
@@ -174,8 +174,8 @@ export class RealLsegSession {
     requireCredential() {
         if (!this.appKey) {
             throw new Error(
-                'No LSEG credential. Set LSEG_APP_KEY (or pass { appKey }) — a valid LSEG Data Platform / ' +
-                    'Workspace app key entitled for these fields — then re-run. The synthetic FakeLsegSession ' +
+                'No LSEG credential. Set LSEG_APP_KEY (or pass { appKey }), a valid LSEG Data Platform / ' +
+                    'Workspace app key entitled for these fields, then re-run. The synthetic FakeLsegSession ' +
                     'needs no credential; RealLsegSession does. See mcp/README.md.',
             );
         }
@@ -292,7 +292,7 @@ export const DEFAULT_FIXTURE = {
 /**
  * A default price fixture for the FakeLsegSession's history path: a short daily
  * close series (USD cents) for IBM.N, so the pricing ingest path runs with no
- * entitlement. Shape mirrors what `get_history` yields — one row per trading day.
+ * entitlement. Shape mirrors what `get_history` yields, one row per trading day.
  */
 export const DEFAULT_PRICE_FIXTURE = {
     'IBM.N': [
@@ -345,7 +345,7 @@ export function ingestFundamentals({
     const db = new DatabaseSync(dbPath);
     try {
         db.exec('PRAGMA foreign_keys = ON');
-        // Ensure the schema exists — an ingest can run against a fresh file.
+        // Ensure the schema exists, an ingest can run against a fresh file.
         const hasTable = db
             .prepare("SELECT name FROM sqlite_master WHERE type='table' AND name='fundamentals'")
             .get();
@@ -371,7 +371,7 @@ export function ingestFundamentals({
             // history path (ingestPrices / RealLsegSession.getHistory) instead.
             if (fieldCategory.get(field) === 'Pricing') {
                 throw new Error(
-                    `"${field}" is a Pricing field — a time series, not a per-period fundamental. ` +
+                    `"${field}" is a Pricing field, a time series, not a per-period fundamental. ` +
                         'Ingest it with ingestPrices (get_history grain), not ingestFundamentals (finding #6).',
                 );
             }
@@ -384,7 +384,7 @@ export function ingestFundamentals({
         const currencyOf = new Map(db.prepare('SELECT ric, currency FROM instruments').all().map((r) => [r.ric, r.currency]));
         const insertOrg = db.prepare('INSERT OR IGNORE INTO organizations (org_permid, name, sector) VALUES (?, ?, NULL)');
         const upsertInstrument = db.prepare(
-            // A fundamentals-only ingest knows the org, not the quote — quote_permid
+            // A fundamentals-only ingest knows the org, not the quote, quote_permid
             // stays NULL until a pricing ingest fills it (nullable UNIQUE allows it).
             "INSERT OR IGNORE INTO instruments (ric, org_permid, quote_permid, isin, exchange, currency) VALUES (?, ?, NULL, NULL, '', 'USD')",
         );
@@ -414,7 +414,7 @@ export function ingestFundamentals({
             // Synthetic seam: values arrive raw (scale 0) as last reported.
             // Periodicity is read off the period; real data carries Scale/Curn/
             // ReportingState from the request, to be threaded through here. The
-            // knowledge_date — when this vintage became known (finding #5) —
+            // knowledge_date, when this vintage became known (finding #5),
             // defaults to the retrieval date; a live feed would carry the
             // vendor's as-reported/restatement date to distinguish the two.
             for (const field of fields) {
@@ -497,7 +497,7 @@ export function ingestPrices({
             }
             if (fieldCategory.get(field) !== 'Pricing') {
                 throw new Error(
-                    `"${field}" is not a Pricing field — ingest it with ingestFundamentals, not ingestPrices (finding #6).`,
+                    `"${field}" is not a Pricing field, ingest it with ingestFundamentals, not ingestPrices (finding #6).`,
                 );
             }
         }
@@ -523,7 +523,7 @@ export function ingestPrices({
             if (!quotePermid) {
                 // Real get_history carries the quote/instrument PermID; the
                 // synthetic seam does not, so mint a clearly-marked placeholder to
-                // enrich later — same PENDING discipline as the fundamentals path.
+                // enrich later, same PENDING discipline as the fundamentals path.
                 quotePermid = `QUOTE-PENDING:${ric}`;
                 if (!currencyOf.has(ric)) {
                     insertOrg.run(`PENDING:${ric}`, ric);

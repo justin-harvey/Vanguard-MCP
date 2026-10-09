@@ -40,7 +40,7 @@ test('the registry resolves a known metric and lists definitions', () => {
     assert.ok(registry.has('net_position'));
     assert.match(registry.resolve('net_position').sql, /SUM\(CASE WHEN side/);
     assert.equal(registry.list().length, 3);
-    assert.match(registry.promptFragment(), /net_position —/);
+    assert.match(registry.promptFragment(), /net_position, /);
 });
 
 test('an unknown metric is a surfaced error, not an invented fragment', () => {

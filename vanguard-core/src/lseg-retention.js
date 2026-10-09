@@ -7,16 +7,16 @@
  * cache window (TTL)? The policy lives in `data_sources` (see lseg-schema.sql); this
  * module reads it against the persisted rows to answer both.
  *
- * - `retentionReport` — per-source: its usage class / TTL / redistribution terms,
+ * - `retentionReport`, per-source: its usage class / TTL / redistribution terms,
  *   how many rows it backs, how many are stale (retained past the TTL), and its
  *   oldest row. It also flags any source that appears in the data with NO policy row
- *   ("untagged") and any policy with no TTL set — the governance gaps.
- * - `purgeExpired` — deletes (or, in a dry run, just counts) rows retained past
+ *   ("untagged") and any policy with no TTL set, the governance gaps.
+ * - `purgeExpired`, deletes (or, in a dry run, just counts) rows retained past
  *   their source's TTL, so the cache can be brought back inside its licensed window.
  *
  * These are operational/admin functions: like seed and ingest, they touch the
  * database directly rather than through the model-facing read guard. Nothing here
- * grants a right — it encodes and enforces a policy whose terms must be signed off
+ * grants a right, it encodes and enforces a policy whose terms must be signed off
  * against the actual LSEG agreement (see db/lseg-licensing.md).
  */
 
@@ -26,7 +26,7 @@ import { LSEG_DB_PATH } from './lseg.js';
 /** The tables that persist vendor values and carry a `source` + `retrieved_at`. */
 const PERSISTED_TABLES = ['fundamentals', 'prices'];
 
-/** Today as an ISO date — the default "now" staleness is measured against. */
+/** Today as an ISO date, the default "now" staleness is measured against. */
 function today() {
     return new Date().toISOString().slice(0, 10);
 }
@@ -114,7 +114,7 @@ export function retentionReport({ dbPath = LSEG_DB_PATH, asOf = today() } = {}) 
 /**
  * Purge vendor rows retained past their source's TTL, bringing the cache back
  * inside its licensed window. A source with no TTL set is left untouched (its
- * window is unknown — a gap the report flags, not something to silently delete).
+ * window is unknown, a gap the report flags, not something to silently delete).
  *
  * @param {object} [params]
  * @param {string} [params.dbPath]

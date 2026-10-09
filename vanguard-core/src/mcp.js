@@ -1,17 +1,17 @@
 /**
- * MCP handlers — pure and transport-free.
+ * MCP handlers, pure and transport-free.
  *
  * These are the tools and resources the Vanguard MCP engine exposes to a host
  * AI. Every one routes through the same guard, grounding, lineage and audit
  * chain as the CLI: the MCP surface adds no new path to the data, and the guard
  * stays the trust boundary. The stdio transport lives in mcp-server.js and is
- * the only thing that needs the MCP SDK — keeping the logic here means the whole
+ * the only thing that needs the MCP SDK, keeping the logic here means the whole
  * surface is testable offline, with no SDK and no running server.
  *
  * Two families of tool, deliberately:
- *   - credential-free: list_controls, run_control, run_canonical, verify_audit —
+ *   - credential-free: list_controls, run_control, run_canonical, verify_audit,
  *     canonical queries and the control catalog, no model call;
- *   - credentialed: execute_financial_query — the planner writes SQL, so it needs
+ *   - credentialed: execute_financial_query, the planner writes SQL, so it needs
  *     an API key, and (today) only the SaaS warehouse supports free text.
  */
 

@@ -2,7 +2,7 @@
  * Pipeline tests.
  *
  * These run without an Anthropic credential: the planner is replaced with a
- * stub that returns whatever SQL the test wants. That is deliberate — it lets
+ * stub that returns whatever SQL the test wants. That is deliberate, it lets
  * the tests assert what happens when a model returns something hostile or
  * malformed, which is exactly the case you cannot reliably provoke by asking a
  * real model nicely.

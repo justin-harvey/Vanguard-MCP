@@ -3,7 +3,7 @@
 -- Scope is deliberately small: enough tables to answer the questions the
 -- prototype advertises (MRR trend, NRR by cohort, LTV:CAC by channel, cohort
 -- churn) and nothing more. A narrow, well-understood schema is what makes
--- generated SQL checkable — the guard allow-lists these table names, so a
+-- generated SQL checkable, the guard allow-lists these table names, so a
 -- query touching anything else is rejected before it reaches the database.
 --
 -- Money is stored in integer CENTS, never floats. Binary floating point cannot

@@ -6,8 +6,8 @@
  * reporting gap. This one shows it against *vendor market data*: the company
  * fundamentals an analyst pulls from LSEG (London Stock Exchange Group, formerly
  * Refinitiv) by `TR.*` field code through the `lseg-data` library. The same
- * guarantee applies — a reported figure reconciled against the line items that
- * compose it, grounded and hash-chained — with provenance down to the exact LSEG
+ * guarantee applies, a reported figure reconciled against the line items that
+ * compose it, grounded and hash-chained, with provenance down to the exact LSEG
  * field code each number came from.
  *
  * Two scenarios:
@@ -16,11 +16,11 @@
  *      resolved to its blessed LSEG field the one agreed way;
  *   2. a reconciliation of the reporting identity Gross Profit = Revenue − Cost
  *      of Revenue, computing the left side from the component fields and
- *      comparing it to the reported `TR.GrossProfit` — PASS when they tie,
+ *      comparing it to the reported `TR.GrossProfit`, PASS when they tie,
  *      EXCEPTION with the exact variance when a value was altered after the fact.
  *
  * Data discipline (see db/lseg-anchor.md): the instrument RICs and the `TR.*`
- * field codes are REAL LSEG identifiers — validate the codes through lseg-mcp
+ * field codes are REAL LSEG identifiers, validate the codes through lseg-mcp
  * before any real ingest. The values are SYNTHETIC and labelled synthetic (no
  * LSEG entitlement ships here), authored so the accounting identities hold
  * exactly. Where real data belongs, the ingest seam (src/lseg-ingest.js) lands
@@ -52,7 +52,7 @@ export const DEFAULT_PERIOD = 'FY2023';
 /**
  * The default as-of (knowledge-time) cutoff: a fixed far-future sentinel meaning
  * "the latest vintage known", used when a caller does not pin an as-of date. It
- * is a constant, never `today`, on purpose — a reproducible result hash must not
+ * is a constant, never `today`, on purpose, a reproducible result hash must not
  * drift with the wall clock. An explicit as-of reproduces a figure as it stood
  * at that knowledge date (see finding #5, the bitemporal model).
  */
@@ -60,13 +60,13 @@ export const AS_OF_LATEST = '9999-12-31';
 
 /** The source string every seeded datapoint carries (synthetic, no entitlement). */
 export const FEED_SOURCE =
-    'LSEG synthetic snapshot (no entitlement) — validate TR.* field codes via lseg-mcp before real ingest';
+    'LSEG synthetic snapshot (no entitlement), validate TR.* field codes via lseg-mcp before real ingest';
 
 /**
  * The default cache-retention TTL, in days, for persisted vendor data (finding
  * #7). A snapshot warehouse holds vendor values, so "how long may we cache this"
  * is a licensing question; this is the default a source is tagged with when a
- * caller does not set one. Illustrative only — the real number comes from the
+ * caller does not set one. Illustrative only, the real number comes from the
  * signed LSEG agreement (see db/lseg-licensing.md).
  */
 export const DEFAULT_RETENTION_DAYS = 90;
@@ -77,7 +77,7 @@ export const DEFAULT_RETENTION_DAYS = 90;
  * lives once here rather than duplicated on every row. The seeded synthetic source
  * is NON-DISPLAY (derived reconciliation, not shown as a live quote), internal-only
  * (no redistribution), with the default cache TTL. These are illustrative defaults
- * for the synthetic snapshot — a live source's terms must be signed off against the
+ * for the synthetic snapshot, a live source's terms must be signed off against the
  * actual LSEG agreement before a live key.
  */
 const DATA_SOURCES = [
@@ -86,7 +86,7 @@ const DATA_SOURCES = [
         usageClass: 'non-display',
         retentionDays: DEFAULT_RETENTION_DAYS,
         redistribution: 'internal-only (no redistribution)',
-        notes: 'Synthetic snapshot, no LSEG entitlement bundled; illustrative policy — sign off real terms before a live key.',
+        notes: 'Synthetic snapshot, no LSEG entitlement bundled; illustrative policy, sign off real terms before a live key.',
     },
 ];
 
@@ -112,7 +112,7 @@ export const LSEG_REGISTRY = lsegRegistry();
 /**
  * The organizations (issuers), keyed by real LSEG **Org PermID** (permid.org).
  * Fundamentals hang off this stable entity key, never off a RIC. The PermIDs
- * are real LSEG identifiers — validate before any real ingest, like the RICs and
+ * are real LSEG identifiers, validate before any real ingest, like the RICs and
  * TR.* codes.
  */
 const ORGANIZATIONS = [
@@ -122,13 +122,13 @@ const ORGANIZATIONS = [
 ];
 
 /**
- * The instruments (quotes/listings), keyed by real RIC — a MUTABLE alias onto
+ * The instruments (quotes/listings), keyed by real RIC, a MUTABLE alias onto
  * the stable organization. Names/venues real; figures synthetic. The seed keeps
  * one listing per issuer, so RIC ↔ Org PermID is 1:1 here, but the model does
  * not assume that (an org can carry many RICs across venues).
  *
  * `quotePermid` is the stable QUOTE-level key a price keys on (finding #6). Unlike
- * the Org PermIDs, these are NOT validated real quote PermIDs — they are clearly
+ * the Org PermIDs, these are NOT validated real quote PermIDs, they are clearly
  * marked synthetic placeholders (`QUOTE-PENDING:<RIC>`), to be replaced with the
  * real quote/instrument PermID (validated via lseg-mcp) before a live ingest. The
  * label keeps the claim discipline honest: real where validated, synthetic where
@@ -218,12 +218,12 @@ const FUNDAMENTALS = {
  * 'as_reported'`. Modelled only for the gross-profit line (the standardized
  * identity's subject); other fields stay standardized-only.
  *
- * Most periods tie to the standardized model exactly — the common case, where
+ * Most periods tie to the standardized model exactly, the common case, where
  * LSEG's normalisation agrees with the filing. IBM.N FY2022 carries a single
  * deliberate, SYNTHETIC divergence: $500m the company reported below the
  * gross-profit line (in operating expense) that LSEG's COA model folds into Cost
  * of Revenue. So as-reported Cost is $500m lower and as-reported Gross Profit
- * $500m higher than the standardized figures — a real *classification*
+ * $500m higher than the standardized figures, a real *classification*
  * difference (not a data error, not tampering), which is what a
  * standardized-vs-as-reported reconciliation is built to surface.
  */
@@ -262,7 +262,7 @@ const AS_REPORTED = {
  * of the same (org, field, period) on the standardized basis, distinguished only
  * by `knowledge_date` and `reporting_state`. An as-of read before the restatement
  * date reproduces the ORIGINAL figures (and their result hash); an as-of read
- * after — and the default "latest" read — returns the RESTATED ones. The prior
+ * after, and the default "latest" read, returns the RESTATED ones. The prior
  * vintage is retained, never overwritten, so the hash-chained audit stays intact
  * across the restatement instead of reading it as tampering. Both vintages
  * satisfy the standardized identity Gross = Revenue − Cost. SYNTHETIC.
@@ -292,7 +292,7 @@ const SNAPSHOT_KNOWLEDGE_DATE = '2024-03-31';
  * time series at its own grain, retrieved via `get_history`, not a per-period
  * fundamental). Values are in USD cents and end at the close previously
  * (mis)stored as the `TR.PriceClose` fundamental, so nothing about the numbers
- * regresses — only the grain is corrected. Keyed by RIC for readability; the seed
+ * regresses, only the grain is corrected. Keyed by RIC for readability; the seed
  * resolves each to its stable quote PermID as rows land in `prices`. Not a claim
  * about any real company's price history.
  */
@@ -306,7 +306,7 @@ const PRICES = {
 /**
  * Read the periodicity off a period label: the leading letters before the year
  * ('FY2023' → 'FY', 'FQ2023Q1' → 'FQ'), defaulting to 'FY'. Used at ingest/seed
- * so a figure carries whether it is annual, quarterly, or LTM — you cannot
+ * so a figure carries whether it is annual, quarterly, or LTM, you cannot
  * reconcile across periodicities.
  *
  * @param {string} period
@@ -318,7 +318,7 @@ export function periodicityOf(period) {
 
 /**
  * Build the LSEG warehouse: schema plus the deterministic synthetic snapshot
- * above. No randomness — every value is authored so the accounting identities
+ * above. No randomness, every value is authored so the accounting identities
  * reconcile exactly.
  *
  * @param {string} [path]
@@ -397,7 +397,7 @@ export function seedLseg(path = LSEG_DB_PATH, { retrievedAt = new Date().toISOSt
     }
 
     // Pricing at its own grain (finding #6): a daily close series per quote,
-    // landed in `prices` keyed by the stable quote PermID — not in `fundamentals`.
+    // landed in `prices` keyed by the stable quote PermID, not in `fundamentals`.
     let prices = 0;
     for (const [ric, series] of Object.entries(PRICES)) {
         const quotePermid = byRicQuote.get(ric);
@@ -427,7 +427,7 @@ export function seedLseg(path = LSEG_DB_PATH, { retrievedAt = new Date().toISOSt
 const guardOptions = { allowedTables: LSEG_ALLOWED_TABLES, allowedColumns: LSEG_ALLOWED_COLUMNS };
 
 /**
- * Resolve a RIC — a mutable quote alias — to its stable Org PermID via the
+ * Resolve a RIC, a mutable quote alias, to its stable Org PermID via the
  * `instruments` table. This is the one place the alias becomes the entity key;
  * fundamentals are then read by `org_permid`, never by RIC (finding #1). Returns
  * `null` for an unknown RIC, which the scenarios let fall through to an empty /
@@ -463,14 +463,14 @@ function resolveQuotePermid(ric, warehouse) {
  * The bitemporal filter: keep only each field's latest vintage known at or before
  * an as-of knowledge date (finding #5). Without it, a field that has been restated
  * has two rows for the same (org, field, period, basis), and the field-keyed sums
- * would add both vintages together — the same double-count shape the `basis` scope
+ * would add both vintages together, the same double-count shape the `basis` scope
  * guards against, but along the knowledge-time axis.
  *
  * A correlated scalar subquery picks `MAX(knowledge_date) <= ?` for the row's own
  * (org, field, period, basis) group, so exactly one vintage survives: the most
  * recent one that was known by the as-of date. A group whose earliest vintage is
- * *after* the as-of date matches nothing (its MAX is NULL) — correctly, we did not
- * know that figure yet — so it reads as N/A downstream rather than as a zero.
+ * *after* the as-of date matches nothing (its MAX is NULL), correctly, we did not
+ * know that figure yet, so it reads as N/A downstream rather than as a zero.
  *
  * It is a scalar subquery, not a UNION, so the guard's column allow-list admits it
  * (the alias `f2` and the outer real-table qualifier both reference only
@@ -485,7 +485,7 @@ const LATEST_VINTAGE_AS_OF =
     'AND f2.knowledge_date <= ?)';
 
 /**
- * Scenario 1 — a fundamentals snapshot for one instrument/period.
+ * Scenario 1, a fundamentals snapshot for one instrument/period.
  *
  * Computes the key line items in one guarded query, each resolved to its blessed
  * LSEG field the one agreed way, grounded against the returned row and appended
@@ -546,13 +546,13 @@ export function fundamentalsSnapshot({
 }
 
 /**
- * Scenario 2 — the standardized-model integrity check: Gross Profit = Revenue −
+ * Scenario 2, the standardized-model integrity check: Gross Profit = Revenue −
  * Cost of Revenue for one instrument/period, on the standardized (COA) basis.
  *
  * Honest framing (see db/lseg-anchor.md): in LSEG's standardized model Gross
  * Profit (`SGRP`) is *defined as* Revenue (`SREV`) − Cost of Revenue (`SCOR`),
  * so on clean vendor data this identity holds by construction. This is therefore
- * a *pipeline-integrity / tamper-evidence* check — it fires on ingest corruption
+ * a *pipeline-integrity / tamper-evidence* check, it fires on ingest corruption
  * or a value altered after landing, not on a discrepancy in LSEG's own numbers.
  * The check that tests LSEG's *data* is the standardized-vs-as-reported
  * reconciliation below.
@@ -561,7 +561,7 @@ export function fundamentalsSnapshot({
  * the reported `TR.GrossProfit`, both in one attested statement. One aggregate
  * pass over the standardized rows for `(ric, period)`: the field-keyed sums and
  * the identity (`Revenue − Cost`) are computed in a single SELECT, so the table
- * is scanned once. Not a UNION — the guard's column allow-list resolves an
+ * is scanned once. Not a UNION, the guard's column allow-list resolves an
  * aggregate SELECT's aliased columns but rejects a union's synthesised ones.
  *
  * Coverage: the same pass returns a non-null row count for each required
@@ -595,12 +595,12 @@ export function reconcileGrossProfit({
     const gross = LSEG_REGISTRY.resolve('gross_profit_usd').sql;
     // Presence: how many non-null rows back each required component. COUNT over
     // a CASE with no ELSE counts only the matching, non-null rows, so 0 means
-    // the field is genuinely absent (LSEG <NA>, unentitled, coverage gap) — not
+    // the field is genuinely absent (LSEG <NA>, unentitled, coverage gap), not
     // a real zero. field_code and value are both allow-listed columns.
     const present = (code) => `COUNT(CASE WHEN field_code = '${code}' THEN value END)`;
     // FX / basis consistency: the components being subtracted must share a
     // currency, scale and periodicity. Count the DISTINCT values of each across
-    // the three required fields — >1 means the identity is combining incomparable
+    // the three required fields, >1 means the identity is combining incomparable
     // figures (see finding #2), which the control refuses rather than mis-computes.
     const req = "field_code IN ('TR.Revenue', 'TR.CostOfRevenueTotal', 'TR.GrossProfit')";
     const variantsOf = (col) => `COUNT(DISTINCT CASE WHEN ${req} THEN ${col} END)`;
@@ -640,7 +640,7 @@ export function reconcileGrossProfit({
 }
 
 /**
- * Scenario 3 — reconcile LSEG's standardized (COA) gross profit against the
+ * Scenario 3, reconcile LSEG's standardized (COA) gross profit against the
  * gross profit as the company itself reported it, for one instrument/period.
  *
  * This is the reconciliation that tests LSEG's *data*, not an identity that
@@ -649,12 +649,12 @@ export function reconcileGrossProfit({
  * reclassify a line item across the gross-profit boundary, so the standardized
  * figure and the as-reported figure legitimately differ. A tie is the common
  * case (LSEG agrees with the filing); a variance is a real *classification*
- * difference an analyst must understand before citing a number — which basis a
+ * difference an analyst must understand before citing a number, which basis a
  * regulator is being shown, and why the two disagree.
  *
  * One aggregate pass over `(ric, period)`, selecting the `TR.GrossProfit` value
  * on each basis plus a presence count per basis (so an absent side reads as N/A,
- * not a false tie to zero — the same coverage discipline as scenario 2). The
+ * not a false tie to zero, the same coverage discipline as scenario 2). The
  * basis literals are constants, not input; `basis`, `field_code` and `value` are
  * all allow-listed, so the guard admits the query and no UNION is needed.
  *
@@ -681,7 +681,7 @@ export function reconcileStandardizedVsAsReported({
     const grossOn = (basis) => `SUM(CASE WHEN field_code = 'TR.GrossProfit' AND basis = '${basis}' THEN value END)`;
     const presentOn = (basis) => `COUNT(CASE WHEN field_code = 'TR.GrossProfit' AND basis = '${basis}' THEN value END)`;
     // Comparing the two bases is only valid when they share currency/scale/
-    // periodicity — count the DISTINCT values across both gross-profit rows.
+    // periodicity, count the DISTINCT values across both gross-profit rows.
     const variantsOf = (col) => `COUNT(DISTINCT CASE WHEN field_code = 'TR.GrossProfit' THEN ${col} END)`;
     const sql =
         'SELECT ' +
@@ -718,7 +718,7 @@ export function reconcileStandardizedVsAsReported({
 }
 
 /**
- * Scenario 4 — a closing-price time series for one instrument over a date range.
+ * Scenario 4, a closing-price time series for one instrument over a date range.
  *
  * Pricing is a time series at its own grain (finding #6), so this reads from
  * `prices` (keyed by the stable **quote** PermID), not from `fundamentals` (keyed

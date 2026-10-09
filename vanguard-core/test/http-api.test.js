@@ -1,5 +1,5 @@
 /**
- * HTTP API tests — the engine's web surface (what the M7 proxy calls). Spins the
+ * HTTP API tests, the engine's web surface (what the M7 proxy calls). Spins the
  * server up on an ephemeral port and exercises it over real HTTP with the
  * built-in fetch. Offline: no credential, no model, no SDK.
  */

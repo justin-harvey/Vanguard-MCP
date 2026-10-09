@@ -1,4 +1,4 @@
-# Session handoff — 2026-09-26 (LSEG hardening backlog complete)
+# Session handoff, 2026-09-26 (LSEG hardening backlog complete)
 
 _Self-contained summary of this session's work. `main` @ `db726ff`, repo
 `justin-harvey/vanguard-mcp`, clone `/home/nah/Claudia/vanguard-mcp`. 165 core
@@ -23,21 +23,21 @@ node bin/vanguard.js lseg        # prints the full lseg subcommand list
 - **Pushing:** paste a GitHub PAT inline per push, use it in the URL, don't persist.
   `main` is the deploy branch; `git ls-remote … main` before pushing to catch
   out-of-band web edits. (Every push this session was a clean fast-forward.)
-- **`BUILD-PLAN.md` and `Phineas/` are intentionally untracked — do not `git add -A`
+- **`BUILD-PLAN.md` and `Phineas/` are intentionally untracked, do not `git add -A`
   them** (use explicit paths, or `git restore --staged` if they sneak in).
 
 ## Completed this session
 
 | Item | Commit | Summary |
 |---|---|---|
-| **P6 — Bitemporal keys** | `faaf60e` | `knowledge_date` (transaction time) distinct from `period` (valid time); restatements version (new row, not overwrite); reads take `asOf` (default sentinel `9999-12-31`) with a correlated `MAX(knowledge_date)<=asOf` subquery → exactly one vintage per (org,field,period,basis); pre-vintage → N/A; `verify()` intact across a restatement. CLI `--as-of`. |
+| **P6, Bitemporal keys** | `faaf60e` | `knowledge_date` (transaction time) distinct from `period` (valid time); restatements version (new row, not overwrite); reads take `asOf` (default sentinel `9999-12-31`) with a correlated `MAX(knowledge_date)<=asOf` subquery → exactly one vintage per (org,field,period,basis); pre-vintage → N/A; `verify()` intact across a restatement. CLI `--as-of`. |
 | **Favicon** | `2d43b9b` | Phineas dolphin favicon across all pages (deployed `vanguard/` tree + root duplicate); phineas assets copied into the root tree. |
-| **P7 — `lseg-data` ops** | `eb653e6` | (a) Bridge classifies failures → `{error, kind}` (permission/not_found/transport/bad_request/dependency), surfaced on `RealLsegSession`. (b) Pricing at its own grain: `quote_permid` + `prices` table via `get_history`; `TR.PriceClose` out of `fundamentals`; ingest guards both ways; `priceCloseSeries` / `vanguard lseg prices`. (c) One session + universe chunking + transport backoff. |
+| **P7, `lseg-data` ops** | `eb653e6` | (a) Bridge classifies failures → `{error, kind}` (permission/not_found/transport/bad_request/dependency), surfaced on `RealLsegSession`. (b) Pricing at its own grain: `quote_permid` + `prices` table via `get_history`; `TR.PriceClose` out of `fundamentals`; ingest guards both ways; `priceCloseSeries` / `vanguard lseg prices`. (c) One session + universe chunking + transport backoff. |
 | **README** | `3df18d3` | Root README rewritten to teach LSEG from zero: acronym glossary, how the pipeline works, what each reconciliation proves, where the value is, annotated CLI transcript. Test badge → 165. |
-| **P8 — Licensing / retention** | `db726ff` | `data_sources` table tags each source once (usage class / TTL / redistribution); `lseg-retention.js` report + purge; `C1.1-lseg-data-retention` control; ingest registers policy; CLI `retention` / `license`; sign-off checklist `db/lseg-licensing.md`. |
+| **P8, Licensing / retention** | `db726ff` | `data_sources` table tags each source once (usage class / TTL / redistribution); `lseg-retention.js` report + purge; `C1.1-lseg-data-retention` control; ingest registers policy; CLI `retention` / `license`; sign-off checklist `db/lseg-licensing.md`. |
 
 **Release tags (rollback anchors):** `v0.7.0-lseg-p7` (P1–P7) and `v0.8.0-lseg-p8`
-(backlog complete). Roll back with `git reset --hard <tag>` (coordinate — deploy branch).
+(backlog complete). Roll back with `git reset --hard <tag>` (coordinate, deploy branch).
 
 **The full P1–P8 backlog is done. No open LSEG findings.**
 
@@ -52,7 +52,7 @@ These are honest loose ends, roughly high-to-low impact. None block the demo; se
    failing on the demo. Fix options: stamp the seed's `retrieved_at` to a dynamic
    recent date (e.g. today), give the synthetic source a very long/`NULL` TTL, or
    document that the demo should pass `--as-of 2024-04-15`. Tests pin `asOf`, so the
-   suite is unaffected — this is a demo-ergonomics gap, not a test gap.
+   suite is unaffected, this is a demo-ergonomics gap, not a test gap.
 
 2. **The static controls panel (`vanguard/controls.html`) does not list the
    new `C1.1-lseg-data-retention` control** (grep: 0 hits). The engine has it; the
@@ -64,9 +64,9 @@ These are honest loose ends, roughly high-to-low impact. None block the demo; se
    not explain bitemporal as-of reads, pricing-at-its-own-grain, or the
    retention/licensing governance. The rewritten *root* README covers all of it;
    the site page should catch up (and the M7 "Connect live data" panel is still
-   just a reachability probe — see `LSEG-HANDOFF.md` gotchas).
+   just a reachability probe, see `LSEG-HANDOFF.md` gotchas).
 
-4. **`vanguard-core/README.md` is stale on LSEG CLI surface** — it does not
+4. **`vanguard-core/README.md` is stale on LSEG CLI surface**, it does not
    document `lseg basis` / `lseg prices` / `lseg retention` / `lseg license` / the
    `--as-of` flag (grep: 0 hits). The root README is current; the core README's
    LSEG section needs the same update.
@@ -89,7 +89,7 @@ These are honest loose ends, roughly high-to-low impact. None block the demo; se
 8. **`period_end_date` / fiscal-year-end calendarization was deferred in P6.** The
    `period` label carries valid time, but there's no concrete period-end date per
    issuer (IBM Dec, Apple Sep, Vodafone Mar). Add it only when a control needs true
-   period-end alignment — faking precise dates would overstate what's modelled.
+   period-end alignment, faking precise dates would overstate what's modelled.
 
 9. **Opportunistic cleanup** (from the review, still open): two sources of unit
    truth (`lseg_fields.unit` vs the registry `unit` can drift); several seeded-but-
@@ -97,7 +97,7 @@ These are honest loose ends, roughly high-to-low impact. None block the demo; se
    `TotalDebtOutstanding`, `TotalAssetsReported`) that could earn their keep with a
    balance-sheet / leverage / margin control, or be trimmed.
 
-10. **Whole-project M7 deploy is still the big pending item** (see `HANDOFF.md`) —
+10. **Whole-project M7 deploy is still the big pending item** (see `HANDOFF.md`),
     separate scope from this LSEG review.
 
 11. **Security hygiene:** the GitHub PAT used for these pushes was pasted into the
@@ -106,8 +106,8 @@ These are honest loose ends, roughly high-to-low impact. None block the demo; se
 
 ## Pointers
 
-- `LSEG-ARCHITECTURE-REVIEW.md` — master findings + backlog (P1–P8 all checked off).
-- `LSEG-HANDOFF.md` — LSEG-specific "what's true now", invariants, gotchas.
-- `vanguard-core/db/lseg-anchor.md` — claim discipline + the model in prose.
-- `vanguard-core/db/lseg-licensing.md` — the pre-live-key sign-off checklist.
-- `HANDOFF.md` — whole-project state (M7 deploy).
+- `LSEG-ARCHITECTURE-REVIEW.md`, master findings + backlog (P1–P8 all checked off).
+- `LSEG-HANDOFF.md`, LSEG-specific "what's true now", invariants, gotchas.
+- `vanguard-core/db/lseg-anchor.md`, claim discipline + the model in prose.
+- `vanguard-core/db/lseg-licensing.md`, the pre-live-key sign-off checklist.
+- `HANDOFF.md`, whole-project state (M7 deploy).

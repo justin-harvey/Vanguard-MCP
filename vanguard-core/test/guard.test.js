@@ -2,7 +2,7 @@
  * Guard tests.
  *
  * These are the security tests. Each one is a statement that must not reach
- * the database, or a legitimate query that must not be blocked — false
+ * the database, or a legitimate query that must not be blocked, false
  * positives matter too, because a guard that rejects valid analytics gets
  * switched off.
  */
@@ -87,7 +87,7 @@ test('rejects every write verb', () => {
 });
 
 test('rejects schema exfiltration via sqlite_master', () => {
-    // Not a write, and parses as a clean SELECT — only the allow-list stops it.
+    // Not a write, and parses as a clean SELECT, only the allow-list stops it.
     assert.equal(rejection('SELECT name, sql FROM sqlite_master').reason, 'table_not_allowed');
 });
 

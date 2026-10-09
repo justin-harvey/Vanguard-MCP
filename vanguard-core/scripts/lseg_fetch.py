@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
 """
-LSEG fetch bridge — the Python side of RealLsegSession (src/lseg-ingest.js).
+LSEG fetch bridge, the Python side of RealLsegSession (src/lseg-ingest.js).
 
 Fin-Telligence's engine is Node; LSEG data is retrieved with the Python
 `lseg-data` library against a running LSEG Workspace session. This script is the
 thin bridge between them: RealLsegSession spawns it, hands it a JSON request on
-stdin, and reads wide rows back on stdout — the exact shape the ingest seam
+stdin, and reads wide rows back on stdout, the exact shape the ingest seam
 consumes. Swapping the synthetic FakeLsegSession for RealLsegSession + a valid
 credential is then the only change needed to attest real LSEG data.
 
@@ -31,9 +31,9 @@ Response (stdout, JSON):
 
 The `kind` lets the Node side branch: an entitlement gap (permission_denied) is a
 provisioning problem, an unknown field/instrument (not_found) is a request bug,
-and transport is retryable — the bridge already retries transport within a call.
+and transport is retryable, the bridge already retries transport within a call.
 
-Prerequisites (only for real data — the demo never runs this):
+Prerequisites (only for real data, the demo never runs this):
   - pip install lseg-data
   - a running LSEG Workspace / Eikon session, or a Data Platform app key with an
     entitlement covering the requested fields
@@ -41,7 +41,7 @@ Prerequisites (only for real data — the demo never runs this):
     absent that, the library's own config file (lseg-data.config.json) is used.
 
 Fundamentals are pulled with get_data (a value per period); pricing is a time
-series and is pulled with get_history at its own grain (SDate/EDate/interval) —
+series and is pulled with get_history at its own grain (SDate/EDate/interval),
 see finding #6 in LSEG-ARCHITECTURE-REVIEW.md. The exact call shape should be
 confirmed with lseg-mcp's `draft_api_call` / `get_package_signature` for your
 installed lseg-data version; this bridge is not exercised against a live session
@@ -99,8 +99,8 @@ def chunked(seq, size):
 def with_retry(call, max_retries, backoff):
     """
     Run `call()`, retrying only TRANSPORT-classified failures with exponential
-    backoff. A permission or not-found error is deterministic — retrying it just
-    wastes the rate budget — so it is raised immediately. Returns the call result
+    backoff. A permission or not-found error is deterministic, retrying it just
+    wastes the rate budget, so it is raised immediately. Returns the call result
     or re-raises the last exception once retries are exhausted.
     """
     attempt = 0
@@ -116,7 +116,7 @@ def with_retry(call, max_retries, backoff):
 
 def open_session(ld, app_key):
     """Open one lseg-data session for the whole request (sessions are heavy and
-    concurrency-limited — a fresh one per instrument would exhaust the budget)."""
+    concurrency-limited, a fresh one per instrument would exhaust the budget)."""
     if app_key:
         ld.open_session(app_key=app_key)
     else:
@@ -140,7 +140,7 @@ def fetch_data(ld, universe, fields, parameters):
 def fetch_history(ld, universe, fields, interval, start, end):
     """
     One get_history call for a chunk of the universe (pricing: a time series at its
-    own grain, not a per-period fundamental — finding #6). Signature varies across
+    own grain, not a per-period fundamental, finding #6). Signature varies across
     lseg-data versions, so try the documented kwargs and fall back positionally.
     """
     kwargs = {"universe": universe, "fields": fields}
@@ -248,7 +248,7 @@ def main():
         )
 
     # One session, chunked over the universe, transport errors retried with
-    # backoff — the session is opened once above and closed once in `finally`.
+    # backoff, the session is opened once above and closed once in `finally`.
     try:
         rows = []
         for chunk in chunked(universe, chunk_size):

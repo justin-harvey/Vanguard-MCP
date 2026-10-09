@@ -1,5 +1,5 @@
 /**
- * The capital-markets warehouse and its scenarios — the flagship demo.
+ * The capital-markets warehouse and its scenarios, the flagship demo.
  *
  * The SaaS demo shows the engine works. This shows it where it matters: trade
  * surveillance and position attestation, the setting the whole "a number you
@@ -7,7 +7,7 @@
  * abuse surveillance, CAT / MiFIR reporting data quality, best-execution).
  *
  * Nothing here replaces the SaaS path. The guard is simply pointed at a
- * different warehouse and allow-list — the same boundary, a different domain —
+ * different warehouse and allow-list, the same boundary, a different domain,
  * which is exactly the parameterisation the connector work in M5 generalises.
  *
  * The data is synthetic and deterministic: a fixed seed produces byte-identical
@@ -84,7 +84,7 @@ const ACCOUNTS = [
     { id: 6, name: 'Kestrel Trading', desk: 'Prop', country: 'SG', profile: 'slow_cancel' },
 ];
 
-/** mulberry32 — the same deterministic PRNG the SaaS seed uses. */
+/** mulberry32, the same deterministic PRNG the SaaS seed uses. */
 function mulberry32(seed) {
     let a = seed >>> 0;
     return function next() {
@@ -177,7 +177,7 @@ export function seedMarkets(path = MARKETS_DB_PATH) {
             insertOrder.run(orderId, account.id, t.ticker, side, qty() * 8, t.ref_cents, placed, canceled, 'canceled');
         }
 
-        // Slow, ordinary cancels — a changed mind, not abuse. Far outside the
+        // Slow, ordinary cancels, a changed mind, not abuse. Far outside the
         // surveillance window, so they must not be flagged.
         for (let s = 0; s < SLOW_CANCELS[account.profile]; s += 1) {
             const t = TICKERS[tickerCursor % TICKERS.length];
@@ -203,7 +203,7 @@ export function seedMarkets(path = MARKETS_DB_PATH) {
 const guardOptions = { allowedTables: MARKETS_ALLOWED_TABLES, allowedColumns: MARKETS_ALLOWED_COLUMNS };
 
 /**
- * Scenario 1 — net position in a ticker as of market close.
+ * Scenario 1, net position in a ticker as of market close.
  *
  * Uses the as-of hook (executed_at_ms <= close) so the figure is pinned to a
  * point in time, and the canonical net_position metric so it is computed one
@@ -263,7 +263,7 @@ export function netPositionAtClose({
 }
 
 /**
- * Scenario 2 — market-abuse surveillance: accounts that cancel at least
+ * Scenario 2, market-abuse surveillance: accounts that cancel at least
  * `minCancels` orders within `windowMs` of placing them. Produces an alert set,
  * its provenance, and an immutable log entry.
  *
@@ -323,7 +323,7 @@ export function surveillanceRapidCancels({
 }
 
 /**
- * Reconciliation query — the net position in a ticker derived from the execution
+ * Reconciliation query, the net position in a ticker derived from the execution
  * ledger versus the independently stored end-of-day positions snapshot, in one
  * attested statement. A processing-integrity control passes only when the two
  * tie out; a divergence means the derived book and the recorded book disagree.

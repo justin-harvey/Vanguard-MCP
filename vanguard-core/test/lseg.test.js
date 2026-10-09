@@ -123,7 +123,7 @@ test('fundamentals key on the stable Org PermID; RIC is a resolvable alias', () 
 test('re-aliasing a RIC to another org follows the entity, not the ticker', () => {
     // The point of the model: fundamentals are keyed by the stable org, so if a
     // RIC is reassigned (ticker/venue change, M&A) it now resolves to whatever
-    // org it points at — the RIC is just an alias.
+    // org it points at, the RIC is just an alias.
     const dir = mkdtempSync(join(tmpdir(), 'vanguard-lsegalias-'));
     const db = join(dir, 'lseg.db');
     seedLseg(db);
@@ -209,10 +209,10 @@ test('an as-of read returns the vintage known at that knowledge date (bitemporal
     assert.equal(latest.revenue_usd, 57_900_000_000, 'default read is latest-known');
 });
 
-test('field-keyed sums pick exactly one vintage — a restatement is not double-counted (P6)', () => {
+test('field-keyed sums pick exactly one vintage, a restatement is not double-counted (P6)', () => {
     // Both an original and a restated Revenue row exist for FY2021; a naive sum
     // over the field would add them (57.35bn + 57.90bn). The latest-vintage
-    // filter must return exactly one — the restated 57.90bn — at the default read.
+    // filter must return exactly one, the restated 57.90bn, at the default read.
     const r = fundamentalsSnapshot({ ric: 'IBM.N', period: 'FY2021', dbPath: DB_PATH, logPath: freshLog() }).rows[0];
     assert.equal(r.revenue_usd, 57_900_000_000);
     assert.notEqual(r.revenue_usd, 57_350_000_000 + 57_900_000_000, 'the two vintages must not be summed');
@@ -230,7 +230,7 @@ test('the reconciliation ties at each vintage on the standardized identity (P6)'
 
 test('an as-of before any known vintage reads as N/A, not a spurious zero (P6)', () => {
     // We did not know FY2021 figures in 2020, so the honest answer is "no data",
-    // surfaced as presence 0 / NULL — the same coverage discipline as a missing row.
+    // surfaced as presence 0 / NULL, the same coverage discipline as a missing row.
     const r = reconcileGrossProfit({ ric: 'IBM.N', period: 'FY2021', asOf: BEFORE_ANY_VINTAGE, dbPath: DB_PATH, logPath: freshLog() }).rows[0];
     assert.equal(r.revenue_present, 0, 'nothing was known yet at this as-of');
     assert.equal(r.identity_gross_usd, null, 'absent, not a false 0');
@@ -241,7 +241,7 @@ test('an as-of read reproduces its hash and a restatement is not read as tamperi
     // The reproducibility guarantee (CC7.3) must survive a restatement: re-running
     // the same as-of query reproduces its hash, the restated vintage produces a
     // different hash, and both attestations land in one audit chain that verifies
-    // intact — a restatement is a new knowledge-time fact, not a mutation.
+    // intact, a restatement is a new knowledge-time fact, not a mutation.
     const logPath = freshLog();
     const first = reconcileGrossProfit({ ric: 'IBM.N', period: 'FY2021', asOf: BEFORE_RESTATEMENT, dbPath: DB_PATH, logPath });
     const second = reconcileGrossProfit({ ric: 'IBM.N', period: 'FY2021', asOf: BEFORE_RESTATEMENT, dbPath: DB_PATH, logPath });
@@ -271,7 +271,7 @@ test('pricing lives at its own grain, keyed by the quote PermID, not in fundamen
     db.close();
 
     // The series reads through the guarded pipeline, ordered by date, ending at the
-    // close previously (mis)stored as the fundamental — so nothing regressed.
+    // close previously (mis)stored as the fundamental, so nothing regressed.
     const { rows } = priceCloseSeries({ ric: 'IBM.N', dbPath: DB_PATH, logPath: freshLog() });
     assert.equal(rows.length, 3);
     assert.deepEqual(rows.map((r) => r.price_date), ['2024-03-26', '2024-03-27', '2024-03-28']);

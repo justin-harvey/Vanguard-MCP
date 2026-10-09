@@ -4,8 +4,8 @@
  * The guard's scope hook (M1) can inject a mandatory predicate; what it lacked
  * was an authenticated identity to decide *which* predicate. This module is
  * that identity layer, kept deliberately small and swappable: a real deployment
- * resolves a token against an IdP, but the shape — token in, principal out,
- * principal to scope — is the same.
+ * resolves a token against an IdP, but the shape, token in, principal out,
+ * principal to scope, is the same.
  *
  * The security-relevant rule: a scoped principal's predicate is derived here
  * and handed to the guard, which binds it as a parameter. A trader principal
@@ -33,7 +33,7 @@ export class AuthError extends Error {
 /**
  * Resolve an opaque token to a principal against a registry, or throw. The
  * registry is a plain map for the reference implementation; the contract is
- * what matters — an unknown or missing token is refused, never defaulted to a
+ * what matters, an unknown or missing token is refused, never defaulted to a
  * privileged identity.
  *
  * @param {string} token

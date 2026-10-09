@@ -1,7 +1,7 @@
 /**
  * Evidence packets and the control-result shape (M8).
  *
- * The audit chain stores, for each attestation, the *hash* of a result — not the
+ * The audit chain stores, for each attestation, the *hash* of a result, not the
  * result itself. That is what makes it small and tamper-evident, but an auditor
  * asking "show me the evidence for this figure" needs the rows the hash was taken
  * over, the exact SQL that produced them, and a way to check all of it without
@@ -36,7 +36,7 @@ export const CONTROL_STATUS = Object.freeze({ PASS: 'PASS', EXCEPTION: 'EXCEPTIO
 const STATUSES = new Set(Object.values(CONTROL_STATUS));
 
 /**
- * Normalise a control result — the richer shape a button returns, one level up
+ * Normalise a control result, the richer shape a button returns, one level up
  * from the raw answer/refusal. A control asserts something about a figure and
  * reports whether it holds; the packet then makes that assertion evidentiary.
  *
@@ -97,15 +97,15 @@ const VERIFY_INSTRUCTIONS =
     'rows and confirm it equals provenance.resultHash; (2) recompute the audit entry ' +
     'hash (all fields except hash/signature/signingKeyId) and confirm it equals ' +
     'provenance.audit.hash; (3) if signed, verify the Ed25519 signature over that hash ' +
-    'with the embedded public key — whose keyId must be cross-checked against the ' +
+    'with the embedded public key, whose keyId must be cross-checked against the ' +
     "attesting party's published key. `verifyPacket()` does all of this.";
 
 /**
  * Build a self-contained, independently verifiable evidence packet for one
  * attested control result.
  *
- * The verbatim audit `entry` is embedded (it already carries the full lineage —
- * question, SQL, tables, result hash — plus its chain position and any
+ * The verbatim audit `entry` is embedded (it already carries the full lineage,
+ * question, SQL, tables, result hash, plus its chain position and any
  * signature), so a reader recomputes its hash exactly as the chain did. The
  * `rows` are embedded too, because the chain never stored them; they are the new
  * evidence the packet adds over the log.
@@ -166,7 +166,7 @@ export function generateCompliancePacket({
  * Verify a packet with no external trust. Returns each check plus an overall
  * `ok`. A `null` check is "not applicable" (e.g. an unsigned packet's signature)
  * and does not fail the packet. A public key may be supplied; otherwise the
- * embedded one is used — but note that a self-embedded key only proves internal
+ * embedded one is used, but note that a self-embedded key only proves internal
  * consistency until its keyId is matched to a known published key.
  *
  * @param {object} packet
@@ -204,7 +204,7 @@ export function verifyPacket(packet, { publicKey = null } = {}) {
 }
 
 /**
- * Render a packet as human-readable Markdown — the printable side-by-side an
+ * Render a packet as human-readable Markdown, the printable side-by-side an
  * auditor reads (and the UI can render to PDF via the browser, keeping a heavy
  * PDF dependency out of the core). Deterministic given the packet.
  *
@@ -227,7 +227,7 @@ export function renderPacketMarkdown(packet) {
         : 'unsigned';
     const anchor = p.anchor ? `${p.anchor.anchor} · ${String(p.anchor.ref).slice(0, 16)}…` : 'none';
 
-    return `# Evidence packet — ${c.controlId ?? 'control'}${c.criterion ? ` · ${c.criterion}` : ''}
+    return `# Evidence packet, ${c.controlId ?? 'control'}${c.criterion ? ` · ${c.criterion}` : ''}
 
 **Status:** ${c.status}${c.exception ? `  (${c.exception})` : ''}
 **Generated:** ${packet.generatedAt}
@@ -267,7 +267,7 @@ ${e.resultCsv ?? ''}
 
 ${packet.verification?.instructions ?? ''}
 
-**Self-check at render:** ${check.ok ? 'VERIFIED' : 'FAILED'} — ${Object.entries(check.checks)
+**Self-check at render:** ${check.ok ? 'VERIFIED' : 'FAILED'}, ${Object.entries(check.checks)
         .map(([k, v]) => `${k}=${v === null ? 'n/a' : v}`)
         .join(', ')}
 `;

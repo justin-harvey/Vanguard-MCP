@@ -1,6 +1,6 @@
 /**
  * Evidence-packet tests (M8): the control-result shape, deterministic CSV, and a
- * packet that verifies offline — with tamper and signature paths proving the
+ * packet that verifies offline, with tamper and signature paths proving the
  * verification actually bites.
  */
 

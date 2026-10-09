@@ -1,5 +1,5 @@
 /**
- * Warehouse descriptors — the single place that knows, for each warehouse, where
+ * Warehouse descriptors, the single place that knows, for each warehouse, where
  * it lives, what the guard allow-lists, which audit log it appends to, its metric
  * registry, and a plain-language description.
  *
@@ -109,7 +109,7 @@ export function getWarehouse(name) {
 /**
  * The live schema for a warehouse: for each allow-listed table, its columns and
  * declared types, read from the database with PRAGMA and filtered to the columns
- * the guard permits — so an AI sees the real, permitted shape, never more.
+ * the guard permits, so an AI sees the real, permitted shape, never more.
  *
  * @param {string} name
  * @param {object} [options]

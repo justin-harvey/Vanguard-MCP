@@ -1,4 +1,4 @@
-# Enron anchor figures — real, as reported
+# Enron anchor figures, real, as reported
 
 These are Enron Corp.'s **actual reported** consolidated figures, transcribed
 verbatim from the primary filing. They are the historical anchor for the
@@ -13,7 +13,7 @@ Retrieved from SEC EDGAR (public domain).
 
 > Claim discipline: these aggregates are real and must be cited to this filing.
 > The transaction-level rows in the warehouse are synthetic and must be labelled
-> synthetic — there is no public Enron general ledger. The point of the POC is to
+> synthetic, there is no public Enron general ledger. The point of the POC is to
 > show reported figures against what underlying rows support, with a
 > tamper-evident provenance chain; that only works if the labelling is exact.
 
@@ -21,16 +21,16 @@ Retrieved from SEC EDGAR (public domain).
 
 | Line item | 2000 | 1999 | 1998 |
 |---|---:|---:|---:|
-| Revenues — natural gas and other products | 50,500 | 19,536 | 13,276 |
-| Revenues — electricity | 33,823 | 15,238 | 13,939 |
-| Revenues — metals | 9,234 | — | — |
-| Revenues — other | 7,232 | 5,338 | 4,045 |
+| Revenues, natural gas and other products | 50,500 | 19,536 | 13,276 |
+| Revenues, electricity | 33,823 | 15,238 | 13,939 |
+| Revenues, metals | 9,234 |, |, |
+| Revenues, other | 7,232 | 5,338 | 4,045 |
 | **Total revenues** | **100,789** | **40,112** | **31,260** |
 | Cost of gas, electricity, metals and other products | 94,517 | 34,761 | 26,381 |
 | Operating expenses | 3,184 | 3,045 | 2,473 |
 | Depreciation, depletion and amortization | 855 | 870 | 827 |
 | Taxes, other than income taxes | 280 | 193 | 201 |
-| Impairment of long-lived assets | — | 441 | — |
+| Impairment of long-lived assets |, | 441 |, |
 | **Total costs and expenses** | **98,836** | **39,310** | **29,882** |
 | **Operating income** | **1,953** | **802** | **1,378** |
 | **Net income** | **979** | **893** | **703** |

@@ -1,23 +1,23 @@
-# LSEG licensing, redistribution & retention — sign-off before a live key
+# LSEG licensing, redistribution & retention, sign-off before a live key
 
 This document is the **pre-live-key checklist** for finding #7. The warehouse
 *persists* vendor data, which is only lawful within the terms of an LSEG
 agreement. Everything in the code (the `data_sources` policy table, the retention
 report/purge, the `C1.1-lseg-data-retention` control) **encodes and enforces a
-policy — it does not grant a right.** The numbers seeded here (non-display,
+policy, it does not grant a right.** The numbers seeded here (non-display,
 90-day TTL, internal-only) are *illustrative defaults for synthetic data*. Before
 a real LSEG credential is used, the terms below must be confirmed against the
 signed contract and the tags updated to match.
 
 > Claim discipline (see `lseg-anchor.md`): no persisted vendor data may be
 > untagged, and no cached value may be held past its licensed window. The report
-> flags both; the control fails on either. That is the guarantee — not a
+> flags both; the control fails on either. That is the guarantee, not a
 > certification of compliance, which is an organisational and contractual matter.
 
 ## What must be signed off
 
 ### 1. Display vs non-display usage
-LSEG bills — and permits — **display** usage (a value shown to a human, e.g. a
+LSEG bills, and permits, **display** usage (a value shown to a human, e.g. a
 live quote on a screen) differently from **non-display** usage (a value consumed
 by a machine or a derived calculation, e.g. a reconciliation). This engine's use
 is **non-display / derived** (it reconciles and attests; it does not present live
@@ -34,7 +34,7 @@ stale or if a source has no TTL set. Confirm the permitted cache duration per
 dataset and set `retention_days` to match (a shorter contractual window wins).
 
 ### 3. Redistribution terms
-May a pulled value leave this system — shown to a client, embedded in a report,
+May a pulled value leave this system, shown to a client, embedded in a report,
 exposed via an API? Default here is **internal-only (no redistribution)**
 (`data_sources.redistribution`). Confirm redistribution rights per dataset before
 any value crosses a boundary (a client deliverable, a downstream feed, a public

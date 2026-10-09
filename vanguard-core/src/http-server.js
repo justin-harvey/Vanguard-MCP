@@ -1,10 +1,10 @@
 /**
- * The engine's HTTP surface — a thin JSON API over the same pure handlers in
+ * The engine's HTTP surface, a thin JSON API over the same pure handlers in
  * mcp.js that the stdio MCP server uses. This is what a deployed web proxy (the
  * Supabase Edge Function in M7) calls: server-to-server, behind a shared bearer
  * token, so the browser never reaches the engine or the warehouse directly.
  *
- * No new dependency: Node's built-in http. The tool logic is unchanged — every
+ * No new dependency: Node's built-in http. The tool logic is unchanged, every
  * route delegates to callTool/readResource, so the guard, grounding and audit
  * chain remain the only path to the data here too.
  *

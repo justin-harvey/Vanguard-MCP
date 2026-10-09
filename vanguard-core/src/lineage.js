@@ -1,5 +1,5 @@
 /**
- * Lineage — the provenance record attached to every answer.
+ * Lineage, the provenance record attached to every answer.
  *
  * The point of a lineage record is that someone who does not trust the answer
  * can reproduce it. That requires three things: the exact SQL that ran, the
@@ -19,7 +19,7 @@ import { createHash } from 'node:crypto';
 /**
  * Canonically serialise a value: object keys sorted, arrays in order.
  *
- * Row order is preserved rather than sorted — for a query with an ORDER BY,
+ * Row order is preserved rather than sorted, for a query with an ORDER BY,
  * order is part of the answer, and re-running the same SQL against the same
  * data reproduces it.
  *

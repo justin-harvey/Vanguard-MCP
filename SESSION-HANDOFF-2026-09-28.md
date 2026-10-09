@@ -79,10 +79,10 @@ Gaps #1–#4 from 2026-09-26 are done. Remaining, roughly high-to-low impact:
 
 ## Pointers
 
-- `LSEG-GO-LIVE.md` — real credentialed-session runbook (new this session).
-- `LSEG-ARCHITECTURE-REVIEW.md` — master findings + P1–P8 backlog (all done).
-- `LSEG-HANDOFF.md` — LSEG "what's true now" (note: predates this session's gap #1 fix
+- `LSEG-GO-LIVE.md`, real credentialed-session runbook (new this session).
+- `LSEG-ARCHITECTURE-REVIEW.md`, master findings + P1–P8 backlog (all done).
+- `LSEG-HANDOFF.md`, LSEG "what's true now" (note: predates this session's gap #1 fix
   and the gated panel, so read it alongside this doc).
-- `HANDOFF.md` — whole-project state (M7 deploy).
-- Local memory `vanguard-mcp-lseg-demo-tracks.md` — the two-track direction + interview
+- `HANDOFF.md`, whole-project state (M7 deploy).
+- Local memory `vanguard-mcp-lseg-demo-tracks.md`, the two-track direction + interview
   context.

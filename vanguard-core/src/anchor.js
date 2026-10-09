@@ -1,5 +1,5 @@
 /**
- * External anchoring — the honest fix for the one limitation the audit chain
+ * External anchoring, the honest fix for the one limitation the audit chain
  * cannot fix by itself.
  *
  * A local hash chain detects any edit to a past entry, but it cannot detect the
@@ -10,7 +10,7 @@
  *
  * This is where the audit chain composes with an external timestamping or
  * on-chain anchoring service (TLaaS is the intended production adapter). The
- * interface is deliberately one method — `submit(headHash) -> receipt` — so a
+ * interface is deliberately one method, `submit(headHash) -> receipt`, so a
  * real adapter and the local stub below are interchangeable. Only the stub
  * ships here; a network adapter is out of scope for the core.
  *
@@ -23,7 +23,7 @@ import { createHash } from 'node:crypto';
 
 /**
  * A local stub anchorer. It does not provide the independence a real anchor
- * does — it runs in the same process — but it exercises the interface and
+ * does, it runs in the same process, but it exercises the interface and
  * produces a deterministic receipt reference for a given head, which is what
  * the export path and its tests need.
  *
@@ -38,7 +38,7 @@ export function localStubAnchor() {
                 headHash,
                 ref: createHash('sha256').update(`local-stub-anchor:${headHash}`).digest('hex'),
                 at: new Date().toISOString(),
-                note: 'Stub anchor — no external independence. Swap for a TLaaS adapter in production.',
+                note: 'Stub anchor, no external independence. Swap for a TLaaS adapter in production.',
             };
         },
     };
