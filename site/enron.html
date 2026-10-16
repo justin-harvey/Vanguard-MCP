@@ -198,17 +198,17 @@
           evaluate semantic safety or prompt injection. Vanguard MCP treats numbers like foreign keys:
           if the narrative claims <code class="inl">$100,789m</code> and that exact figure (or its unit
           transform) isn't in the returned dataset, the pipeline aborts.</li>
-          <li><b>Trade-surveillance attestation.</b> Most AI audit logs track <em>who</em> sent a prompt,
-          for billing or security. Attaching a cryptographic hash-chain to regulatory queries (MiFID II /
-          MAR trade-abuse findings) stops internal operators from backdating or quietly altering a
-          surveillance flag.</li>
+          <li><b>Public-record attestation.</b> Most AI audit logs track <em>who</em> sent a prompt,
+          for billing or security. Attaching a cryptographic hash-chain to the answer itself (a grant
+          drawdown, a bond-proceeds balance, a year-end figure) means a reported number cannot be
+          backdated or quietly altered after a resident, a council member, or an auditor has seen it.</li>
         </ul>
 
         <div class="disc" style="margin-top:22px">
           <b>The main trade-off:</b> this architecture trades conversational fluidity for legal and audit
-          safety. It will refuse queries far more often than tools like ChatGPT or Koyfin whenever SQL
-          translation is imperfect or the math falls outside the verifier's allowed rules. For regulatory
-          reporting, forensic accounting, or internal compliance, that trade-off is usually the requirement.
+          safety. It will refuse queries far more often than a general AI chatbot or BI dashboard whenever SQL
+          translation is imperfect or the math falls outside the verifier's allowed rules. For public-money
+          reporting, grant reconciliation, or an audit trail, that trade-off is usually the requirement.
         </div>
       </section>
 
@@ -266,11 +266,14 @@ node bin/vanguard.js <span class="p">enron audit</span>      <span class="c"># v
       <section class="section">
         <div class="disc">
           <b>Why a town should care about a 2001 bankruptcy.</b> Enron is here as a stress
-          test, not an accusation. It is the hardest reconciliation we could find, reported
-          figures built to diverge from the records behind them, and the pipeline closes the gap
-          with every figure grounded and the whole chain verifiable. A municipal budget is the
-          same shape of question, grant drawdowns, bond-proceeds spending, year-end reporting, at
-          a fraction of the difficulty. The mechanism you see here is the mechanism a town would run.
+          test, and it proves a point that cuts the other way for an honest town. If this pipeline
+          can expose a gap in the most deliberately obfuscated books in corporate history, then when
+          it finds none in a town's books, that silence is itself the proof. The real job here is
+          not catching fraud, it is arming a clerk, a manager, or a council against a resident who
+          insists the fraud is there, with a reproducible, tamper-evident answer that shows it is
+          not. A municipal budget, grant drawdowns, bond-proceeds spending, year-end reporting, is
+          the same shape of question at a fraction of the difficulty, and the mechanism you see here
+          is the mechanism a town would run.
         </div>
       </section>
     </main>
