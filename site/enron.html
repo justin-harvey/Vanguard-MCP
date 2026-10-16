@@ -98,11 +98,14 @@
         <p class="kicker">Case study · reporting-gap attestation</p>
         <h1>The Enron reporting gap<br /><span class="thin">what was reported, versus what the rows support.</span></h1>
         <p class="lede">
-          Enron's FY2000 annual report is the case the whole thesis is haunted by: numbers that
-          were internally consistent on paper and disconnected from reality. Vanguard MCP runs
-          the same verified pipeline over it, computing the <em>reported</em> figure and the
+          Enron's FY2000 annual report is the hardest version of this problem: books
+          engineered to look internally consistent while hiding the truth. Vanguard MCP runs
+          its verified pipeline over them, computing the <em>reported</em> figure and the
           <em>underlying</em> figure in one guarded query, so the distance between them is a
-          grounded, hash-chained, tamper-evident result, not an assertion.
+          grounded, hash-chained, tamper-evident result, not an assertion. If the pipeline can
+          untangle the most deliberately obfuscated books in corporate history, a municipal
+          general ledger is a far simpler case, and the same reproducible evidence packet comes
+          out the other end.
         </p>
       </section>
 
@@ -257,6 +260,17 @@ node bin/vanguard.js <span class="p">enron audit</span>      <span class="c"># v
             Source: ENRON CORP 10-K, fiscal year ended Dec 31 2000, filed 2001-04-02,
             SEC EDGAR accession <code>0001024401-01-500010</code> (public domain).
           </div>
+        </div>
+      </section>
+
+      <section class="section">
+        <div class="disc">
+          <b>Why a town should care about a 2001 bankruptcy.</b> Enron is here as a stress
+          test, not an accusation. It is the hardest reconciliation we could find, reported
+          figures built to diverge from the records behind them, and the pipeline closes the gap
+          with every figure grounded and the whole chain verifiable. A municipal budget is the
+          same shape of question, grant drawdowns, bond-proceeds spending, year-end reporting, at
+          a fraction of the difficulty. The mechanism you see here is the mechanism a town would run.
         </div>
       </section>
     </main>
