@@ -21,6 +21,7 @@
  */
 
 import { DatabaseSync } from 'node:sqlite';
+import { openReadOnly } from './db.js';
 import { LSEG_DB_PATH } from './lseg.js';
 
 /** The tables that persist vendor values and carry a `source` + `retrieved_at`. */
@@ -46,7 +47,13 @@ function today() {
  * }}
  */
 export function retentionReport({ dbPath = LSEG_DB_PATH, asOf = today() } = {}) {
-    const db = new DatabaseSync(dbPath);
+    // Read-only: retentionReport only SELECTs, and it is reached from a tool
+    // call (control C1.1). A read-only handle refuses writes beneath anything
+    // this process can reach, and never creates the file, so a tool call that
+    // names a missing or wrong path fails cleanly instead of leaving an empty
+    // database behind. purgeExpired below genuinely deletes, so it stays
+    // read-write; it is a CLI/admin function, never exposed as a tool.
+    const db = openReadOnly(dbPath);
     try {
         const policy = new Map(
             db.prepare('SELECT source, usage_class, retention_days, redistribution FROM data_sources').all()

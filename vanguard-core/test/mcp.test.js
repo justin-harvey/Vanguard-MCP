@@ -7,12 +7,12 @@
 
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdtempSync } from 'node:fs';
+import { mkdtempSync, existsSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { seedEnron } from '../src/enron.js';
 import { listTools, callTool, listResources, readResource } from '../src/mcp.js';
-import { warehouseSchema } from '../src/warehouses.js';
+import { warehouseSchema, getWarehouse } from '../src/warehouses.js';
 
 function freshDb(tag) {
     return join(mkdtempSync(join(tmpdir(), `vanguard-mcp-${tag}-`)), 'enron.db');
@@ -85,9 +85,44 @@ test('run_canonical runs a credential-free query, and verify_audit checks its lo
     assert.equal(result.rows.length, 1);
     assert.equal(result.rows[0].reported_debt_usd_millions, 10_229);
 
-    const integrity = await callTool('verify_audit', { logPath });
+    // logPath is trusted infrastructure, so it travels in ctx.overrides, never
+    // in the caller's arguments (which cannot name a file to read).
+    const integrity = await callTool('verify_audit', {}, { overrides: { logPath } });
     assert.equal(integrity.ok, true);
     assert.equal(integrity.entries, 1);
+});
+
+test('verify_audit refuses a caller-supplied file path', async () => {
+    // A caller must not be able to aim verify_audit at an arbitrary file on a
+    // shared drive its OS user can read; the only documented argument is a
+    // warehouse name, which resolves to a server-known log.
+    for (const key of ['logPath', 'dbPath', 'path']) {
+        await assert.rejects(
+            () => callTool('verify_audit', { [key]: '/etc/passwd' }),
+            /is not accepted/,
+            `expected verify_audit to refuse "${key}"`,
+        );
+    }
+});
+
+test('verify_audit resolves a warehouse name to its own server-known log', async () => {
+    // The caller names the warehouse; the engine, not the caller, chooses the
+    // file. The resolved path is the warehouse's configured log, so a caller
+    // cannot substitute one, even via a stray override.
+    const integrity = await callTool('verify_audit', { warehouse: 'enron' }, { overrides: { logPath: '/tmp/ignored' } });
+    assert.equal(integrity.logPath, getWarehouse('enron').logPath);
+    assert.equal(integrity.ok, true);
+});
+
+test('a read-only control neither writes nor creates a database file', async () => {
+    // Control C1.1 reads the LSEG warehouse to report retention. Pointed at a
+    // path that does not exist, it must fail cleanly on a read-only open rather
+    // than create an empty database there (gap: a tool call creating files).
+    const missing = join(mkdtempSync(join(tmpdir(), 'vanguard-noexist-')), 'absent.db');
+    await assert.rejects(
+        () => callTool('run_control', { id: 'C1.1-lseg-data-retention' }, { overrides: { dbPath: missing } }),
+    );
+    assert.equal(existsSync(missing), false, 'the tool call must not have created a database file');
 });
 
 test('run_canonical rejects an unknown query name', async () => {

@@ -21,7 +21,7 @@ Ship a **free** agent skill (listed on Agensi, usable in Claude Code, Cursor, Cl
 | | |
 |---|---|
 | **Done (on branch)** | S0 custom warehouses · S1 skill package · S2 named queries + automatic checks · **S3 verified + security fix** · **S5 slim skill + Agensi package** |
-| **Verified here (2026-11-13, Node 22)** | Full `npm test` **217/217 green**, including the 13 guard-dependent `custom-pipeline` tests (`node-sql-parser`) that had never run. The three `node-sql-parser` worries in old S3 (placeholder `(? IS NULL OR col = ?)`, qualified aliases in correlated subqueries, `COUNT(e.col)`) all pass. S3 security fix landed with 2 tests; S5 drift test (5 cases) green; the Agensi zip builds text-only, single top-level folder. |
+| **Verified here (2026-11-13, Node 22)** | Full `npm test` **220/220 green** (was 217; +3 for the file-path hardening below), including the 13 guard-dependent `custom-pipeline` tests (`node-sql-parser`) that had never run. The three `node-sql-parser` worries in old S3 (placeholder `(? IS NULL OR col = ?)`, qualified aliases in correlated subqueries, `COUNT(e.col)`) all pass. S3 security fix + file-path hardening landed with tests; S5 drift test (5 cases) green; the Agensi zip builds text-only, single top-level folder. |
 | **Human-only, still open** | S5 asks to test the skill in two agents and have someone who didn't build it try it. Also S3 step 4's live in-Claude-Code click-through (its substance is covered by `custom-pipeline` tests 10–13). |
 | **Not started** | S4 · S6–S11 (note: S4/S6/S7 still pending; S5 shipped ahead of S4 by request) |
 
@@ -126,7 +126,11 @@ Sizes are rough: **S** ≤ 1 day · **M** 2–4 days · **L** 1–2 weeks.
 
 - `npm test` is **217/217** on Node 22 with `node-sql-parser` installed. All three parser worries (optional-filter `(? IS NULL OR col = ?)`, qualified aliases in correlated subqueries, `COUNT(e.col)`) pass; the demo deliberately avoids `COUNT(*)`.
 - **Security fix landed.** `run_canonical` and `run_control` no longer spread caller `args` into the query/control functions. Caller args are whitelisted per query in `src/mcp.js` (`CANONICAL[name].args` + `pickCallerArgs`, which refuses unknown keys); infrastructure (`dbPath`/`logPath`) now comes only from a trusted `ctx.overrides` channel that the stdio transport (`mcp-server.js`) never fills from the wire. Covered by two tests in `test/mcp.test.js` ("refuses caller-supplied infrastructure arguments", "still accepts a whitelisted query parameter").
-- **Deferred to S7:** `verify_audit` still accepts a caller `logPath`. Fine locally; disable it when the hosted transport lands.
+- **File-path hardening landed (2026-11-13, pulled forward from S7).** The three path-taking tools can no longer be aimed at an arbitrary SQLite/log file the OS user can read (e.g. on a mounted shared drive):
+  - `verify_audit` now accepts **only** `warehouse` (a name that resolves to a server-known log) — no caller `logPath`. `pickCallerArgs('verify_audit', ['warehouse'], args)` refuses `logPath`/`dbPath`/any other key; `additionalProperties:false` on the input schema; the trusted `logPath` channel is `ctx.overrides`, never the wire.
+  - `run_control`/`run_canonical` already took warehouse-scoped names only; the control `logPath` that `references/setup.md` documented was already infra-only over MCP, and the docs now say so.
+  - **Read-only, never create.** `lseg-retention.js:retentionReport` (reached by control `C1.1`) opened its DB read-write and would create an empty file at a missing path; it now uses `openReadOnly`, which refuses writes and never creates the file. `purgeExpired` stays read-write by design but is CLI/admin-only, never a tool. All other tool-reachable reads already route through `SqliteWarehouse` → `openReadOnly`.
+  - Covered by three tests in `test/mcp.test.js` ("verify_audit refuses a caller-supplied file path", "verify_audit resolves a warehouse name to its own server-known log", "a read-only control neither writes nor creates a database file"). Full suite **220/220** on Node 22.
 - **Human-only leftover:** the live in-Claude-Code click-through. Its substance (named query tried first, integrity flag not presented as fact, findings reported, withheld column refused at startup) is covered by `test/custom-pipeline.test.js` cases 10–13.
 
 ### S4 · Key-free free-text path: `run_query` + `verify_answer` · M — **NEXT**
@@ -181,9 +185,17 @@ Sizes are rough: **S** ≤ 1 day · **M** 2–4 days · **L** 1–2 weeks.
 **Do:**
 - Add a Streamable HTTP MCP transport (the MCP SDK already in the project includes one). The existing `http-server.js` is a JSON API for M7, not MCP.
 - Deploy with **demo data only**. Coordinate with the M7 deploy work in `HANDOFF.md` and `supabase/README.md`, and reuse that infrastructure if it lands first.
-- Expose only key-free tools: named queries, `run_query` / `verify_answer` (S4), controls, `verify_audit` by warehouse name. **No `execute_financial_query`, no `logPath` parameters.**
+- Expose only key-free tools: named queries, `run_query` / `verify_answer` (S4), controls, `verify_audit` by warehouse name. **No `execute_financial_query`, no `logPath` parameters.** (The `logPath` removal already landed in S3; keep it out of any new tool.)
 - Rate limiting; a shared public audit log on persistent storage, with a published reset policy.
 - Cache the custom warehouse descriptor: `warehouseDescriptors()` currently reloads and recompiles it on every call.
+
+**Deployment isolation (code can't enforce this; it's an operator checklist for any non-demo deployment).** The code fix stops a tool call *naming* an arbitrary file, but the server still runs as some OS user with some mounts and network. To keep it away from a customer's live systems (e.g. Civic Chains'):
+- Run it in a **container or VM with no customer mounts, credentials or VPN access**. The server can only open a SQLite file its OS user can read, so the defence is that that user can reach nothing sensitive.
+- Run as an **unprivileged user**.
+- Allow **outbound traffic only to `api.anthropic.com`**, or none at all when only named/key-free queries are used.
+- Point `VANGUARD_DB_PATH` at **exported copies**, never at a live database or a live mount.
+
+**Review policy.** There is no database adapter today beyond local read-only SQLite. **Any new adapter (another DB engine, a network data source, a write path) needs explicit sign-off**, because it widens exactly the surface this fix narrowed.
 
 **Done when:** adding the URL in Claude/Cursor lets a new user run all demo prompts with zero install.
 

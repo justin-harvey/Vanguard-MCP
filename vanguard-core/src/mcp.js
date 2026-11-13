@@ -145,14 +145,15 @@ export function listTools() {
             name: 'verify_audit',
             description:
                 'Verify a hash-chained audit log; reports INTACT or the first entry where the chain breaks. ' +
-                'Pass warehouse to check that warehouse\'s log, or logPath for a specific file; with neither, ' +
-                'checks the free-text SaaS log. Checks the hash chain only, not signatures.',
+                'Pass warehouse to check that warehouse\'s log; with no warehouse, checks the free-text SaaS log. ' +
+                'A warehouse name resolves to a server-known log path; the caller cannot name a file to read. ' +
+                'Checks the hash chain only, not signatures.',
             inputSchema: {
                 type: 'object',
                 properties: {
                     warehouse: { type: 'string', description: `one of: ${known.join(', ')}` },
-                    logPath: { type: 'string' },
                 },
+                additionalProperties: false,
             },
         },
         {
@@ -243,10 +244,18 @@ export async function callTool(name, args = {}, { client, overrides = {} } = {})
         }
 
         case 'verify_audit': {
-            // A warehouse name resolves to that warehouse's own log. Note the
-            // SaaS descriptor's log is the canonical/control log; free-text
+            // The caller may name only a warehouse, never a file path: a
+            // warehouse name resolves to that warehouse's server-known log, so a
+            // caller cannot aim verify_audit at an arbitrary file its OS user can
+            // read. pickCallerArgs refuses logPath (and any other key) from the
+            // wire; the trusted logPath channel is ctx.overrides, used by tests
+            // and trusted embeddings, never populated from an MCP caller. Note
+            // the SaaS descriptor's log is the canonical/control log; free-text
             // SaaS answers go to DEFAULT_LOG_PATH, which is also the default.
-            const logPath = args.logPath ?? (args.warehouse ? getWarehouse(args.warehouse).logPath : DEFAULT_LOG_PATH);
+            pickCallerArgs('verify_audit', ['warehouse'], args);
+            const logPath = args.warehouse
+                ? getWarehouse(args.warehouse).logPath
+                : (infra.logPath ?? DEFAULT_LOG_PATH);
             return { logPath, ...verify(logPath, { verifier: null }) };
         }
 
