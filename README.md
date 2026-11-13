@@ -61,6 +61,7 @@ The external anchor **does not have to be a blockchain**, publishing each checkp
 | [`site/enron.html`](site/enron.html) | **The reporting-gap case study**, reported figures set against what the underlying rows support, each grounded and hash-chained. |
 | [`site/controls.html`](site/controls.html) | **The evidence panel**, one-click controls that return PASS/EXCEPTION with a verifiable evidence trail. |
 | [`site/value.html`](site/value.html) | **The value-proposition page**, why this brings Big-Four-caliber assurance to a municipality at software cost. |
+| [`skills/vanguard-mcp-auditor/`](skills/vanguard-mcp-auditor/SKILL.md) | **The agent skill**, teaches an MCP host (Claude, Cursor, etc.) to route questions to the right tool, handle guard refusals, and present every figure with its result hash and audit entry. |
 | [`HASHING.md`](HASHING.md) | **The hashing explainer**, the result hash vs the entry hash, the chain, and the signing/anchoring layers above it, in full. |
 | [`COMPARISON.md`](COMPARISON.md) | **The landscape**, how this relates to and differs from governed text-to-SQL, claim verifiers, and database ledgers. |
 

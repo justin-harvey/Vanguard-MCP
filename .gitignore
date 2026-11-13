@@ -21,3 +21,6 @@ node_modules/
 # Internal planning / prep notes (untracked in the original repo too)
 BUILD-PLAN.md
 INTERVIEW-CHEATSHEET.md
+
+# Built locally by skills/*/scripts/verify-setup.js; never shipped (marketplaces flag binaries)
+skills/**/*.sqlite

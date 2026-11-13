@@ -1,0 +1,36 @@
+{
+  "name": "municipal",
+  "description": "Town of Sampleton (fictional) budget, grant and spending ledger: FY2026 and FY2027 through 2026-10-31. Synthetic demo data; all money in integer cents.",
+  "domain": "municipal budget, grant and spending data",
+  "tables": {
+    "funds": ["fund_id", "fund_name", "fund_type"],
+    "departments": ["dept_id", "dept_name"],
+    "vendors": ["vendor_id", "vendor_name", "category"],
+    "grants": [
+      "grant_id", "grant_name", "grantor", "grantor_type", "fund_id", "dept_id",
+      "award_cents", "match_required_cents", "period_start", "period_end", "status"
+    ],
+    "budget_lines": [
+      "line_id", "fiscal_year", "dept_id", "fund_id", "account_code",
+      "line_description", "adopted_cents", "amended_cents"
+    ],
+    "expenditures": [
+      "expenditure_id", "fiscal_year", "line_id", "grant_id", "vendor_id",
+      "invoice_number", "invoice_date", "paid_date", "amount_cents", "memo", "status"
+    ],
+    "grant_drawdowns": [
+      "drawdown_id", "grant_id", "request_date", "received_date", "amount_cents", "status"
+    ]
+  },
+  "notes": [
+    "All money columns end in _cents and hold INTEGER CENTS.",
+    "The fiscal year runs July 1 to June 30: fiscal_year 2026 covers 2025-07-01 to 2026-06-30. FY2027 data runs through 2026-10-31.",
+    "expenditures.status is 'paid', 'pending' (approved but unpaid, paid_date NULL) or 'void'. 'Spent' means status = 'paid'. Always exclude 'void' rows.",
+    "expenditures.grant_id is NULL for spending not charged to a grant.",
+    "Grant IDs look like 'G-402'; 'grant 402' or '#402' means grant_id = 'G-402'.",
+    "A grant's remaining balance is award_cents minus its paid expenditures.",
+    "grant_drawdowns record cash requested from the grantor; status is 'received' or 'pending' (received_date NULL).",
+    "budget_lines.adopted_cents is the original budget and amended_cents the current one; compare spending against amended_cents.",
+    "Dates are TEXT in 'YYYY-MM-DD' form."
+  ]
+}
