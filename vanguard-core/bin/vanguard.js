@@ -786,6 +786,18 @@ async function main() {
         }
 
         case 'mcp': {
+            // Validate a custom warehouse before the transport starts, so a bad
+            // VANGUARD_DB_PATH / VANGUARD_ALLOWLIST_PATH fails here, on stderr,
+            // rather than as an error on the client's first resource read.
+            try {
+                const { loadCustomWarehouse } = await import('../src/custom.js');
+                const custom = loadCustomWarehouse();
+                if (custom) console.error(`vanguard: custom warehouse "${custom.name}" loaded from ${custom.dbPath}.`);
+            } catch (error) {
+                console.error(`vanguard: ${error.message}`);
+                process.exitCode = 1;
+                return;
+            }
             try {
                 const { startMcpServer } = await import('../src/mcp-server.js');
                 await startMcpServer();

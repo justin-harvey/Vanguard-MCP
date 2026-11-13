@@ -13,7 +13,8 @@
  * makes the shape the API's problem.
  *
  * Whatever comes back still goes through the guard. The prompt below asks for
- * a read-only single statement over four tables; the guard *enforces* that.
+ * a read-only single statement over the warehouse's allow-listed tables; the
+ * guard *enforces* that.
  * Prompt text is a request, not a control.
  */
 
@@ -50,16 +51,37 @@ Notes:
 - Data covers 2025-06 through 2025-11 only.
 `.trim();
 
-const SYSTEM_PROMPT = `
-You translate questions about SaaS finance data into SQLite SELECT statements.
+/**
+ * Build the planner's system prompt for a warehouse. With no argument this is
+ * the SaaS prompt, byte for byte; a custom warehouse supplies its own domain,
+ * schema text and allow-list.
+ *
+ * @param {object} [schema]
+ * @param {string} [schema.domain] what the data is, e.g. "municipal budget data"
+ * @param {string} [schema.schemaDescription] tables, columns and notes
+ * @param {readonly string[]} [schema.allowedTables]
+ * @param {boolean} [schema.columnRestricted] a column allow-list is in force
+ * @returns {string}
+ */
+export function buildSystemPrompt({
+    domain = 'SaaS finance data',
+    schemaDescription = SCHEMA_DESCRIPTION,
+    allowedTables = ALLOWED_TABLES,
+    columnRestricted = false,
+} = {}) {
+    const columnRule = columnRestricted
+        ? '\n- Reference only the columns listed in the schema. Other columns exist but are not permitted,\n  and SELECT * is refused.'
+        : '';
+    return `
+You translate questions about ${domain} into SQLite SELECT statements.
 
 Schema:
-${SCHEMA_DESCRIPTION}
+${schemaDescription}
 
 Rules:
 - Emit exactly ONE statement. It must be a SELECT. No semicolons, no CTE that wraps a write,
   no PRAGMA, no ATTACH.
-- Read only from: ${ALLOWED_TABLES.join(', ')}. Nothing else exists, including sqlite_master.
+- Read only from: ${allowedTables.join(', ')}. Nothing else exists, including sqlite_master.${columnRule}
 - Prefer explicit column names over SELECT *, so the lineage record is meaningful.
 - Include ORDER BY when the answer has a natural order; a stable order makes the result
   reproducible.
@@ -74,6 +96,9 @@ Rules:
 - If the question cannot be answered from this schema, still return your best SELECT and say
   so plainly in the interpretation field.
 `.trim();
+}
+
+const SYSTEM_PROMPT = buildSystemPrompt();
 
 export class PlanningFailed extends Error {
     constructor(message, cause) {
@@ -90,15 +115,17 @@ export class PlanningFailed extends Error {
  * @param {object} [options]
  * @param {Anthropic} [options.client]
  * @param {string} [options.model]
+ * @param {object|null} [options.schema] a warehouse's planner schema (see
+ *   buildSystemPrompt); null plans against the SaaS warehouse
  * @returns {Promise<{ sql: string, interpretation: string, model: string }>}
  */
-export async function plan(question, { client = new Anthropic(), model = MODEL } = {}) {
+export async function plan(question, { client = new Anthropic(), model = MODEL, schema = null } = {}) {
     let response;
     try {
         response = await client.messages.parse({
             model,
             max_tokens: 16000,
-            system: SYSTEM_PROMPT,
+            system: schema ? buildSystemPrompt(schema) : SYSTEM_PROMPT,
             thinking: { type: 'adaptive' },
             messages: [{ role: 'user', content: question }],
             output_config: { format: zodOutputFormat(PlanSchema) },

@@ -43,6 +43,12 @@ import { scopeForPrincipal } from './auth.js';
  *   the query is confined to this principal's scope (row-level security)
  * @param {{ query: Function }} [options.warehouse] connector to run the query
  *   against; defaults to the local read-only SQLite adapter
+ * @param {readonly string[]} [options.allowedTables] guard table allow-list;
+ *   defaults to the SaaS warehouse's
+ * @param {Record<string, readonly string[]>} [options.allowedColumns] guard
+ *   column allow-list; none by default (the SaaS warehouse has no column list)
+ * @param {object|null} [options.planSchema] the planner's view of a non-SaaS
+ *   warehouse (see planner.buildSystemPrompt); null plans against SaaS
  * @returns {Promise<object>}
  */
 export async function ask(question, {
@@ -55,14 +61,17 @@ export async function ask(question, {
     signer = loadSigner(),
     principal = null,
     warehouse = new SqliteWarehouse(dbPath),
+    allowedTables,
+    allowedColumns,
+    planSchema = null,
 } = {}) {
-    const planned = await plan(question, { client });
+    const planned = await plan(question, { client, schema: planSchema });
 
     const scope = principal ? scopeForPrincipal(principal) : null;
 
     let guarded;
     try {
-        guarded = guard(planned.sql, { asOf, scope });
+        guarded = guard(planned.sql, { asOf, scope, allowedTables, allowedColumns });
     } catch (error) {
         if (error instanceof SqlRejected) {
             return {

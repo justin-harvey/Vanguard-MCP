@@ -12,13 +12,14 @@
  *   - credential-free: list_controls, run_control, run_canonical, verify_audit,
  *     canonical queries and the control catalog, no model call;
  *   - credentialed: execute_financial_query, the planner writes SQL, so it needs
- *     an API key, and (today) only the SaaS warehouse supports free text.
+ *     an API key. Free text is supported over the SaaS warehouse and over a
+ *     custom warehouse configured from the environment (see custom.js).
  */
 
 import { controlCatalog, getControl } from './controls.js';
 import { verify, DEFAULT_LOG_PATH } from './audit.js';
 import { loadSigner } from './signing.js';
-import { warehouseDescriptors, warehouseSchema } from './warehouses.js';
+import { warehouseDescriptors, warehouseSchema, getWarehouse } from './warehouses.js';
 import { revenueByBasis, debtWithHiddenLeverage } from './enron.js';
 import { netPositionAtClose, surveillanceRapidCancels } from './markets.js';
 import { reconcileMrr } from './saas.js';
@@ -46,8 +47,17 @@ function provenanceOf(entry) {
     };
 }
 
+/** Names of the warehouses that accept free-text questions. */
+function freeTextWarehouses() {
+    return Object.values(warehouseDescriptors())
+        .filter((d) => d.freeText)
+        .map((d) => d.name);
+}
+
 /** The tool definitions advertised to a host AI. */
 export function listTools() {
+    const freeText = freeTextWarehouses();
+    const known = Object.keys(warehouseDescriptors());
     return [
         {
             name: 'list_controls',
@@ -78,13 +88,23 @@ export function listTools() {
         },
         {
             name: 'verify_audit',
-            description: 'Verify a hash-chained audit log; reports INTACT or the first entry where the chain breaks.',
-            inputSchema: { type: 'object', properties: { logPath: { type: 'string' } } },
+            description:
+                'Verify a hash-chained audit log; reports INTACT or the first entry where the chain breaks. ' +
+                'Pass warehouse to check that warehouse\'s log, or logPath for a specific file; with neither, ' +
+                'checks the free-text SaaS log. Checks the hash chain only, not signatures.',
+            inputSchema: {
+                type: 'object',
+                properties: {
+                    warehouse: { type: 'string', description: `one of: ${known.join(', ')}` },
+                    logPath: { type: 'string' },
+                },
+            },
         },
         {
             name: 'execute_financial_query',
             description:
-                'Answer a free-text financial question: the model writes SQL, the guard checks it, the database produces the numbers, every figure is verified, and the answer is attested. Requires an API credential. Only the "saas" warehouse supports free text today.',
+                'Answer a free-text financial question: the model writes SQL, the guard checks it, the database produces the numbers, every figure is verified, and the answer is attested. Requires an API credential. ' +
+                `Warehouses that accept free text: ${freeText.join(', ')}.`,
             inputSchema: {
                 type: 'object',
                 properties: {
@@ -138,24 +158,40 @@ export async function callTool(name, args = {}, { client } = {}) {
             return { rows, provenance: provenanceOf(entry) };
         }
 
-        case 'verify_audit':
-            return verify(args.logPath ?? DEFAULT_LOG_PATH, { verifier: null });
+        case 'verify_audit': {
+            // A warehouse name resolves to that warehouse's own log. Note the
+            // SaaS descriptor's log is the canonical/control log; free-text
+            // SaaS answers go to DEFAULT_LOG_PATH, which is also the default.
+            const logPath = args.logPath ?? (args.warehouse ? getWarehouse(args.warehouse).logPath : DEFAULT_LOG_PATH);
+            return { logPath, ...verify(logPath, { verifier: null }) };
+        }
 
         case 'execute_financial_query': {
             const warehouse = args.warehouse ?? 'saas';
-            if (warehouse !== 'saas') {
+            const descriptor = warehouseDescriptors()[warehouse];
+            if (!descriptor || !descriptor.freeText) {
+                const freeText = freeTextWarehouses().map((w) => `"${w}"`).join(', ');
                 return {
                     ok: false,
                     stage: 'route',
                     reason: 'warehouse_not_supported',
-                    message:
-                        `Free-text questions are only supported over the "saas" warehouse today. ` +
-                        `The "${warehouse}" warehouse exposes canonical queries via run_canonical and ` +
-                        `controls via run_control.`,
+                    message: descriptor
+                        ? `Free-text questions are supported over ${freeText}. The "${warehouse}" warehouse ` +
+                          `exposes canonical queries via run_canonical and controls via run_control.`
+                        : `Unknown warehouse "${warehouse}". Free-text questions are supported over ${freeText}.`,
                 };
             }
             const { ask } = await import('./ask.js');
-            return ask(args.question, client ? { client } : {});
+            const withClient = client ? { client } : {};
+            if (!descriptor.custom) return ask(args.question, withClient);
+            return ask(args.question, {
+                ...withClient,
+                dbPath: descriptor.dbPath,
+                logPath: descriptor.logPath,
+                allowedTables: descriptor.allowedTables,
+                allowedColumns: descriptor.allowedColumns,
+                planSchema: descriptor.planSchema,
+            });
         }
 
         default:
@@ -211,7 +247,7 @@ export function readResource(uri) {
             description: c.description,
         }));
     }
-    const match = /^vanguard:\/\/schema\/([a-z]+)$/.exec(uri);
+    const match = /^vanguard:\/\/schema\/([a-z][a-z0-9_]*)$/.exec(uri);
     if (match) return warehouseSchema(match[1]);
     throw new Error(`Unknown resource uri "${uri}".`);
 }

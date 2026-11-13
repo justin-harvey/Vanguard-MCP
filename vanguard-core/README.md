@@ -186,6 +186,27 @@ USD millions, the grain a 10-K prints, so a computed figure grounds against the
 filing verbatim, a deliberate departure from the other warehouses' integer
 cents, documented in `db/enron-schema.sql`.)
 
+## Bring your own ledger: a custom warehouse
+
+The built-in warehouses hardcode their schema and allow-list. To point the
+engine at your own SQLite ledger (a town budget, a grant register, a checkbook)
+without a code change, set three environment variables on the MCP server:
+
+| Variable | Meaning |
+|---|---|
+| `VANGUARD_DB_PATH` | The SQLite file. Opened read-only, like every other warehouse. |
+| `VANGUARD_ALLOWLIST_PATH` | JSON naming the warehouse, the permitted tables and the permitted columns of each, plus optional planner notes. |
+| `VANGUARD_AUDIT_LOG` | Optional. Defaults to `<name>-audit.jsonl` beside the database. |
+
+The warehouse then appears in `vanguard://warehouses`, gets a
+`vanguard://schema/<name>` resource, and accepts free text through
+`execute_financial_query` with `warehouse: "<name>"`. Nothing new is trusted:
+the existing guard enforces the table *and* column allow-list (so `SELECT *` is
+refused), and the planner is shown only the permitted columns. The allow-list is
+checked against the live database when the server starts, so a typo fails
+immediately on stderr. See `src/custom.js` for the format, and the municipal
+demo in `../skills/vanguard-mcp-auditor/assets/` for a worked example.
+
 ## What is real here, and what is not
 
 **Real:** the guard (table *and* column allow-lists, a wall-clock query budget,
@@ -267,6 +288,7 @@ src/saas.js            canonical credential-free SaaS queries (e.g. the MRR reco
 src/evidence.js        control-result shape + verifiable evidence packet (intent→SQL→CSV→hash+sig)
 src/controls.js        the SOC 2 control catalog (queries that assert PASS/EXCEPTION)
 src/warehouses.js      warehouse descriptors + live PRAGMA schema (allow-list filtered)
+src/custom.js          custom warehouse from the environment (db + JSON allow-list)
 src/mcp.js             MCP tools + resources (pure, transport-free)
 src/mcp-server.js      the stdio MCP transport (the only file that imports the SDK)
 src/http-server.js     HTTP JSON API over the same handlers (what the web proxy calls)

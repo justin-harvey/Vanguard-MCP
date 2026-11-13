@@ -34,6 +34,7 @@ import {
     LSEG_ALLOWED_COLUMNS,
     LSEG_REGISTRY,
 } from './lseg.js';
+import { loadCustomWarehouse } from './custom.js';
 
 /**
  * @returns {Record<string, {
@@ -89,7 +90,16 @@ export function warehouseDescriptors() {
             freeText: false,
             metrics: LSEG_REGISTRY.list(),
         },
+        // A warehouse configured from the environment (VANGUARD_DB_PATH and
+        // VANGUARD_ALLOWLIST_PATH), when one is set; see custom.js.
+        ...customEntry(),
     };
+}
+
+/** The custom warehouse as a one-entry object, or an empty one. */
+function customEntry() {
+    const custom = loadCustomWarehouse();
+    return custom ? { [custom.name]: custom } : {};
 }
 
 /**
