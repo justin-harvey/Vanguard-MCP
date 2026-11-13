@@ -156,7 +156,8 @@ function checkAllowlist(sqlite, dbPath, allowlistPath) {
         for (const p of problems) fail(p);
         return null;
     }
-    ok(`warehouse "${doc.name}" with ${Object.keys(tables).length} allow-listed tables`);
+    const queryCount = doc.queries && typeof doc.queries === 'object' ? Object.keys(doc.queries).length : 0;
+    ok(`warehouse "${doc.name}" with ${Object.keys(tables).length} allow-listed tables and ${queryCount} named queries`);
 
     let db;
     try {
@@ -239,6 +240,10 @@ async function checkCore(coreArg, dbPath, allowlistPath, doc) {
             const { warehouseSchema } = await import(pathToFileURL(path.join(core, 'src', 'warehouses.js')).href);
             const schema = warehouseSchema(doc.name);
             ok(`engine serves "${schema.warehouse}" with ${schema.tables.length} tables; free text: ${schema.freeText}`);
+            const { loadCustomWarehouse } = await import(pathToFileURL(path.join(core, 'src', 'custom.js')).href);
+            const custom = loadCustomWarehouse();
+            const names = Object.keys(custom?.queries ?? {});
+            if (names.length > 0) ok(`named queries compile: ${names.map((n) => `${custom.name}/${n}`).join(', ')}`);
         } catch (error) {
             fail(`the engine could not load the warehouse: ${error.message}`);
         }

@@ -204,7 +204,16 @@ The warehouse then appears in `vanguard://warehouses`, gets a
 the existing guard enforces the table *and* column allow-list (so `SELECT *` is
 refused), and the planner is shown only the permitted columns. The allow-list is
 checked against the live database when the server starts, so a typo fails
-immediately on stderr. See `src/custom.js` for the format, and the municipal
+immediately on stderr.
+
+The allow-list can also define **named queries**: operator-written SQL with
+`:named` parameters and automatic checks (`unique`, `total_matches`, `compare`),
+run through `run_canonical` as `<warehouse>/<query>` with no credential. Every
+query and check SQL is compiled against the database at load and guarded at
+server start; check results are written into the audit entry. See
+`src/named-queries.js`.
+
+See `src/custom.js` for the format, and the municipal
 demo in `../skills/vanguard-mcp-auditor/assets/` for a worked example.
 
 ## What is real here, and what is not

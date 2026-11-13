@@ -82,7 +82,7 @@ In the host, tool names carry the server key as a prefix (for example `mcp__vang
 | Tool | Args | Credential | Use for |
 |---|---|---|---|
 | `execute_financial_query` | `question`, `warehouse` (default `"saas"`) | API key | Free-text questions on any warehouse with `freeText: true` |
-| `run_canonical` | `name`, `args` | none | Fixed, pre-written queries on the built-in warehouses |
+| `run_canonical` | `name`, `args` | none | Pre-written queries: the built-in ones below, plus a custom warehouse's **named queries** (`<warehouse>/<query>`), which also return automatic checks |
 | `list_controls` | none | none | The SOC 2 control catalog |
 | `run_control` | `id` | none | PASS / EXCEPTION reconciliations with provenance |
 | `verify_audit` | `warehouse` or `logPath` | none | Hash-chain integrity check on one audit log |
@@ -97,6 +97,14 @@ Canonical queries (`run_canonical`):
 | `markets/surveillance` | `{ "windowMs": 2000, "minCancels": 3 }` | Rapid place-and-cancel patterns |
 | `saas/mrr` | `{}` | MRR from the movement ledger vs MRR reconstructed from subscriptions |
 
+Named queries on a custom warehouse are listed, with their parameters, under `queries` in `vanguard://warehouses`. The municipal demo has:
+
+| `name` | `args` (all optional) | What it answers |
+|---|---|---|
+| `municipal/grant-status` | `grant_id`, `status` | Award, paid, pending, drawn down, remaining balance, % spent, per grant |
+| `municipal/spending-by-vendor` | `grant_id`, `fiscal_year`, `dept_id` | Paid spending and invoice count per vendor |
+| `municipal/budget-variance` | `fiscal_year`, `dept_id` | Adopted vs amended budget, paid, pending, remaining, % used, per line |
+
 Only pass the business arguments shown. Never pass `dbPath`, `logPath`, `signer` or `warehouse` inside `args`: they would redirect the query or its audit trail.
 
 ## Workflow
@@ -105,7 +113,9 @@ Only pass the business arguments shown. Never pass `dbPath`, `logPath`, `signer`
 
 Read `vanguard://warehouses` once per session, then pick the route:
 
-- **Budget, grant, vendor or spending question, and a municipal or custom warehouse is listed** → `execute_financial_query` with `warehouse` set to that name. Read its schema resource first if you don't know the column names.
+- **Budget, grant, vendor or spending question, and a custom warehouse is listed:**
+  - **A named query covers it** → call `run_canonical` with that query. **Always try this first.** It needs no credential and costs the fewest tokens, its definitions (such as "spent means paid, never void") are fixed by the operator, and its results come with automatic checks. Answer from its columns. Several related questions may be answerable from a single call.
+  - **No named query covers it** → `execute_financial_query` with `warehouse` set to that name. Read its schema resource first if you don't know the column names.
 - **Budget or grant question, and no such warehouse is listed** → say plainly that the connected Vanguard instance has no budget or grant ledger. Point to `scripts/verify-setup.js` to load the demo or the user's own data. Do **not** send the question to `saas` to see what comes back, and do not answer from general knowledge.
 - **The question matches a canonical query or control** → `run_canonical` or `run_control`. These are deterministic and need no credential, so prefer them where they fit.
 - **Free-text question on `saas`** → `execute_financial_query`.
@@ -131,6 +141,13 @@ Do not pull rows and then sum, average or difference them yourself. If the user 
 - If `limitInjected: true`, the guard added `LIMIT 1000`. Say the result may be truncated.
 - If `rows` is empty, say there is no matching data. An empty result is not zero.
 
+**Named query** (`run_canonical` on `<warehouse>/<query>`): read `integrity` before anything else.
+
+- `integrity: "pass"`: the result passed its integrity checks (no repeated keys; totals reconcile to an independent query). Present it normally.
+- `integrity: "flag"`: **do not present the figures as fact.** Show the flagged check's `message` and `detail` to the user, and say that the definition needs fixing by the warehouse operator. Don't retry the same call: the same inputs will flag again.
+- `findings` > 0: each `checks[]` entry with `severity: "finding"` and `status: "flag"` is an audit finding about the ledger (for example an overspent budget line, or grant cash drawn ahead of spending). Report it with its `message` and the rows listed in `detail.rows`. It is a property of the data, not an error.
+- A check with `status: "skipped"` (the result hit the row limit) or `"error"` could not run. Say so; don't describe the result as checked.
+
 **Refusal** (`ok: false`): this is the system working. See "Refusals and self-correction" below.
 
 **Tool error** (`isError`): for example an unknown canonical name, control id or warehouse. The message lists the valid names; correct the call.
@@ -146,6 +163,7 @@ Do not pull rows and then sum, average or difference them yourself. If the user 
 **Audit trail.**
 - **Result hash** (`lineage.resultHash` or `provenance.resultHash`): re-running the same SQL against the same snapshot must produce the same hash.
 - **Audit entry**: seq (`auditSeq`) and entry hash (`auditHash`).
+- **Checks** (named queries): the integrity result, plus one line per check, e.g. "paid-total-reconciles: pass". The check results are recorded inside the audit entry, so the entry hash covers them.
 - **Signature**: say whether the entry is signed (`signed` / `provenance.signature`) and give `signingKeyId` if it is. If it isn't, say it is hash-chained but unsigned.
 
 Show hashes in full, in code formatting. Don't truncate them.
@@ -216,9 +234,9 @@ Report the control's PASS / EXCEPTION status first, then its figures and provena
 
 ## Example prompts
 
-- "How much of the paving grant (G-402) has been spent so far, broken down by vendor? Include the result hash."
-- "For every active grant, show the award, paid expenditures, cash drawn down, and remaining balance."
-- "Which FY2026 budget lines spent more than their amended budget, and by how much?"
+- "How much of the paving grant (G-402) has been spent so far, broken down by vendor? Include the result hash." → `municipal/spending-by-vendor { "grant_id": "G-402" }`
+- "For every active grant, show the award, paid expenditures, cash drawn down, and remaining balance." → `municipal/grant-status { "status": "active" }`
+- "Which FY2026 budget lines spent more than their amended budget, and by how much?" → `municipal/budget-variance { "fiscal_year": 2026 }`, then report the `within-amended-budget` finding
 - "Show vendor tax IDs." → refused by policy; say so.
 - "Is Enron's FY2000 reported debt consistent with the total once off-balance-sheet entities are included?"
 - "Run the MRR reconciliation control and tell me whether it passed."

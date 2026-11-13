@@ -20,6 +20,9 @@ import { controlCatalog, getControl } from './controls.js';
 import { verify, DEFAULT_LOG_PATH } from './audit.js';
 import { loadSigner } from './signing.js';
 import { warehouseDescriptors, warehouseSchema, getWarehouse } from './warehouses.js';
+import { guard } from './guard.js';
+import { runNamedQuery } from './named-run.js';
+import { describeQuery } from './named-queries.js';
 import { revenueByBasis, debtWithHiddenLeverage } from './enron.js';
 import { netPositionAtClose, surveillanceRapidCancels } from './markets.js';
 import { reconcileMrr } from './saas.js';
@@ -45,6 +48,13 @@ function provenanceOf(entry) {
         signingKeyId: entry.signingKeyId ?? null,
         complianceTags: entry.complianceTags ?? [],
     };
+}
+
+/** Canonical names of every custom warehouse's named queries, e.g. "municipal/grant-status". */
+function namedQueryNames() {
+    return Object.values(warehouseDescriptors())
+        .filter((d) => d.custom)
+        .flatMap((d) => Object.keys(d.queries ?? {}).map((q) => `${d.name}/${q}`));
 }
 
 /** Names of the warehouses that accept free-text questions. */
@@ -76,12 +86,16 @@ export function listTools() {
         },
         {
             name: 'run_canonical',
-            description: `Run a canonical, credential-free query. name is one of: ${Object.keys(CANONICAL).join(', ')}.`,
+            description:
+                `Run a canonical, credential-free query. name is one of: ${[...Object.keys(CANONICAL), ...namedQueryNames()].join(', ')}. ` +
+                'Named queries on a custom warehouse also return automatic checks: integrity (pass/flag; a flag means ' +
+                'do not present the result as fact) and findings (data conditions worth reporting). Their parameters ' +
+                'are listed in vanguard://warehouses.',
             inputSchema: {
                 type: 'object',
                 properties: {
                     name: { type: 'string' },
-                    args: { type: 'object', description: 'query arguments, e.g. { "ticker": "ACME" }' },
+                    args: { type: 'object', description: 'query arguments, e.g. { "grant_id": "G-402" }' },
                 },
                 required: ['name'],
             },
@@ -148,10 +162,25 @@ export async function callTool(name, args = {}, { client } = {}) {
         }
 
         case 'run_canonical': {
+            // "<custom warehouse>/<query>" runs that warehouse's named query.
+            const [prefix, ...rest] = String(args.name ?? '').split('/');
+            const custom = warehouseDescriptors()[prefix];
+            if (custom?.custom && rest.length === 1) {
+                const out = runNamedQuery(custom, rest[0], args.args ?? {}, { guard, signer: loadSigner() });
+                return {
+                    query: out.query,
+                    params: out.params,
+                    rows: out.rows,
+                    integrity: out.integrity,
+                    findings: out.findings,
+                    checks: out.checks,
+                    provenance: provenanceOf(out.entry),
+                };
+            }
             const fn = CANONICAL[args.name];
             if (!fn) {
                 throw new Error(
-                    `Unknown canonical query "${args.name}". Known: ${Object.keys(CANONICAL).join(', ')}.`,
+                    `Unknown canonical query "${args.name}". Known: ${[...Object.keys(CANONICAL), ...namedQueryNames()].join(', ')}.`,
                 );
             }
             const { rows, entry } = fn({ ...(args.args ?? {}), signer: loadSigner() });
@@ -237,6 +266,7 @@ export function readResource(uri) {
             description: d.description,
             freeText: d.freeText,
             tables: [...d.allowedTables],
+            ...(d.custom ? { queries: Object.values(d.queries ?? {}).map((q) => ({ ...describeQuery(q), name: `${d.name}/${q.name}` })) } : {}),
         }));
     }
     if (uri === 'vanguard://controls') {

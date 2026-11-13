@@ -792,7 +792,15 @@ async function main() {
             try {
                 const { loadCustomWarehouse } = await import('../src/custom.js');
                 const custom = loadCustomWarehouse();
-                if (custom) console.error(`vanguard: custom warehouse "${custom.name}" loaded from ${custom.dbPath}.`);
+                if (custom) {
+                    const { guard } = await import('../src/guard.js');
+                    const { validateNamedQueries } = await import('../src/named-run.js');
+                    const checked = validateNamedQueries(custom, guard);
+                    console.error(
+                        `vanguard: custom warehouse "${custom.name}" loaded from ${custom.dbPath} ` +
+                            `(${Object.keys(custom.queries).length} named queries, ${checked} statements guarded).`,
+                    );
+                }
             } catch (error) {
                 console.error(`vanguard: ${error.message}`);
                 process.exitCode = 1;

@@ -14,6 +14,11 @@ import { callTool, listTools, listResources, readResource } from '../src/mcp.js'
 import { buildSystemPrompt } from '../src/planner.js';
 import { loadCustomWarehouse, CUSTOM_ENV } from '../src/custom.js';
 import { freshMunicipalDb, MUNICIPAL_ALLOWLIST } from './municipal-fixture.js';
+import { guard } from '../src/guard.js';
+import { validateNamedQueries } from '../src/named-run.js';
+import { mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 
 function stubClient(sql) {
     return {
@@ -157,4 +162,49 @@ test('over MCP: an unknown warehouse is refused at the route stage', async () =>
     assert.equal(out.stage, 'route');
     assert.equal(out.reason, 'warehouse_not_supported');
     assert.match(out.message, /Unknown warehouse/);
+});
+
+// ── named queries under the real guard ───────────────────────────────────
+
+test('every demo named query and check passes the real guard', () => {
+    const w = loadCustomWarehouse({
+        env: { [CUSTOM_ENV.db]: freshMunicipalDb(), [CUSTOM_ENV.allowlist]: MUNICIPAL_ALLOWLIST },
+    });
+    assert.equal(validateNamedQueries(w, guard), 6); // 3 queries + 3 total_matches checks
+});
+
+test('a named query that reads a withheld column is refused at startup', () => {
+    const doc = JSON.parse(readFileSync(MUNICIPAL_ALLOWLIST, 'utf8'));
+    doc.queries['vendor-tax-ids'] = { description: 'Should never be allowed.', sql: 'SELECT vendor_id, tax_id FROM vendors' };
+    const path = join(mkdtempSync(join(tmpdir(), 'vanguard-allow-')), 'allowlist.json');
+    writeFileSync(path, JSON.stringify(doc));
+    const w = loadCustomWarehouse({ env: { [CUSTOM_ENV.db]: freshMunicipalDb(), [CUSTOM_ENV.allowlist]: path } });
+    assert.throws(() => validateNamedQueries(w, guard), /vendor-tax-ids sql: column_not_allowed/);
+});
+
+test('over MCP: run_canonical runs a named query with checks and provenance, no credential', async () => {
+    await withCustomEnv(freshMunicipalDb(), async () => {
+        const tool = listTools().find((t) => t.name === 'run_canonical');
+        assert.match(tool.description, /municipal\/grant-status/);
+        const listed = readResource('vanguard://warehouses').find((x) => x.name === 'municipal');
+        assert.deepEqual(listed.queries.map((q) => q.name), [
+            'municipal/grant-status',
+            'municipal/spending-by-vendor',
+            'municipal/budget-variance',
+        ]);
+
+        const out = await callTool('run_canonical', { name: 'municipal/grant-status', args: { grant_id: 'G-402' } });
+        assert.equal(out.rows[0].paid_cents, 93_165_000);
+        assert.equal(out.integrity, 'pass');
+        assert.equal(out.findings, 1);
+        assert.match(out.provenance.resultHash, /^[0-9a-f]{64}$/);
+
+        const integrity = await callTool('verify_audit', { warehouse: 'municipal' });
+        assert.equal(integrity.ok, true);
+        assert.equal(integrity.entries, 1);
+    });
+});
+
+test('over MCP: built-in canonical queries are unaffected by custom routing', async () => {
+    await assert.rejects(() => callTool('run_canonical', { name: 'nowhere/thing' }), /Unknown canonical query/);
 });

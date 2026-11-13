@@ -25,7 +25,8 @@
  *     "description": "…",                     // shown to the host AI
  *     "domain": "municipal budget data",      // optional; fills the planner prompt
  *     "tables": { "grants": ["grant_id", …] },// table -> permitted columns
- *     "notes": ["All money is INTEGER CENTS."]// optional planner hints
+ *     "notes": ["All money is INTEGER CENTS."],// optional planner hints
+ *     "queries": { "grant-status": { … } }    // optional named queries; see named-queries.js
  *   }
  *
  * This module touches only node:sqlite, so it loads (and is tested) without the
@@ -35,6 +36,7 @@
 import { readFileSync, existsSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { openReadOnly } from './db.js';
+import { parseQueries, NamedQueryError } from './named-queries.js';
 
 export const CUSTOM_ENV = Object.freeze({
     db: 'VANGUARD_DB_PATH',
@@ -59,7 +61,7 @@ export class CustomWarehouseInvalid extends Error {
  * Validate a parsed allow-list document and return a normalised copy.
  *
  * @param {unknown} doc
- * @returns {{ name: string, description: string, domain: string, tables: Record<string,string[]>, notes: string[] }}
+ * @returns {{ name: string, description: string, domain: string, tables: Record<string,string[]>, notes: string[], queries: object }}
  * @throws {CustomWarehouseInvalid}
  */
 export function parseAllowlist(doc) {
@@ -100,26 +102,41 @@ export function parseAllowlist(doc) {
         normalised[table] = [...new Set(columns)];
     }
 
+    let queries;
+    try {
+        queries = parseQueries(doc.queries);
+    } catch (error) {
+        if (error instanceof NamedQueryError) fail(error.message);
+        throw error;
+    }
+
     return {
         name,
         description,
         domain: domain ?? `${name} data`,
         tables: normalised,
         notes: [...notes],
+        queries,
     };
 }
 
 /**
- * Check every allow-listed table and column exists in the database, and read
- * their declared types. Returns the planner's schema text.
+ * Check every allow-listed table and column exists in the database, read their
+ * declared types, and compile (without running) every named query and check
+ * SQL, so a typo fails at load. Returns the planner's schema text.
+ *
+ * Compiling proves the SQL is valid against this database; it does not prove
+ * the SQL stays inside the allow-list. The guard enforces that when the query
+ * runs, and at server start (see custom-run.js).
  *
  * @param {string} dbPath
  * @param {Record<string,string[]>} tables
  * @param {string[]} notes
+ * @param {object} [queries]
  * @returns {string}
  * @throws {CustomWarehouseInvalid}
  */
-function describeAgainstDatabase(dbPath, tables, notes) {
+function describeAgainstDatabase(dbPath, tables, notes, queries = {}) {
     const db = openReadOnly(dbPath);
     try {
         const missing = [];
@@ -141,6 +158,20 @@ function describeAgainstDatabase(dbPath, tables, notes) {
                 `The allow-list names objects that are not in ${dbPath}: ${missing.join('; ')}.`,
             );
         }
+        const broken = [];
+        for (const def of Object.values(queries)) {
+            const sqls = [['sql', def.sql], ...def.checks.filter((c) => c.sql).map((c) => [`check "${c.id}"`, c.sql])];
+            for (const [label, sql] of sqls) {
+                try {
+                    db.prepare(sql);
+                } catch (error) {
+                    broken.push(`query "${def.name}" ${label}: ${error.message}`);
+                }
+            }
+        }
+        if (broken.length > 0) {
+            throw new CustomWarehouseInvalid(`Named queries do not compile against ${dbPath}: ${broken.join('; ')}.`);
+        }
         const notesText = notes.length > 0 ? `\n\nNotes:\n${notes.map((n) => `- ${n}`).join('\n')}` : '';
         return lines.join('\n') + notesText;
     } finally {
@@ -159,7 +190,7 @@ function describeAgainstDatabase(dbPath, tables, notes) {
  * @returns {null | {
  *   name: string, description: string, dbPath: string, logPath: string,
  *   allowedTables: readonly string[], allowedColumns: Record<string, readonly string[]>,
- *   freeText: true, metrics: [], custom: true,
+ *   freeText: true, metrics: [], custom: true, queries: Record<string, object>,
  *   planSchema: { domain: string, schemaDescription: string, allowedTables: readonly string[], columnRestricted: true }
  * }}
  * @throws {CustomWarehouseInvalid}
@@ -189,7 +220,7 @@ export function loadCustomWarehouse({ env = process.env } = {}) {
         throw new CustomWarehouseInvalid(`Could not parse ${allowlistPath} as JSON: ${error.message}`);
     }
     const allowlist = parseAllowlist(doc);
-    const schemaDescription = describeAgainstDatabase(dbPath, allowlist.tables, allowlist.notes);
+    const schemaDescription = describeAgainstDatabase(dbPath, allowlist.tables, allowlist.notes, allowlist.queries);
 
     const allowedTables = Object.freeze(Object.keys(allowlist.tables));
     const allowedColumns = Object.freeze(
@@ -209,6 +240,7 @@ export function loadCustomWarehouse({ env = process.env } = {}) {
         freeText: true,
         metrics: [],
         custom: true,
+        queries: allowlist.queries,
         planSchema: {
             domain: allowlist.domain,
             schemaDescription,
