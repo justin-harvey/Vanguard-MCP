@@ -29,14 +29,48 @@ import { reconcileMrr } from './saas.js';
 
 export const SERVER_INFO = { name: 'vanguard', version: '0.1.0' };
 
-/** Canonical, credential-free query dispatch. Each entry takes an options bag. */
+/**
+ * Canonical, credential-free query dispatch. Each entry is the query function
+ * and the *only* arguments a caller may set: the query parameters. Everything
+ * else a canonical function accepts (dbPath, logPath, warehouse, signer,
+ * principal) is infrastructure and must never be settable from an MCP caller,
+ * or the caller could redirect the query or the audit log. See callTool's
+ * run_canonical case and pickCallerArgs.
+ */
 const CANONICAL = {
-    'enron/revenue': (o) => revenueByBasis(o),
-    'enron/debt': (o) => debtWithHiddenLeverage(o),
-    'markets/net-position': (o) => netPositionAtClose({ ...o, ticker: String(o.ticker ?? 'ACME').toUpperCase() }),
-    'markets/surveillance': (o) => surveillanceRapidCancels(o),
-    'saas/mrr': (o) => reconcileMrr(o),
+    'enron/revenue': { run: (o) => revenueByBasis(o), args: ['fiscalYear'] },
+    'enron/debt': { run: (o) => debtWithHiddenLeverage(o), args: ['fiscalYear'] },
+    'markets/net-position': {
+        run: (o) => netPositionAtClose({ ...o, ticker: String(o.ticker ?? 'ACME').toUpperCase() }),
+        args: ['ticker', 'asOfMs'],
+    },
+    'markets/surveillance': { run: (o) => surveillanceRapidCancels(o), args: ['windowMs', 'minCancels'] },
+    'saas/mrr': { run: (o) => reconcileMrr(o), args: [] },
 };
+
+/**
+ * Keep only the arguments a caller is allowed to set, and refuse any other,
+ * mirroring how a named query rejects an unknown parameter. This is the trust
+ * boundary for caller-supplied arguments: infrastructure keys (dbPath, logPath,
+ * warehouse, signer, principal) are never on an allow-list, so a caller cannot
+ * use them to redirect a query or its audit log.
+ *
+ * @param {string} name   the query name, for the error message
+ * @param {string[]} allowed  the caller-settable argument names
+ * @param {object} provided   the caller's `args`
+ */
+function pickCallerArgs(name, allowed, provided = {}) {
+    const safe = {};
+    for (const [key, value] of Object.entries(provided)) {
+        if (!allowed.includes(key)) {
+            throw new Error(
+                `Argument "${key}" is not accepted for "${name}". Allowed: ${allowed.join(', ') || '(none)'}.`,
+            );
+        }
+        safe[key] = value;
+    }
+    return safe;
+}
 
 /** Reduce an audit entry to the provenance a caller should carry. */
 function provenanceOf(entry) {
@@ -55,6 +89,13 @@ function namedQueryNames() {
     return Object.values(warehouseDescriptors())
         .filter((d) => d.custom)
         .flatMap((d) => Object.keys(d.queries ?? {}).map((q) => `${d.name}/${q}`));
+}
+
+/** Every name run_canonical accepts: built-in canonical queries plus every
+ *  custom warehouse's named queries. Exported so a drift test can confirm the
+ *  skill documents only names the engine really serves. */
+export function canonicalNames() {
+    return [...Object.keys(CANONICAL), ...namedQueryNames()];
 }
 
 /** Names of the warehouses that accept free-text questions. */
@@ -135,12 +176,23 @@ export function listTools() {
  * Invoke a tool by name. `client` (an Anthropic instance) is only used by
  * execute_financial_query; the rest run with no credential.
  *
+ * `ctx` is trusted server context, never populated from the MCP wire (the
+ * stdio transport calls callTool with only the tool name and the caller's
+ * arguments). `ctx.overrides` therefore carries infrastructure a caller must
+ * not control, dbPath and logPath, used by tests and by trusted embeddings to
+ * point a canonical query or control at an isolated database and log.
+ *
  * @param {string} name
- * @param {object} [args]
+ * @param {object} [args]       caller-supplied arguments, untrusted
  * @param {object} [ctx]
  * @param {object} [ctx.client]
+ * @param {{dbPath?: string, logPath?: string}} [ctx.overrides]
  */
-export async function callTool(name, args = {}, { client } = {}) {
+export async function callTool(name, args = {}, { client, overrides = {} } = {}) {
+    // Only the two infrastructure keys, and only from trusted ctx, never args.
+    const infra = {};
+    if (overrides.dbPath !== undefined) infra.dbPath = overrides.dbPath;
+    if (overrides.logPath !== undefined) infra.logPath = overrides.logPath;
     switch (name) {
         case 'list_controls':
             return controlCatalog().map((c) => ({
@@ -151,8 +203,10 @@ export async function callTool(name, args = {}, { client } = {}) {
             }));
 
         case 'run_control': {
-            const { id, ...options } = args;
-            const { control, entry, verification } = getControl(id).run({ signer: loadSigner(), ...options });
+            // A control runs a fixed, blessed query; the caller chooses only
+            // which control. dbPath/logPath come from trusted ctx, never args,
+            // so a caller cannot redirect the control's query or its log.
+            const { control, entry, verification } = getControl(args.id).run({ signer: loadSigner(), ...infra });
             return {
                 control,
                 provenance: entry ? provenanceOf(entry) : null,
@@ -177,13 +231,14 @@ export async function callTool(name, args = {}, { client } = {}) {
                     provenance: provenanceOf(out.entry),
                 };
             }
-            const fn = CANONICAL[args.name];
-            if (!fn) {
+            const spec = CANONICAL[args.name];
+            if (!spec) {
                 throw new Error(
                     `Unknown canonical query "${args.name}". Known: ${[...Object.keys(CANONICAL), ...namedQueryNames()].join(', ')}.`,
                 );
             }
-            const { rows, entry } = fn({ ...(args.args ?? {}), signer: loadSigner() });
+            const callerArgs = pickCallerArgs(args.name, spec.args, args.args ?? {});
+            const { rows, entry } = spec.run({ ...callerArgs, ...infra, signer: loadSigner() });
             return { rows, provenance: provenanceOf(entry) };
         }
 

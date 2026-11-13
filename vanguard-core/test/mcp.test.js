@@ -65,11 +65,13 @@ test('list_controls returns the catalog and run_control asserts a status', async
 
     const db = freshDb('run');
     seedEnron(db);
-    const result = await callTool('run_control', {
-        id: 'PI1.2-enron-debt-reconciliation',
-        dbPath: db,
-        logPath: freshLog(),
-    });
+    // dbPath/logPath are trusted infrastructure: they travel in ctx.overrides,
+    // never in the caller's arguments.
+    const result = await callTool(
+        'run_control',
+        { id: 'PI1.2-enron-debt-reconciliation' },
+        { overrides: { dbPath: db, logPath: freshLog() } },
+    );
     assert.equal(result.control.status, 'PASS');
     assert.match(result.provenance.resultHash, /^[0-9a-f]{64}$/);
     assert.equal(result.exportable, true);
@@ -79,7 +81,7 @@ test('run_canonical runs a credential-free query, and verify_audit checks its lo
     const db = freshDb('canon');
     const logPath = freshLog();
     seedEnron(db);
-    const result = await callTool('run_canonical', { name: 'enron/debt', args: { dbPath: db, logPath } });
+    const result = await callTool('run_canonical', { name: 'enron/debt' }, { overrides: { dbPath: db, logPath } });
     assert.equal(result.rows.length, 1);
     assert.equal(result.rows[0].reported_debt_usd_millions, 10_229);
 
@@ -90,6 +92,31 @@ test('run_canonical runs a credential-free query, and verify_audit checks its lo
 
 test('run_canonical rejects an unknown query name', async () => {
     await assert.rejects(() => callTool('run_canonical', { name: 'enron/nonsense' }));
+});
+
+test('run_canonical refuses caller-supplied infrastructure arguments', async () => {
+    // A caller must not be able to redirect the query or its audit log by
+    // passing dbPath, logPath or warehouse as query arguments.
+    for (const key of ['dbPath', 'logPath', 'warehouse', 'signer', 'principal']) {
+        await assert.rejects(
+            () => callTool('run_canonical', { name: 'enron/debt', args: { [key]: '/tmp/evil' } }),
+            /is not accepted/,
+            `expected "${key}" to be refused`,
+        );
+    }
+});
+
+test('run_canonical still accepts a whitelisted query parameter', async () => {
+    const db = freshDb('param');
+    seedEnron(db);
+    // fiscalYear is a legitimate query parameter, so it is accepted; the query
+    // runs against the trusted database and produces a verifiable result.
+    const result = await callTool(
+        'run_canonical',
+        { name: 'enron/debt', args: { fiscalYear: 2000 } },
+        { overrides: { dbPath: db, logPath: freshLog() } },
+    );
+    assert.match(result.provenance.resultHash, /^[0-9a-f]{64}$/);
 });
 
 test('execute_financial_query refuses a non-SaaS warehouse without calling a model', async () => {
