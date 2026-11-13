@@ -11,239 +11,85 @@ Vanguard MCP is a query engine built so that no unverified number reaches the us
 
 Your job is to keep that guarantee intact on your side of the conversation. **Every figure you show the user must come from a Vanguard tool result in this conversation.** Do not estimate, extrapolate, round differently, or do arithmetic on returned figures yourself. If the number you need isn't in a result, ask Vanguard for it or say it isn't available.
 
-## Setup
+## Setup (once)
 
-Run the bundled check once. It is local-only: no network calls and no subprocesses, and the only file it writes is the demo database in `assets/`.
+Run the bundled check, then paste the printed `mcpServers` block into your host and restart it:
 
 ```bash
 cd vanguard-core && npm install && cd -
 node scripts/verify-setup.js --core /path/to/vanguard-mcp/vanguard-core
 ```
 
-The script:
-- checks Node 22+
-- builds `assets/sample_municipal_budget.sqlite` from the bundled `.sql` seed (the package ships no binaries)
-- validates `assets/sample_allowlist.json` against the database
-- loads the warehouse through the engine as a smoke test
-- prints the exact `mcpServers` JSON to paste into Claude Code (`.mcp.json`), Cursor (`.cursor/mcp.json`) or Claude Desktop
+Needs Node 22+. Full environment variables, custom-ledger setup, and the complete warehouse and audit-log reference are in **`references/setup.md`**. In the host, tool names carry the server key as a prefix (e.g. `mcp__vanguard-mcp__run_canonical`); below they're written bare.
 
-The printed config has this shape:
-
-```json
-{
-  "mcpServers": {
-    "vanguard-mcp": {
-      "command": "/absolute/path/to/node",
-      "args": ["/path/to/vanguard-mcp/vanguard-core/bin/vanguard.js", "mcp"],
-      "env": {
-        "VANGUARD_DB_PATH": "/path/to/assets/sample_municipal_budget.sqlite",
-        "VANGUARD_ALLOWLIST_PATH": "/path/to/assets/sample_allowlist.json",
-        "ANTHROPIC_API_KEY": "<your-anthropic-api-key>"
-      }
-    }
-  }
-}
-```
-
-| Variable | Needed for |
-|---|---|
-| `VANGUARD_DB_PATH` + `VANGUARD_ALLOWLIST_PATH` | Serving a custom warehouse, such as the municipal demo or the user's own ledger. Both or neither. |
-| `VANGUARD_AUDIT_LOG` | Optional. Defaults to `<name>-audit.jsonl` beside the database. |
-| `ANTHROPIC_API_KEY` | `execute_financial_query` only. Everything else runs without a credential. |
-| `VANGUARD_SIGNING_KEY_FILE` (or `VANGUARD_SIGNING_KEY`) | Optional Ed25519 signing of audit entries. |
-
-To use their own ledger, the user points the two paths at their SQLite file and an allow-list in the same format as `assets/sample_allowlist.json`, then re-runs the check with `--db` and `--allowlist`. If the allow-list names a table or column that isn't in the database, the server exits at startup with the problem on stderr.
-
-In the host, tool names carry the server key as a prefix (for example `mcp__vanguard-mcp__execute_financial_query`). Below they're written bare.
-
-## What the server exposes
-
-### Resources (read these first)
-
-| URI | Returns |
-|---|---|
-| `vanguard://warehouses` | Each warehouse's name, description, `freeText` flag, and allow-listed tables |
-| `vanguard://schema/{name}` | Live allow-listed tables, columns and types, plus the metric registry |
-| `vanguard://controls` | The SOC 2 control catalog |
-
-### Warehouses
-
-| Warehouse | Free text | What it holds |
-|---|---|---|
-| `municipal` (when configured) | yes | Fictional Town of Sampleton: grants, drawdowns, budget lines, expenditures, vendors. Synthetic. |
-| *(any custom name)* | yes | The user's own ledger, loaded from `VANGUARD_DB_PATH` / `VANGUARD_ALLOWLIST_PATH` |
-| `saas` | yes | MRR, retention, LTV:CAC, cohorts. Synthetic. |
-| `enron` | no | FY2000 reporting gap: synthetic rows anchored to real 10-K aggregates |
-| `markets` | no | Orders, executions, positions, surveillance. Synthetic. |
-| `lseg` | no | Fundamentals by `TR.*` field code: real RICs and codes, synthetic values |
-
-### Tools
+## Tools
 
 | Tool | Args | Credential | Use for |
 |---|---|---|---|
+| `run_canonical` | `name`, `args` | none | Pre-written queries: the built-in ones, plus a custom warehouse's **named queries** (`<warehouse>/<query>`), which also return automatic checks. **Prefer this.** |
 | `execute_financial_query` | `question`, `warehouse` (default `"saas"`) | API key | Free-text questions on any warehouse with `freeText: true` |
-| `run_canonical` | `name`, `args` | none | Pre-written queries: the built-in ones below, plus a custom warehouse's **named queries** (`<warehouse>/<query>`), which also return automatic checks |
-| `list_controls` | none | none | The SOC 2 control catalog |
-| `run_control` | `id` | none | PASS / EXCEPTION reconciliations with provenance |
+| `list_controls` / `run_control` | `id` (for run) | none | SOC 2 reconciliations with PASS / EXCEPTION and provenance |
 | `verify_audit` | `warehouse` or `logPath` | none | Hash-chain integrity check on one audit log |
 
-Canonical queries (`run_canonical`):
+Read the resource `vanguard://warehouses` once per session to see which warehouses are connected, which accept free text, and (for custom warehouses) what named queries they expose with their parameters. The municipal demo exposes `municipal/grant-status`, `municipal/spending-by-vendor` and `municipal/budget-variance`. Built-in canonical queries and the full catalog are in `references/setup.md`.
 
-| `name` | `args` | What it answers |
-|---|---|---|
-| `enron/revenue` | `{ "fiscalYear": 2000 }` | Revenue reported gross vs net margin actually earned (USD millions) |
-| `enron/debt` | `{ "fiscalYear": 2000 }` | Reported debt vs total debt including off-balance-sheet entities |
-| `markets/net-position` | `{ "ticker": "ACME" }` | Net position per account at close |
-| `markets/surveillance` | `{ "windowMs": 2000, "minCancels": 3 }` | Rapid place-and-cancel patterns |
-| `saas/mrr` | `{}` | MRR from the movement ledger vs MRR reconstructed from subscriptions |
-
-Named queries on a custom warehouse are listed, with their parameters, under `queries` in `vanguard://warehouses`. The municipal demo has:
-
-| `name` | `args` (all optional) | What it answers |
-|---|---|---|
-| `municipal/grant-status` | `grant_id`, `status` | Award, paid, pending, drawn down, remaining balance, % spent, per grant |
-| `municipal/spending-by-vendor` | `grant_id`, `fiscal_year`, `dept_id` | Paid spending and invoice count per vendor |
-| `municipal/budget-variance` | `fiscal_year`, `dept_id` | Adopted vs amended budget, paid, pending, remaining, % used, per line |
-
-Only pass the business arguments shown. Never pass `dbPath`, `logPath`, `signer` or `warehouse` inside `args`: they would redirect the query or its audit trail.
+Only pass the business arguments a query documents. Never pass `dbPath`, `logPath`, `signer` or `warehouse` inside `args`: the server refuses them, because they would redirect the query or its audit trail.
 
 ## Workflow
 
 ### 1. Route the question
 
-Read `vanguard://warehouses` once per session, then pick the route:
-
 - **Budget, grant, vendor or spending question, and a custom warehouse is listed:**
-  - **A named query covers it** → call `run_canonical` with that query. **Always try this first.** It needs no credential and costs the fewest tokens, its definitions (such as "spent means paid, never void") are fixed by the operator, and its results come with automatic checks. Answer from its columns. Several related questions may be answerable from a single call.
+  - **A named query covers it** → `run_canonical` with that query. **Always try this first.** No credential, fewest tokens, operator-fixed definitions (e.g. "spent means paid, never void"), and results come with automatic checks. Several related questions may be answerable from one call.
   - **No named query covers it** → `execute_financial_query` with `warehouse` set to that name. Read its schema resource first if you don't know the column names.
-- **Budget or grant question, and no such warehouse is listed** → say plainly that the connected Vanguard instance has no budget or grant ledger. Point to `scripts/verify-setup.js` to load the demo or the user's own data. Do **not** send the question to `saas` to see what comes back, and do not answer from general knowledge.
-- **The question matches a canonical query or control** → `run_canonical` or `run_control`. These are deterministic and need no credential, so prefer them where they fit.
-- **Free-text question on `saas`** → `execute_financial_query`.
-- **Free-text question on `enron`, `markets` or `lseg`** → offer the nearest canonical query or control. Free text there is refused (`warehouse_not_supported`).
+- **Budget or grant question, and no such warehouse is listed** → say plainly the connected instance has no budget or grant ledger, and point to `scripts/verify-setup.js` to load the demo or the user's own data. Do **not** send it to `saas`, and do not answer from general knowledge.
+- **The question matches a canonical query or control** → `run_canonical` or `run_control`.
+- **Free-text question on `saas`** → `execute_financial_query`. On `enron`, `markets` or `lseg`, free text is refused (`warehouse_not_supported`); offer the nearest canonical query or control.
 
 ### 2. Phrase the question so SQL does the math
 
-The planner writes one SQL query from your question, so put every figure you'll need into the question:
+The planner writes one SQL query from your question, so put every figure you'll need into it:
 
 - Ask for the aggregate (total, count, average, ratio, breakdown), not the raw rows.
-- If you'll quote a percentage, remaining balance or difference, ask for it explicitly ("…and the percentage of the award spent, rounded to one decimal"). A figure the query didn't return can't be grounded.
-- Name the filter when the data has one. In the municipal demo, "spent" means `status = 'paid'`, and `void` rows are never counted. Spending is compared against `amended_cents`.
-- Ask one question at a time.
-
-Do not pull rows and then sum, average or difference them yourself. If the user wants a figure Vanguard didn't return, run another question that asks for it directly.
+- If you'll quote a percentage, remaining balance or difference, ask for it explicitly. A figure the query didn't return can't be grounded.
+- Name the filter the data uses (in the demo, "spent" means `status = 'paid'`, `void` rows never count, spending is compared against `amended_cents`).
+- Ask one question at a time. Never pull rows and sum, average or difference them yourself; ask Vanguard for the figure directly.
 
 ### 3. Handle the result
 
-**Success** (`ok: true` from `execute_financial_query`):
+**`execute_financial_query` success** (`ok: true`): `answer` is the grounded prose. If `fellBack: true`, grounding failed twice and `answer` is a mechanical summary (figures still exact); tell the user and re-ask so the SQL returns the figure. If `limitInjected: true`, say the result may be truncated. If `rows` is empty, say nothing matched; an empty result is not zero.
 
-- `answer` is the grounded prose. `grounded: true` and `verifiedFigures` say how many figures were checked.
-- If `fellBack: true`, the model's prose failed grounding twice and `answer` is a plain mechanical summary of the rows. The figures are still exact. Tell the user, and if they need a specific figure, re-ask so that the SQL returns it as a column.
-- If `limitInjected: true`, the guard added `LIMIT 1000`. Say the result may be truncated.
-- If `rows` is empty, say there is no matching data. An empty result is not zero.
+**Named query** (`run_canonical` on `<warehouse>/<query>`): read `integrity` **before anything else**.
 
-**Named query** (`run_canonical` on `<warehouse>/<query>`): read `integrity` before anything else.
+- `integrity: "pass"` → present it normally.
+- `integrity: "flag"` → **do not present the figures as fact.** Show the flagged check's `message` and `detail`, and say the definition needs fixing by the operator. Don't retry; the same inputs will flag again.
+- `findings` > 0 → each `checks[]` entry with `severity: "finding"` and `status: "flag"` is an audit finding about the ledger (e.g. an overspent line, or grant cash drawn ahead of spending). Report it with its `message` and the `detail.rows`. It is a property of the data, not an error.
+- A check with `status: "skipped"` or `"error"` could not run. Say so; don't describe the result as checked.
 
-- `integrity: "pass"`: the result passed its integrity checks (no repeated keys; totals reconcile to an independent query). Present it normally.
-- `integrity: "flag"`: **do not present the figures as fact.** Show the flagged check's `message` and `detail` to the user, and say that the definition needs fixing by the warehouse operator. Don't retry the same call: the same inputs will flag again.
-- `findings` > 0: each `checks[]` entry with `severity: "finding"` and `status: "flag"` is an audit finding about the ledger (for example an overspent budget line, or grant cash drawn ahead of spending). Report it with its `message` and the rows listed in `detail.rows`. It is a property of the data, not an error.
-- A check with `status: "skipped"` (the result hit the row limit) or `"error"` could not run. Say so; don't describe the result as checked.
-
-**Refusal** (`ok: false`): this is the system working. See "Refusals and self-correction" below.
-
-**Tool error** (`isError`): for example an unknown canonical name, control id or warehouse. The message lists the valid names; correct the call.
+**Refusal** (`ok: false`) → the system working; see `references/refusals.md`.
+**Tool error** (`isError`) → the message lists valid names; correct the call.
 
 ### 4. Present the answer in three parts
 
-**Grounded answer.** For `execute_financial_query`, use `answer`. For `run_canonical` / `run_control`, state the figures exactly as they appear in `rows` / `control`, with the unit taken from the column name (`_cents`, `_usd_millions`). Cents may be shown as dollars (divide by 100 exactly, no further rounding), and you should say you converted them. Never introduce a figure that isn't in the result.
-
-**Provenance.**
-- Executed SQL (`sql`), tables and columns (`lineage.tables`, `lineage.columns`), row count (`lineage.rowCount`), and timestamp (`lineage.at`).
-- Say when the data is synthetic. Every bundled warehouse is: the municipal demo is a fictional town, enron has synthetic rows anchored to real 10-K aggregates, and lseg uses real identifiers with synthetic values. Never present demo figures as facts about a real entity.
-
-**Audit trail.**
-- **Result hash** (`lineage.resultHash` or `provenance.resultHash`): re-running the same SQL against the same snapshot must produce the same hash.
-- **Audit entry**: seq (`auditSeq`) and entry hash (`auditHash`).
-- **Checks** (named queries): the integrity result, plus one line per check, e.g. "paid-total-reconciles: pass". The check results are recorded inside the audit entry, so the entry hash covers them.
-- **Signature**: say whether the entry is signed (`signed` / `provenance.signature`) and give `signingKeyId` if it is. If it isn't, say it is hash-chained but unsigned.
-
-Show hashes in full, in code formatting. Don't truncate them.
+1. **Grounded answer.** State figures exactly as they appear in `answer` / `rows` / `control`, with the unit from the column name (`_cents`, `_usd_millions`). Cents may be shown as dollars (divide by 100 exactly), and say you converted. Never introduce a figure not in the result.
+2. **Provenance.** Executed SQL (`sql`), tables/columns (`lineage.tables/columns`), row count, timestamp. Say the data is synthetic, because every bundled warehouse is; never present demo figures as facts about a real entity.
+3. **Audit trail.** Result hash (`lineage.resultHash` / `provenance.resultHash`), audit seq (`auditSeq`) and entry hash (`auditHash`), each check result for a named query, and whether the entry is signed (`signingKeyId`) or hash-chained but unsigned. Show hashes in full, in code formatting; don't truncate them.
 
 ### 5. Verify the audit chain (on request)
 
-Pass `verify_audit` a `warehouse` and it checks that warehouse's log. The result echoes the `logPath` it checked.
+`verify_audit { "warehouse": "<name>" }` checks that warehouse's log and echoes the `logPath`. Report `ok: true` as **INTACT** with the entry count, `ok: false` as **BROKEN** at `brokenAt` with `reason` verbatim. It checks the hash chain only, not signatures. The log-to-warehouse map and signature-check guidance are in `references/setup.md`.
 
-| Log | Written by | Verify with |
-|---|---|---|
-| `db/audit.jsonl` | `execute_financial_query` on `saas` | `verify_audit {}` (the default) |
-| `db/saas-audit.jsonl` | `saas/mrr`, saas controls | `{ "warehouse": "saas" }` |
-| `db/enron-audit.jsonl` | enron queries and controls | `{ "warehouse": "enron" }` |
-| `db/markets-audit.jsonl` | markets queries and controls | `{ "warehouse": "markets" }` |
-| `db/lseg-audit.jsonl` | lseg controls | `{ "warehouse": "lseg" }` |
-| `<name>-audit.jsonl` beside the db | custom warehouse, e.g. `municipal` | `{ "warehouse": "municipal" }` |
+## Controls and refusals
 
-If the user asks about "the audit log" in general, verify every log that applies. Report:
-- `ok: true` → **INTACT**, with the entry count.
-- `ok: false` → **BROKEN** at index `brokenAt`, with `reason` verbatim. Entries before that index still verify; that entry and every one after it are suspect.
-
-Over MCP, `verify_audit` checks the hash chain only. It does **not** check Ed25519 signatures. For signature checks, point the user to `node bin/vanguard.js audit` (or `enron audit`, `markets audit`, `lseg audit`) with the signing key configured. For a PASS / EXCEPTION evidence result, call `run_control` with `{ "id": "CC7.2-audit-chain-integrity", "logPath": "<log>" }`. Without `logPath` it checks the markets log only. It returns `provenance: null` because verifying a chain adds no new entry.
-
-## Refusals and self-correction
-
-A refusal returns `stage`, `reason`, `message`, and usually `proposedSql`. You can't edit the SQL. Vanguard has no raw-SQL tool, by design. You can only ask again with a better question. Fix it yourself where the table below says to retry, **once**. If the retry is also refused, stop and report both refusals to the user.
-
-| `reason` | Likely cause | What to do |
-|---|---|---|
-| `column_not_allowed` | The planner reached for a withheld column | If the user didn't ask for that column, **retry** and name the permitted columns from `vanguard://schema/{name}`. If they did ask for it (such as a vendor tax ID), **stop**: tell them the field is withheld by policy, and don't try to infer it another way. |
-| `table_not_allowed` | The query read or JOINed a table outside the allow-list | Same rule as above. JOINs between allow-listed tables are fine; only the non-listed table is the problem. If the user asked about that table (`payroll` in the demo), **stop** and say it isn't exposed. |
-| `wildcard_not_allowed` | `SELECT *` under a column allow-list | **Retry**, naming the specific fields you need. |
-| `unparseable` / `empty` / `no_tables` | The planner produced bad or no SQL | **Retry** with a more concrete question that names the table, the measure and the filter. |
-| `multiple_statements` | The question bundled several asks | **Retry** as separate questions, one call each. |
-| `timeout` (`stage: execute`) | Query exceeded the time budget | **Retry** narrower: aggregate, filter by year, grant or department. |
-| `database_rejected` (`stage: execute`) | Guard passed it, SQLite refused it (bad column reference, type issue) | **Retry** once with exact column names from the schema resource. |
-| `not_a_select` / `write_operation` | The question asked to change data | **Stop**. Vanguard is read-only, so say it can't change records. |
-| `bad_scope` | Row-level scope could not be applied | **Stop** and report it. Don't route around it. |
-| `warehouse_not_supported` (`stage: route`) | Free text on a canonical-only warehouse, or an unknown name | **Reroute** to `run_canonical` / `run_control` if one fits; otherwise tell the user what that warehouse supports. |
-
-Never switch warehouses to get an answer the right warehouse refused, and never answer from memory after a refusal.
-
-### Things that look like refusals but aren't
-
-- **No LIMIT clause.** This is never refused. The guard adds `LIMIT 1000` and sets `limitInjected: true`.
-- **A rounded figure.** Grounding accepts rounding to half a unit in the last place written ("36.7%" matches 0.3672), as well as cents shown as dollars and a ratio shown as a percent or basis points. A figure fails only when no returned value supports it, typically a percentage or difference the SQL never computed. Then the narrator retries once and, if it still fails, falls back to the mechanical summary (`fellBack: true`). The fix is to re-ask with the figure requested explicitly, so the SQL returns it.
-- **An empty result.** `ok: true` with no rows means nothing matched the filter. Check that the filter values are right (for example `'G-402'`, not `402`) before you report "none".
-
-## Controls
-
-Run `list_controls` for the live list. At the time of writing:
-
-| id | Checks |
-|---|---|
-| `PI1.1-enron-revenue-reconciliation` | Revenue recognised on the correct basis |
-| `PI1.2-enron-debt-reconciliation` | Reported debt reconciles to source records |
-| `PI1.2-saas-mrr-reconciliation` | MRR reconciles across independent sources |
-| `PI1.2-markets-position-reconciliation` | Derived positions reconcile to the recorded book |
-| `PI1.1-lseg-gross-profit-reconciliation` | Gross Profit = Revenue − Cost of Revenue |
-| `PI1.1-lseg-standardized-vs-as-reported` | Vendor-standardized figure reconciles to the filing |
-| `C1.1-lseg-data-retention` | Cached vendor data is retained within its licensed window |
-| `CC7.3-figure-reproducibility` | A past figure reproduces exactly |
-| `CC7.2-audit-chain-integrity` | The audit trail is tamper-evident and intact |
-
-Custom warehouses have no controls yet. Do reconciliations there with free-text questions that return both sides, plus the difference, in one query.
-
-Report the control's PASS / EXCEPTION status first, then its figures and provenance. An EXCEPTION is a finding to report clearly. It isn't a failure to retry. SOC 2 criterion tags describe what a check is evidence for. They are not a certification, so don't describe them as one.
+- **SOC 2 controls:** catalog and presentation rules in `references/controls.md`. Report PASS / EXCEPTION first; an EXCEPTION is a finding, not a retry.
+- **Refusals and self-correction:** the full reason table and the retry-once / never-switch-warehouse rules are in `references/refusals.md`.
 
 ## Example prompts
 
-- "How much of the paving grant (G-402) has been spent so far, broken down by vendor? Include the result hash." → `municipal/spending-by-vendor { "grant_id": "G-402" }`
+- "How much of the paving grant (G-402) has been spent, broken down by vendor? Include the result hash." → `municipal/spending-by-vendor { "grant_id": "G-402" }`
 - "For every active grant, show the award, paid expenditures, cash drawn down, and remaining balance." → `municipal/grant-status { "status": "active" }`
-- "Which FY2026 budget lines spent more than their amended budget, and by how much?" → `municipal/budget-variance { "fiscal_year": 2026 }`, then report the `within-amended-budget` finding
-- "Show vendor tax IDs." → refused by policy; say so.
-- "Is Enron's FY2000 reported debt consistent with the total once off-balance-sheet entities are included?"
-- "Run the MRR reconciliation control and tell me whether it passed."
+- "Which FY2026 budget lines spent more than their amended budget?" → `municipal/budget-variance { "fiscal_year": 2026 }`, then report the `within-amended-budget` finding
+- "Show vendor tax IDs." → refused by policy (`column_not_allowed`); say so.
 - "Verify every Vanguard audit log and tell me whether any chain is broken."
 
-## Enterprise & custom deployments
-
-Mention this only when the user asks about production databases, scale, SSO, or anchoring the log externally. Don't bring it up otherwise.
-
-The open-source engine serves local SQLite files. Read-only adapters for PostgreSQL, Snowflake or BigQuery, SSO / role-based access, and external anchoring of the audit log (WORM storage, RFC 3161 timestamping) are available as custom deployments: contact [CONTACT_EMAIL_OR_URL].
+Worked transcripts with real figures and hashes are in `examples/`.

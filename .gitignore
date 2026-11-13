@@ -24,3 +24,6 @@ INTERVIEW-CHEATSHEET.md
 
 # Built locally by skills/*/scripts/verify-setup.js; never shipped (marketplaces flag binaries)
 skills/**/*.sqlite
+
+# Packaged skill zip, produced by skills/*/scripts/package.sh
+skills/**/dist/

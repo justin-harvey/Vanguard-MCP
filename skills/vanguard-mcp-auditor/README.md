@@ -72,7 +72,7 @@ Anything left out of the allow-list is refused by the engine's guard, which pars
 
 ## Enterprise & custom deployments
 
-Need read-only adapters for PostgreSQL, Snowflake or BigQuery, SSO / role-based access, or external compliance anchoring (WORM storage, RFC 3161 timestamping)? Contact [CONTACT_EMAIL_OR_URL] about Vanguard enterprise and custom deployments.
+Need read-only adapters for PostgreSQL, Snowflake or BigQuery, SSO / role-based access, or external compliance anchoring (WORM storage, RFC 3161 timestamping)? Contact info@civic-chain.com about Vanguard enterprise and custom deployments.
 
 ## License
 
