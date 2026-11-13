@@ -1,8 +1,9 @@
 # Auditor Skill: Milestones & Engineering Handoff
 
-**Branch:** `feat/grant-auditor-skill` (not merged; no PR yet)
+**Branch:** `feat/auditor-skill-s3-s5` (pushed to origin; stacked on `feat/grant-auditor-skill`'s S2 commit; not merged; no PR yet)
 **Owner after handoff:** _(engineer's name)_
 **Milestone series:** `S` (skill track). The engine's `M0–M9` series in `HANDOFF.md` is separate and unchanged.
+**Next job:** **S4** — the key-free free-text path (`run_query` + `verify_answer`). See its section below.
 
 ## Goal
 
@@ -24,13 +25,15 @@ Ship a **free** agent skill (listed on Agensi, usable in Claude Code, Cursor, Cl
 | **Human-only, still open** | S5 asks to test the skill in two agents and have someone who didn't build it try it. Also S3 step 4's live in-Claude-Code click-through (its substance is covered by `custom-pipeline` tests 10–13). |
 | **Not started** | S4 · S6–S11 (note: S4/S6/S7 still pending; S5 shipped ahead of S4 by request) |
 
-> **Uncommitted as of 2026-11-13.** All S3 + S5 changes are in the working tree of `feat/grant-auditor-skill`, not yet committed. Contact placeholder resolved to `info@civic-chain.com` (open decision #4).
+> **Committed & pushed 2026-11-13** to `origin/feat/auditor-skill-s3-s5`. Contact placeholder resolved to `info@civic-chain.com` (open decision #4). Open a PR at https://github.com/justin-harvey/Vanguard-MCP/pull/new/feat/auditor-skill-s3-s5 when ready.
 
-Commits on the branch, oldest first:
+Commits, oldest first:
 
-1. `Add custom warehouses configured from the environment`
-2. `Add the vanguard-mcp-auditor agent skill`
-3. `Add named queries with automatic checks for custom warehouses`
+1. `Add custom warehouses configured from the environment` (S0)
+2. `Add the vanguard-mcp-auditor agent skill` (S1)
+3. `Add named queries with automatic checks for custom warehouses` (S2)
+4. `S3: verify branch with the real guard; whitelist MCP query arguments` (`ef0e5a9`)
+5. `S5: slim SKILL.md, add references/examples, drift test and Agensi packaging` (`3450ec9`)
 
 ---
 
@@ -119,22 +122,21 @@ user's agent ── MCP (stdio) ──▶ vanguard-core
 
 Sizes are rough: **S** ≤ 1 day · **M** 2–4 days · **L** 1–2 weeks.
 
-### S3 · Verify the branch and close security gaps (blocker) · S
+### S3 · Verify the branch and close security gaps (blocker) · S — ✅ DONE (2026-11-13)
 
-**Why:** nothing ships until the full suite passes with the real guard.
+- `npm test` is **217/217** on Node 22 with `node-sql-parser` installed. All three parser worries (optional-filter `(? IS NULL OR col = ?)`, qualified aliases in correlated subqueries, `COUNT(e.col)`) pass; the demo deliberately avoids `COUNT(*)`.
+- **Security fix landed.** `run_canonical` and `run_control` no longer spread caller `args` into the query/control functions. Caller args are whitelisted per query in `src/mcp.js` (`CANONICAL[name].args` + `pickCallerArgs`, which refuses unknown keys); infrastructure (`dbPath`/`logPath`) now comes only from a trusted `ctx.overrides` channel that the stdio transport (`mcp-server.js`) never fills from the wire. Covered by two tests in `test/mcp.test.js` ("refuses caller-supplied infrastructure arguments", "still accepts a whitelisted query parameter").
+- **Deferred to S7:** `verify_audit` still accepts a caller `logPath`. Fine locally; disable it when the hosted transport lands.
+- **Human-only leftover:** the live in-Claude-Code click-through. Its substance (named query tried first, integrity flag not presented as fact, findings reported, withheld column refused at startup) is covered by `test/custom-pipeline.test.js` cases 10–13.
 
-**Do:**
-1. Run `npm test`. If anything fails, these are the likely culprits; I couldn't confirm how `node-sql-parser` handles them:
-   - the `(? IS NULL OR col = ?)` placeholder pattern in the demo queries
-   - qualified aliases inside correlated subqueries (`e.amount_cents` within `SELECT … FROM grants g`)
-   - whether `COUNT(*)` would trip `wildcard_not_allowed` (the demo avoids it by using `COUNT(e.expenditure_id)`; confirm and document)
-2. **Security fix, pre-existing on `main`:** `run_canonical` spreads caller `args` into the built-in canonical functions (`fn({ ...(args.args ?? {}), signer })`). An MCP caller can therefore pass `dbPath`, `logPath` or `warehouse` and redirect the query or the audit log. Whitelist arguments per canonical query (named queries already reject unknown parameters).
-3. `verify_audit` accepts any `logPath` from the caller. That's fine locally, but it must be disabled before S7 (hosted).
-4. Run it in Claude Code against the demo and check that SKILL.md's routing works: the named query is tried first, an integrity flag is not presented as fact, and findings are reported.
+### S4 · Key-free free-text path: `run_query` + `verify_answer` · M — **NEXT**
 
-**Done when:** `npm test` is green, the security fix has a test, and a manual Claude Code session behaves as described.
+> **Pickup notes (from the S3/S5 pass):**
+> - **Guard reuse:** `guard(sql, { allowedTables, allowedColumns })` throws `SqlRejected` (`.reason`, `.message`) on a bad query; it injects `LIMIT 1000` and sets `limitInjected`. A custom warehouse descriptor (`warehouseDescriptors()[name]`) already carries `allowedTables`, `allowedColumns`, `dbPath`, `logPath`, `planSchema`. `ask.js:75` shows the canonical refusal-to-result shape (`{ ok:false, stage:'guard', reason, message, proposedSql }`) — mirror it for `run_query`.
+> - **Lineage + audit:** follow `named-run.js` for how a query result is turned into `{ rows, lineage, provenance }` and appended to the warehouse log (lineage result hash + `audit.js` hash chain). `verify_answer` must **re-run the stored SQL and re-derive the result hash** (stateless), then call `grounding.js` on the text. The 2-round fix loop mirrors `narrator.js`.
+> - **MCP wiring:** add the tools to `listTools()` and `callTool()` in `src/mcp.js`. Take `sql`/`text`/`warehouse`/`auditSeq` from caller `args`; keep `dbPath`/`logPath` out of caller args (use the warehouse descriptor or `ctx.overrides`), consistent with the S3 fix. Extend `test/custom-pipeline.test.js` (it configures the municipal env via `withCustomEnv`).
+> - **Drift guard:** if you add tool names, document them in SKILL.md/references so `test/skill-drift.test.js` passes (it reconciles documented tool names against `listTools()`).
 
-### S4 · Key-free free-text path: `run_query` + `verify_answer` · M
 
 **Why:** `execute_financial_query` runs a second model on the server, which needs an API key and costs tokens. The user's agent can write the SQL itself.
 
