@@ -32,15 +32,15 @@ test('listTools advertises the engine surface', () => {
 
 test('listResources exposes warehouses, controls, and a schema resource per warehouse', () => {
     const uris = listResources().map((r) => r.uri);
-    assert.ok(uris.includes('vanguard://warehouses'));
-    assert.ok(uris.includes('vanguard://controls'));
+    assert.ok(uris.includes('civic-chain://warehouses'));
+    assert.ok(uris.includes('civic-chain://controls'));
     for (const w of ['saas', 'markets', 'enron']) {
-        assert.ok(uris.includes(`vanguard://schema/${w}`), `missing schema resource for ${w}`);
+        assert.ok(uris.includes(`civic-chain://schema/${w}`), `missing schema resource for ${w}`);
     }
 });
 
 test('the warehouses resource marks which support free text', () => {
-    const warehouses = readResource('vanguard://warehouses');
+    const warehouses = readResource('civic-chain://warehouses');
     const saas = warehouses.find((w) => w.name === 'saas');
     const enron = warehouses.find((w) => w.name === 'enron');
     assert.equal(saas.freeText, true);

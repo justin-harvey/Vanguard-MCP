@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * verify-setup.js: check a Vanguard MCP install and print the client config.
+ * verify-setup.js: check a Civic-Chain Auditor install and print the client config.
  *
  *   node scripts/verify-setup.js                  check everything, build the demo db if missing
  *   node scripts/verify-setup.js --rebuild        rebuild the demo db from its SQL seed
@@ -20,8 +20,8 @@
  * What it never does: make network requests, spawn processes, read any
  * credential or environment secret, or modify anything outside the assets/
  * folder. The only environment variables it touches are the two it sets for
- * the smoke test (VANGUARD_DB_PATH, VANGUARD_ALLOWLIST_PATH) and the optional
- * VANGUARD_CORE it reads to find your checkout. No dependencies beyond Node.
+ * the smoke test (CIVIC_DB_PATH, CIVIC_ALLOWLIST_PATH) and the optional
+ * CIVIC_CORE it reads to find your checkout. No dependencies beyond Node.
  */
 
 'use strict';
@@ -86,7 +86,7 @@ function checkNode() {
     section('Node.js');
     const major = Number(process.versions.node.split('.')[0]);
     if (major >= 22) ok(`Node ${process.versions.node}`);
-    else fail(`Node ${process.versions.node}; Vanguard MCP needs Node 22 or newer (it uses the built-in node:sqlite).`);
+    else fail(`Node ${process.versions.node}; the Civic-Chain Auditor needs Node 22 or newer (it uses the built-in node:sqlite).`);
     try {
         const sqlite = require('node:sqlite');
         ok('node:sqlite is available');
@@ -199,7 +199,7 @@ function checkAllowlist(sqlite, dbPath, allowlistPath) {
 }
 
 function findCore(explicit) {
-    const candidates = [explicit, process.env.VANGUARD_CORE, path.resolve(SKILL_DIR, '..', '..', 'vanguard-core')].filter(Boolean);
+    const candidates = [explicit, process.env.CIVIC_CORE, process.env.VANGUARD_CORE, path.resolve(SKILL_DIR, '..', '..', 'vanguard-core')].filter(Boolean);
     for (const dir of candidates) {
         if (fs.existsSync(path.join(dir, 'bin', 'vanguard.js'))) return path.resolve(dir);
     }
@@ -210,7 +210,7 @@ async function checkCore(coreArg, dbPath, allowlistPath, doc) {
     section('vanguard-core');
     const core = findCore(coreArg);
     if (!core) {
-        fail('vanguard-core not found. Pass --core /path/to/vanguard-mcp/vanguard-core (or set VANGUARD_CORE).');
+        fail('vanguard-core not found. Pass --core /path/to/vanguard-mcp/vanguard-core (or set CIVIC_CORE).');
         return null;
     }
     ok(`found ${core}`);
@@ -229,13 +229,13 @@ async function checkCore(coreArg, dbPath, allowlistPath, doc) {
     else fail(`dependencies missing (${missing.join(', ')}). Run: cd "${core}" && npm install`);
 
     const supportsCustom = fs.existsSync(path.join(core, 'src', 'custom.js'));
-    if (supportsCustom) ok('custom warehouses supported (VANGUARD_DB_PATH / VANGUARD_ALLOWLIST_PATH)');
+    if (supportsCustom) ok('custom warehouses supported (CIVIC_DB_PATH / CIVIC_ALLOWLIST_PATH)');
     else fail('this vanguard-core predates custom warehouse support (no src/custom.js). Update your checkout.');
 
     if (supportsCustom && missing.length === 0 && doc) {
         // Load the warehouse through the engine itself, exactly as the MCP server will.
-        process.env.VANGUARD_DB_PATH = dbPath;
-        process.env.VANGUARD_ALLOWLIST_PATH = allowlistPath;
+        process.env.CIVIC_DB_PATH = dbPath;
+        process.env.CIVIC_ALLOWLIST_PATH = allowlistPath;
         try {
             const { warehouseSchema } = await import(pathToFileURL(path.join(core, 'src', 'warehouses.js')).href);
             const schema = warehouseSchema(doc.name);
@@ -262,12 +262,12 @@ function credentialReminder() {
 function printConfig(core, dbPath, allowlistPath) {
     const config = {
         mcpServers: {
-            'vanguard-mcp': {
+            'civic-chain-auditor': {
                 command: process.execPath,
                 args: [path.join(core ?? '/path/to/vanguard-mcp/vanguard-core', 'bin', 'vanguard.js'), 'mcp'],
                 env: {
-                    VANGUARD_DB_PATH: dbPath,
-                    VANGUARD_ALLOWLIST_PATH: allowlistPath,
+                    CIVIC_DB_PATH: dbPath,
+                    CIVIC_ALLOWLIST_PATH: allowlistPath,
                     ANTHROPIC_API_KEY: '<your-anthropic-api-key>',
                 },
             },
@@ -278,7 +278,7 @@ function printConfig(core, dbPath, allowlistPath) {
     console.log('    Claude Code     .mcp.json in your project root');
     console.log('    Cursor          .cursor/mcp.json (project) or ~/.cursor/mcp.json (global)');
     console.log('    Claude Desktop  claude_desktop_config.json');
-    console.log('  If the file already has an "mcpServers" object, add only the "vanguard-mcp" entry to it.');
+    console.log('  If the file already has an "mcpServers" object, add only the "civic-chain-auditor" entry to it.');
     console.log('  "command" is the absolute path of the Node that ran this check, so GUI apps find it.\n');
     console.log(JSON.stringify(config, null, 2));
 }
@@ -292,7 +292,7 @@ async function main() {
     }
     const dbPath = args.db ?? DEFAULT_DB;
     const allowlistPath = args.allowlist ?? DEFAULT_ALLOWLIST;
-    console.log('Vanguard MCP setup check (local only: no network, no subprocesses)');
+    console.log('Civic-Chain Auditor setup check (local only: no network, no subprocesses)');
 
     const sqlite = checkNode();
     let doc = null;

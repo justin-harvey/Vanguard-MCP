@@ -1,7 +1,7 @@
 /**
  * Custom-warehouse loader tests: the allow-list format, validation against the
  * live database, and the descriptor handed to the guard and planner. Uses the
- * municipal demo shipped with the vanguard-mcp-auditor skill, so a change that
+ * municipal demo shipped with the civic-chain-auditor skill, so a change that
  * breaks the skill's bundled assets fails here.
  *
  * Needs only node:sqlite (no SQL parser, no model SDK).

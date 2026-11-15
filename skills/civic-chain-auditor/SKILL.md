@@ -1,15 +1,15 @@
 ---
-name: vanguard-mcp-auditor
-description: Use when the user asks to audit grant spending, check a municipal or public budget, track grant drawdowns against expenditures, find budget overruns or overspent line items, break spending down by vendor, verify an audit log, or get financial figures they can trust and reproduce. Answers through the Vanguard MCP server (required): every number comes from a read-only SQL query checked against the source rows, with a result hash and a tamper-evident audit trail. Also covers SOC 2 evidence controls and ledger reconciliation. Includes a demo town budget ledger.
+name: civic-chain-auditor
+description: Use when the user asks to audit grant spending, check a municipal or public budget, track grant drawdowns against expenditures, find budget overruns or overspent line items, break spending down by vendor, verify an audit log, or get financial figures they can trust and reproduce. Answers through the Civic-Chain Auditor MCP server (required): every number comes from a read-only SQL query checked against the source rows, with a result hash and a tamper-evident audit trail. Also covers SOC 2 evidence controls and ledger reconciliation. Includes a demo town budget ledger.
 ---
 
-# Grant & Budget Auditor (Vanguard MCP)
+# Civic-Chain Grant & Budget Auditor
 
-Use this skill to audit grant spending, budget variance, vendor payments and drawdowns, and to verify audit logs, with every figure traced to source records. It works through the Vanguard MCP server.
+Use this skill to audit grant spending, budget variance, vendor payments and drawdowns, and to verify audit logs, with every figure traced to source records. It works through the Civic-Chain Auditor MCP server.
 
-Vanguard MCP is a query engine built so that no unverified number reaches the user. The model writes SQL, `guard.js` checks it, a read-only SQLite connection produces the rows, `grounding.js` checks every figure in the prose against those rows, and `audit.js` hash-chains the result.
+The Civic-Chain Auditor is a query engine built so that no unverified number reaches the user. The model writes SQL, `guard.js` checks it, a read-only SQLite connection produces the rows, `grounding.js` checks every figure in the prose against those rows, and `audit.js` hash-chains the result.
 
-Your job is to keep that guarantee intact on your side of the conversation. **Every figure you show the user must come from a Vanguard tool result in this conversation.** Do not estimate, extrapolate, round differently, or do arithmetic on returned figures yourself. If the number you need isn't in a result, ask Vanguard for it or say it isn't available.
+Your job is to keep that guarantee intact on your side of the conversation. **Every figure you show the user must come from a Civic-Chain Auditor tool result in this conversation.** Do not estimate, extrapolate, round differently, or do arithmetic on returned figures yourself. If the number you need isn't in a result, ask the Auditor for it or say it isn't available.
 
 ## Setup (once)
 
@@ -20,7 +20,7 @@ cd vanguard-core && npm install && cd -
 node scripts/verify-setup.js --core /path/to/vanguard-mcp/vanguard-core
 ```
 
-Needs Node 22+. Full environment variables, custom-ledger setup, and the complete warehouse and audit-log reference are in **`references/setup.md`**. In the host, tool names carry the server key as a prefix (e.g. `mcp__vanguard-mcp__run_canonical`); below they're written bare.
+Needs Node 22+. Full environment variables, custom-ledger setup, and the complete warehouse and audit-log reference are in **`references/setup.md`**. In the host, tool names carry the server key as a prefix (e.g. `mcp__civic-chain-auditor__run_canonical`); below they're written bare.
 
 ## Tools
 
@@ -31,7 +31,7 @@ Needs Node 22+. Full environment variables, custom-ledger setup, and the complet
 | `list_controls` / `run_control` | `id` (for run) | none | SOC 2 reconciliations with PASS / EXCEPTION and provenance |
 | `verify_audit` | `warehouse` | none | Hash-chain integrity check on one audit log (named by warehouse, never by file path) |
 
-Read the resource `vanguard://warehouses` once per session to see which warehouses are connected, which accept free text, and (for custom warehouses) what named queries they expose with their parameters. The municipal demo exposes `municipal/grant-status`, `municipal/spending-by-vendor` and `municipal/budget-variance`. Built-in canonical queries and the full catalog are in `references/setup.md`.
+Read the resource `civic-chain://warehouses` once per session to see which warehouses are connected, which accept free text, and (for custom warehouses) what named queries they expose with their parameters. The municipal demo exposes `municipal/grant-status`, `municipal/spending-by-vendor` and `municipal/budget-variance`. Built-in canonical queries and the full catalog are in `references/setup.md`.
 
 Only pass the business arguments a query documents. Never pass `dbPath`, `logPath`, `signer` or `warehouse` inside `args`: the server refuses them, because they would redirect the query or its audit trail.
 
@@ -53,7 +53,7 @@ The planner writes one SQL query from your question, so put every figure you'll 
 - Ask for the aggregate (total, count, average, ratio, breakdown), not the raw rows.
 - If you'll quote a percentage, remaining balance or difference, ask for it explicitly. A figure the query didn't return can't be grounded.
 - Name the filter the data uses (in the demo, "spent" means `status = 'paid'`, `void` rows never count, spending is compared against `amended_cents`).
-- Ask one question at a time. Never pull rows and sum, average or difference them yourself; ask Vanguard for the figure directly.
+- Ask one question at a time. Never pull rows and sum, average or difference them yourself; ask the Auditor for the figure directly.
 
 ### 3. Handle the result
 
@@ -90,6 +90,6 @@ The planner writes one SQL query from your question, so put every figure you'll 
 - "For every active grant, show the award, paid expenditures, cash drawn down, and remaining balance." → `municipal/grant-status { "status": "active" }`
 - "Which FY2026 budget lines spent more than their amended budget?" → `municipal/budget-variance { "fiscal_year": 2026 }`, then report the `within-amended-budget` finding
 - "Show vendor tax IDs." → refused by policy (`column_not_allowed`); say so.
-- "Verify every Vanguard audit log and tell me whether any chain is broken."
+- "Verify every Civic-Chain Auditor audit log and tell me whether any chain is broken."
 
 Worked transcripts with real figures and hashes are in `examples/`.

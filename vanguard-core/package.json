@@ -1,9 +1,10 @@
 {
   "name": "vanguard-core",
-  "version": "0.1.0",
+  "version": "1.0.0",
   "private": true,
+  "license": "SEE LICENSE IN LICENSE",
   "type": "module",
-  "description": "A working core for the Vanguard MCP thesis: the model writes SQL, the database produces the numbers, and every answer carries a verifiable provenance chain.",
+  "description": "The Civic-Chain Grant & Budget Auditor engine: the model writes SQL, the database produces the numbers, and every answer carries a verifiable provenance chain.",
   "engines": {
     "node": ">=22"
   },

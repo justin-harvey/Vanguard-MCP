@@ -25,7 +25,7 @@ import { freshMunicipalDb, MUNICIPAL_ALLOWLIST } from './municipal-fixture.js';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const SRC = join(here, '..', 'src');
-const SKILL = join(here, '..', '..', 'skills', 'vanguard-mcp-auditor');
+const SKILL = join(here, '..', '..', 'skills', 'civic-chain-auditor');
 
 /** Read a skill doc, with its name for error messages. */
 function doc(rel) {

@@ -19,12 +19,12 @@ The printed config has this shape:
 ```json
 {
   "mcpServers": {
-    "vanguard-mcp": {
+    "civic-chain-auditor": {
       "command": "/absolute/path/to/node",
       "args": ["/path/to/vanguard-mcp/vanguard-core/bin/vanguard.js", "mcp"],
       "env": {
-        "VANGUARD_DB_PATH": "/path/to/assets/sample_municipal_budget.sqlite",
-        "VANGUARD_ALLOWLIST_PATH": "/path/to/assets/sample_allowlist.json",
+        "CIVIC_DB_PATH": "/path/to/assets/sample_municipal_budget.sqlite",
+        "CIVIC_ALLOWLIST_PATH": "/path/to/assets/sample_allowlist.json",
         "ANTHROPIC_API_KEY": "<your-anthropic-api-key>"
       }
     }
@@ -34,14 +34,16 @@ The printed config has this shape:
 
 | Variable | Needed for |
 |---|---|
-| `VANGUARD_DB_PATH` + `VANGUARD_ALLOWLIST_PATH` | Serving a custom warehouse, such as the municipal demo or the user's own ledger. Both or neither. |
-| `VANGUARD_AUDIT_LOG` | Optional. Defaults to `<name>-audit.jsonl` beside the database. |
+| `CIVIC_DB_PATH` + `CIVIC_ALLOWLIST_PATH` | Serving a custom warehouse, such as the municipal demo or the user's own ledger. Both or neither. |
+| `CIVIC_AUDIT_LOG` | Optional. Defaults to `<name>-audit.jsonl` beside the database. |
 | `ANTHROPIC_API_KEY` | `execute_financial_query` only. Everything else runs without a credential. |
-| `VANGUARD_SIGNING_KEY_FILE` (or `VANGUARD_SIGNING_KEY`) | Optional Ed25519 signing of audit entries. |
+| `CIVIC_SIGNING_KEY_FILE` (or `CIVIC_SIGNING_KEY`) | Optional Ed25519 signing of audit entries. |
+
+The former `VANGUARD_*` names are still read as a fallback for one release.
 
 To use their own ledger, the user points the two paths at their SQLite file and an allow-list in the same format as `assets/sample_allowlist.json`, then re-runs the check with `--db` and `--allowlist`. If the allow-list names a table or column that isn't in the database, the server exits at startup with the problem on stderr.
 
-In the host, tool names carry the server key as a prefix (for example `mcp__vanguard-mcp__execute_financial_query`). In SKILL.md they're written bare.
+In the host, tool names carry the server key as a prefix (for example `mcp__civic-chain-auditor__execute_financial_query`). In SKILL.md they're written bare.
 
 ## What the server exposes
 
@@ -49,16 +51,16 @@ In the host, tool names carry the server key as a prefix (for example `mcp__vang
 
 | URI | Returns |
 |---|---|
-| `vanguard://warehouses` | Each warehouse's name, description, `freeText` flag, and allow-listed tables |
-| `vanguard://schema/{name}` | Live allow-listed tables, columns and types, plus the metric registry |
-| `vanguard://controls` | The SOC 2 control catalog |
+| `civic-chain://warehouses` | Each warehouse's name, description, `freeText` flag, and allow-listed tables |
+| `civic-chain://schema/{name}` | Live allow-listed tables, columns and types, plus the metric registry |
+| `civic-chain://controls` | The SOC 2 control catalog |
 
 ### Warehouses
 
 | Warehouse | Free text | What it holds |
 |---|---|---|
 | `municipal` (when configured) | yes | Fictional Town of Sampleton: grants, drawdowns, budget lines, expenditures, vendors. Synthetic. |
-| *(any custom name)* | yes | The user's own ledger, loaded from `VANGUARD_DB_PATH` / `VANGUARD_ALLOWLIST_PATH` |
+| *(any custom name)* | yes | The user's own ledger, loaded from `CIVIC_DB_PATH` / `CIVIC_ALLOWLIST_PATH` |
 | `saas` | yes | MRR, retention, LTV:CAC, cohorts. Synthetic. |
 | `enron` | no | FY2000 reporting gap: synthetic rows anchored to real 10-K aggregates |
 | `markets` | no | Orders, executions, positions, surveillance. Synthetic. |
@@ -76,7 +78,7 @@ In the host, tool names carry the server key as a prefix (for example `mcp__vang
 
 ### Named queries on the municipal demo (`run_canonical`, no credential)
 
-Listed, with their parameters, under `queries` in `vanguard://warehouses`.
+Listed, with their parameters, under `queries` in `civic-chain://warehouses`.
 
 | `name` | `args` (all optional) | What it answers |
 |---|---|---|

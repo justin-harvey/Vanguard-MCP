@@ -1,7 +1,7 @@
 /**
  * MCP handlers, pure and transport-free.
  *
- * These are the tools and resources the Vanguard MCP engine exposes to a host
+ * These are the tools and resources the Civic-Chain Auditor engine exposes to a host
  * AI. Every one routes through the same guard, grounding, lineage and audit
  * chain as the CLI: the MCP surface adds no new path to the data, and the guard
  * stays the trust boundary. The stdio transport lives in mcp-server.js and is
@@ -27,7 +27,7 @@ import { revenueByBasis, debtWithHiddenLeverage } from './enron.js';
 import { netPositionAtClose, surveillanceRapidCancels } from './markets.js';
 import { reconcileMrr } from './saas.js';
 
-export const SERVER_INFO = { name: 'vanguard', version: '0.1.0' };
+export const SERVER_INFO = { name: 'civic-chain-auditor', version: '1.0.0' };
 
 /**
  * Canonical, credential-free query dispatch. Each entry is the query function
@@ -131,7 +131,7 @@ export function listTools() {
                 `Run a canonical, credential-free query. name is one of: ${[...Object.keys(CANONICAL), ...namedQueryNames()].join(', ')}. ` +
                 'Named queries on a custom warehouse also return automatic checks: integrity (pass/flag; a flag means ' +
                 'do not present the result as fact) and findings (data conditions worth reporting). Their parameters ' +
-                'are listed in vanguard://warehouses.',
+                'are listed in civic-chain://warehouses.',
             inputSchema: {
                 type: 'object',
                 properties: {
@@ -297,19 +297,19 @@ export function listResources() {
     const warehouses = Object.keys(warehouseDescriptors());
     return [
         {
-            uri: 'vanguard://warehouses',
+            uri: 'civic-chain://warehouses',
             name: 'Warehouses',
             description: 'The warehouses this engine serves, and which support free-text questions.',
             mimeType: 'application/json',
         },
         {
-            uri: 'vanguard://controls',
+            uri: 'civic-chain://controls',
             name: 'Control catalog',
             description: 'The SOC 2 control catalog.',
             mimeType: 'application/json',
         },
         ...warehouses.map((w) => ({
-            uri: `vanguard://schema/${w}`,
+            uri: `civic-chain://schema/${w}`,
             name: `Schema: ${w}`,
             description: `Live, allow-listed table/column schema for the ${w} warehouse.`,
             mimeType: 'application/json',
@@ -324,7 +324,7 @@ export function listResources() {
  * @param {string} uri
  */
 export function readResource(uri) {
-    if (uri === 'vanguard://warehouses') {
+    if (uri === 'civic-chain://warehouses') {
         return Object.values(warehouseDescriptors()).map((d) => ({
             name: d.name,
             description: d.description,
@@ -333,7 +333,7 @@ export function readResource(uri) {
             ...(d.custom ? { queries: Object.values(d.queries ?? {}).map((q) => ({ ...describeQuery(q), name: `${d.name}/${q.name}` })) } : {}),
         }));
     }
-    if (uri === 'vanguard://controls') {
+    if (uri === 'civic-chain://controls') {
         return controlCatalog().map((c) => ({
             id: c.id,
             criterion: c.criterion,
@@ -341,7 +341,7 @@ export function readResource(uri) {
             description: c.description,
         }));
     }
-    const match = /^vanguard:\/\/schema\/([a-z][a-z0-9_]*)$/.exec(uri);
+    const match = /^civic-chain:\/\/schema\/([a-z][a-z0-9_]*)$/.exec(uri);
     if (match) return warehouseSchema(match[1]);
     throw new Error(`Unknown resource uri "${uri}".`);
 }

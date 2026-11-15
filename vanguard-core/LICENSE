@@ -1,0 +1,53 @@
+Civic-Chain Commercial Licence
+
+DRAFT — PENDING COUNSEL REVIEW. This text is a placeholder that states the
+intended terms. It is NOT yet legally reviewed and must be replaced with a
+counsel-approved licence before any public release, listing, or sale. See
+AUDITOR-COMMERCIAL-MILESTONES.md, milestone C1.
+
+Copyright (c) 2026 Civic-Chain. All rights reserved.
+
+1. What this covers.
+   This licence covers the Civic-Chain Grant & Budget Auditor engine, its
+   skill package, its rulesets, and all accompanying files in this repository
+   published on or after the cut-over commit recorded in CHANGELOG.md. Versions
+   published before that commit were offered under the MIT Licence and remain
+   available to anyone who already holds them under those MIT terms. This
+   licence does not revoke any MIT grant already made.
+
+2. Grant.
+   While the licensee holds an active Civic-Chain subscription, Civic-Chain
+   grants a non-exclusive, non-transferable right to install and run the
+   software on the licensee's own systems, against the licensee's own data, for
+   the licensee's own auditing purposes.
+
+3. Source-available, not open source.
+   The source is published so that the licensee may inspect it. Inspection does
+   not grant any right to redistribute, resell, sublicense, publish, or create
+   derivative works for distribution. "Open source" is not an accurate
+   description of this licence and must not be used for it.
+
+4. No redistribution or resale.
+   The licensee may not distribute, resell, rent, lease, or make the software
+   available to any third party, whether modified or unmodified.
+
+5. No warranty.
+   THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+   IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+   FITNESS FOR A PARTICULAR PURPOSE, AND NONINFRINGEMENT.
+
+6. Limitation of liability.
+   IN NO EVENT SHALL CIVIC-CHAIN BE LIABLE FOR ANY CLAIM, DAMAGES, OR OTHER
+   LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT, OR OTHERWISE, ARISING FROM,
+   OUT OF, OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+   SOFTWARE.
+
+7. Not a professional audit opinion.
+   The software's outputs are produced by software. They are not an audit, an
+   attestation, or a professional opinion of any kind, and are not a substitute
+   for review by a qualified accountant or auditor.
+
+8. Termination.
+   The rights in Section 2 end when the subscription lapses. The licensee may
+   continue to run any copy already in their possession, but will not receive
+   further updates, rulesets, or support.

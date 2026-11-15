@@ -33,7 +33,7 @@ test('GET /health is open and reports the server info', async () => {
         assert.equal(res.status, 200);
         const body = await res.json();
         assert.equal(body.ok, true);
-        assert.equal(body.name, 'vanguard');
+        assert.equal(body.name, 'civic-chain-auditor');
     } finally {
         server.close();
     }
@@ -80,9 +80,9 @@ test('GET /resources lists resources and reads a schema resource', async () => {
     const base = await listen(server);
     try {
         const list = await (await fetch(`${base}/resources`, { headers: bearer })).json();
-        assert.ok(list.resources.some((r) => r.uri === 'vanguard://controls'));
+        assert.ok(list.resources.some((r) => r.uri === 'civic-chain://controls'));
 
-        const controls = await (await fetch(`${base}/resources?uri=vanguard://controls`, { headers: bearer })).json();
+        const controls = await (await fetch(`${base}/resources?uri=civic-chain://controls`, { headers: bearer })).json();
         assert.ok(controls.length >= 6);
     } finally {
         server.close();

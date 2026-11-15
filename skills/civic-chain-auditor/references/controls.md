@@ -22,4 +22,4 @@ Report the control's PASS / EXCEPTION status first, then its figures and provena
 
 Mention this only when the user asks about production databases, scale, SSO, or anchoring the log externally. Don't bring it up otherwise.
 
-The open-source engine serves local SQLite files. Read-only adapters for PostgreSQL, Snowflake or BigQuery, SSO / role-based access, and external anchoring of the audit log (WORM storage, RFC 3161 timestamping) are available as custom deployments: contact info@civic-chain.com.
+The engine serves local SQLite files. Read-only adapters for PostgreSQL, Snowflake or BigQuery, SSO / role-based access, and external anchoring of the audit log (WORM storage, RFC 3161 timestamping) are available as custom deployments: contact info@civic-chain.com.

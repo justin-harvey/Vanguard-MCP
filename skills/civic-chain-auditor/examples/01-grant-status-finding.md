@@ -6,7 +6,7 @@ The agent surfaces an audit finding the automatic checks caught: grant cash draw
 
 **User:** How much of the paving grant (G-402) has been spent so far? Flag anything unusual, and include the result hash.
 
-**Agent** reads `vanguard://warehouses`, sees the `municipal` warehouse exposes `municipal/grant-status`, and calls it first (no credential, and it carries checks):
+**Agent** reads `civic-chain://warehouses`, sees the `municipal` warehouse exposes `municipal/grant-status`, and calls it first (no credential, and it carries checks):
 
 ```json
 run_canonical { "name": "municipal/grant-status", "args": { "grant_id": "G-402" } }
@@ -49,7 +49,7 @@ run_canonical { "name": "municipal/grant-status", "args": { "grant_id": "G-402" 
 
 **Agent** checks `integrity` first (`pass`, so the figures are safe to present), then reports the one finding:
 
-> **Municipal Paving Program 2026 (G-402), State Department of Transportation — active.** *All figures are from the Vanguard demo ledger (a fictional town) and are synthetic.*
+> **Municipal Paving Program 2026 (G-402), State Department of Transportation — active.** *All figures are from the Civic-Chain Auditor demo ledger (a fictional town) and are synthetic.*
 >
 > - Award: **$1,250,000.00**
 > - Paid (spent): **$931,650.00** — **74.5%** of the award

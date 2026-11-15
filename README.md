@@ -1,11 +1,11 @@
-# Vanguard MCP
+# Civic-Chain Grant & Budget Auditor
 
-Live: https://vanguard-mcp.netlify.app/
+From [civic-chain.com](https://civic-chain.com). Live demo: https://vanguard-mcp.netlify.app/
 
 **Public money, verified.** Ask a plain-English question about a budget, a grant, or a line of spending and get an answer in which *every figure* has been checked against the source records before you see it, or an explicit refusal. Never an unverified number presented as fact.
 
 [![Core tests](https://img.shields.io/badge/core-165%20tests%2C%20offline-blue.svg)](vanguard-core/)
-[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](#license)
+[![Licence: Civic-Chain Commercial, source-available](https://img.shields.io/badge/licence-source--available-informational.svg)](LICENSE)
 
 The issue is that AI is excellent at turning a question into SQL, and terrible at being trusted with the math. So we took the AI out of the equation. The LLM (AI) writes a query, a read-only database returns the rows, and a verifier checks that every number in the prose actually came from those rows. What you get back is either a grounded answer with a full provenance trail, or an explicit refusal. Never an unverified paragraph presented as fact.
 
@@ -61,7 +61,7 @@ The external anchor **does not have to be a blockchain**, publishing each checkp
 | [`site/enron.html`](site/enron.html) | **The reporting-gap case study**, reported figures set against what the underlying rows support, each grounded and hash-chained. |
 | [`site/controls.html`](site/controls.html) | **The evidence panel**, one-click controls that return PASS/EXCEPTION with a verifiable evidence trail. |
 | [`site/value.html`](site/value.html) | **The value-proposition page**, why this brings Big-Four-caliber assurance to a municipality at software cost. |
-| [`skills/vanguard-mcp-auditor/`](skills/vanguard-mcp-auditor/SKILL.md) | **The agent skill**, teaches an MCP host (Claude, Cursor, etc.) to route questions to the right tool, handle guard refusals, and present every figure with its result hash and audit entry. |
+| [`skills/civic-chain-auditor/`](skills/civic-chain-auditor/SKILL.md) | **The agent skill**, teaches an MCP host (Claude, Cursor, etc.) to route questions to the right tool, handle guard refusals, and present every figure with its result hash and audit entry. |
 | [`HASHING.md`](HASHING.md) | **The hashing explainer**, the result hash vs the entry hash, the chain, and the signing/anchoring layers above it, in full. |
 | [`COMPARISON.md`](COMPARISON.md) | **The landscape**, how this relates to and differs from governed text-to-SQL, claim verifiers, and database ledgers. |
 
@@ -69,7 +69,7 @@ The demo makes the case; the core makes it executable. Start with the [`vanguard
 
 ## The reporting-gap problem
 
-The distance between what an entity *reports* and what its records actually *support* is the core risk Vanguard MCP exists to surface, in a corporate filing or a town budget. The same reconciliation (reported figure vs what the ledger supports) is exactly what a municipality needs for grant drawdowns, bond-proceeds spending, and year-end reporting.
+The distance between what an entity *reports* and what its records actually *support* is the core risk the Civic-Chain Auditor exists to surface, in a corporate filing or a town budget. The same reconciliation (reported figure vs what the ledger supports) is exactly what a municipality needs for grant drawdowns, bond-proceeds spending, and year-end reporting.
 
 The included case study uses Enron's FY2000 figures because they are public and well understood: revenue booked *gross* ($100,789m reported) against the *net* margin actually earned ($1,953m), and reported debt ($10,229m) against the true total once off-balance-sheet entities are included. The engine computes the reported figure *and* the underlying figure in one guarded, read-only query, then hash-chains the result, so the gap is a reproducible, tamper-evident fact, not an assertion. The headline aggregates reconcile to Enron's **real** reported figures (SEC accession `0001024401-01-500010`); the transaction-level rows are synthetic and labelled so.
 
@@ -81,9 +81,9 @@ The evidence panel turns a question into a one-click **control** that returns **
 
 A Big Four audit is deep, skilled work. It is also periodic, sampled, retrospective, and priced for large entities: a firm tests a slice of the transactions, forms a judgment, and issues an opinion you are asked to trust, while the evidence stays in the firm's workpapers. The smaller the government, a town, a school district, a county, the less continuous assurance it can afford, exactly where every dollar is most visible to a resident.
 
-Vanguard MCP does not replace the auditor. It produces the evidence an audit rests on, and makes it something a resident, a council member, and the auditor can all recompute:
+The Civic-Chain Auditor does not replace the auditor. It produces the evidence an audit rests on, and makes it something a resident, a council member, and the auditor can all recompute:
 
-| | Traditional audit engagement | Vanguard MCP |
+| | Traditional audit engagement | Civic-Chain Auditor |
 |---|---|---|
 | **Coverage** | A sample of transactions | Every figure in every answer |
 | **Cadence** | Annual, quarterly at most | Continuous, on every question |
@@ -133,6 +133,8 @@ In keeping with the project's own discipline about claims:
 
 Node 22+ (`node:sqlite` is built in, so there is no native database dependency to compile). Planning and narration call a large language model; the API key is read from the environment (see the quick start). The guard, warehouse, grounding, lineage, and audit chain run entirely offline.
 
-## License
+## Licence
 
-MIT.
+Source-available under the **Civic-Chain Commercial Licence**; see [`LICENSE`](LICENSE). The right to use is included with a Civic-Chain subscription. The source is published for inspection; this is **not** open source, and it may not be redistributed or resold. Versions published before the licence cut-over (see `CHANGELOG.md`) were offered under MIT and remain available under those terms to anyone who already holds them.
+
+The licence text is a counsel-pending draft (milestone C1); do not rely on it as final.

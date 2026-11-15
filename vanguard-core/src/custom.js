@@ -9,9 +9,11 @@
  * and an allow-list, and the engine serves it as one more warehouse, with free
  * text, through the same guard, grounding, lineage and audit chain.
  *
- *   VANGUARD_DB_PATH          the SQLite file (opened read-only, always)
- *   VANGUARD_ALLOWLIST_PATH   JSON naming the warehouse, its tables and columns
- *   VANGUARD_AUDIT_LOG        optional; defaults to <name>-audit.jsonl beside the db
+ *   CIVIC_DB_PATH          the SQLite file (opened read-only, always)
+ *   CIVIC_ALLOWLIST_PATH   JSON naming the warehouse, its tables and columns
+ *   CIVIC_AUDIT_LOG        optional; defaults to <name>-audit.jsonl beside the db
+ *
+ * The former VANGUARD_* names are still honoured as a fallback for one release.
  *
  * Nothing new is trusted. The allow-list is enforced by the existing guard
  * (tables *and* columns, so `SELECT *` is refused); the connection is the
@@ -39,10 +41,26 @@ import { openReadOnly } from './db.js';
 import { parseQueries, NamedQueryError } from './named-queries.js';
 
 export const CUSTOM_ENV = Object.freeze({
+    db: 'CIVIC_DB_PATH',
+    allowlist: 'CIVIC_ALLOWLIST_PATH',
+    log: 'CIVIC_AUDIT_LOG',
+});
+
+/**
+ * Deprecated VANGUARD_* names, honoured as a fallback for one release so that
+ * existing configs keep working through the rebrand. Read only when the CIVIC_*
+ * name is unset.
+ */
+export const CUSTOM_ENV_ALIASES = Object.freeze({
     db: 'VANGUARD_DB_PATH',
     allowlist: 'VANGUARD_ALLOWLIST_PATH',
     log: 'VANGUARD_AUDIT_LOG',
 });
+
+/** Read a custom-warehouse variable by its canonical name, falling back to the alias. */
+function readCustomEnv(env, key) {
+    return env[CUSTOM_ENV[key]] ?? env[CUSTOM_ENV_ALIASES[key]];
+}
 
 /** Warehouse names a custom warehouse may not take. */
 export const RESERVED_NAMES = Object.freeze(['saas', 'markets', 'enron', 'lseg', 'audit']);
@@ -196,8 +214,8 @@ function describeAgainstDatabase(dbPath, tables, notes, queries = {}) {
  * @throws {CustomWarehouseInvalid}
  */
 export function loadCustomWarehouse({ env = process.env } = {}) {
-    const dbVar = env[CUSTOM_ENV.db];
-    const allowVar = env[CUSTOM_ENV.allowlist];
+    const dbVar = readCustomEnv(env, 'db');
+    const allowVar = readCustomEnv(env, 'allowlist');
     if (!dbVar && !allowVar) return null;
     if (!dbVar || !allowVar) {
         throw new CustomWarehouseInvalid(
@@ -226,8 +244,9 @@ export function loadCustomWarehouse({ env = process.env } = {}) {
     const allowedColumns = Object.freeze(
         Object.fromEntries(Object.entries(allowlist.tables).map(([t, cols]) => [t, Object.freeze(cols)])),
     );
-    const logPath = env[CUSTOM_ENV.log]
-        ? resolve(env[CUSTOM_ENV.log])
+    const logVar = readCustomEnv(env, 'log');
+    const logPath = logVar
+        ? resolve(logVar)
         : join(dirname(dbPath), `${allowlist.name}-audit.jsonl`);
 
     return {

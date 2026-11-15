@@ -1,8 +1,8 @@
-# Vanguard MCP Auditor
+# Civic-Chain Grant & Budget Auditor (agent skill)
 
 **Ask about a budget or a grant and get only figures that were checked against the ledger, each with a hash you can reproduce.**
 
-This skill teaches an AI agent (Claude Code, Claude Desktop, Cursor, or any MCP host) to answer financial questions through [Vanguard MCP](https://github.com/justin-harvey/Vanguard-MCP). The agent never does the math. A guarded, read-only SQL query produces every number, a verifier checks every figure in the prose against the returned rows, and each answer is written to a tamper-evident, hash-chained audit log.
+This skill teaches an AI agent (Claude Code, Claude Desktop, Cursor, or any MCP host) to answer financial questions through the [Civic-Chain Grant & Budget Auditor](https://github.com/justin-harvey/Vanguard-MCP) engine. The agent never does the math. A guarded, read-only SQL query produces every number, a verifier checks every figure in the prose against the returned rows, and each answer is written to a tamper-evident, hash-chained audit log.
 
 ## What you get
 
@@ -15,13 +15,13 @@ This skill teaches an AI agent (Claude Code, Claude Desktop, Cursor, or any MCP 
 
 ## Quick start
 
-Requires **Node.js 22+** and a checkout of Vanguard MCP.
+Requires **Node.js 22+** and a checkout of the Civic-Chain Grant & Budget Auditor.
 
 ```bash
 git clone https://github.com/justin-harvey/Vanguard-MCP.git
 cd Vanguard-MCP/vanguard-core && npm install && cd -
 
-node path/to/vanguard-mcp-auditor/scripts/verify-setup.js --core Vanguard-MCP/vanguard-core
+node path/to/civic-chain-auditor/scripts/verify-setup.js --core Vanguard-MCP/vanguard-core
 ```
 
 The check prints an `mcpServers` block. Paste it into `.mcp.json` (Claude Code), `.cursor/mcp.json` (Cursor) or `claude_desktop_config.json` (Claude Desktop), add your Anthropic API key, and restart the client. (The API key is optional; see below.) Then try:
@@ -39,7 +39,7 @@ The check prints an `mcpServers` block. Paste it into `.mcp.json` (Claude Code),
 ## What's in the package
 
 ```
-vanguard-mcp-auditor/
+civic-chain-auditor/
 ├── SKILL.md                             agent instructions: routing, refusals, presentation
 ├── README.md                            this file
 ├── assets/
@@ -68,12 +68,12 @@ Anything left out of the allow-list is refused by the engine's guard, which pars
 
 - Open-ended (free-text) questions need an Anthropic API key, and each costs one planning call and up to two narration calls. Named queries need neither.
 - Custom warehouses support free-text questions; pre-built controls exist only for the bundled demo warehouses.
-- Over MCP, `verify_audit` checks the hash chain but not signatures; the `vanguard audit` CLI checks both.
+- Over MCP, `verify_audit` checks the hash chain but not signatures; the `cc-auditor audit` CLI checks both.
 
 ## Enterprise & custom deployments
 
-Need read-only adapters for PostgreSQL, Snowflake or BigQuery, SSO / role-based access, or external compliance anchoring (WORM storage, RFC 3161 timestamping)? Contact info@civic-chain.com about Vanguard enterprise and custom deployments.
+Need read-only adapters for PostgreSQL, Snowflake or BigQuery, SSO / role-based access, or external compliance anchoring (WORM storage, RFC 3161 timestamping)? Contact info@civic-chain.com about Civic-Chain Auditor enterprise and custom deployments.
 
-## License
+## Licence
 
-MIT, same as Vanguard MCP.
+Source-available under the **Civic-Chain Commercial Licence**; see the `LICENSE` file in the Civic-Chain Grant & Budget Auditor repository. The right to use is included with a Civic-Chain subscription. This is not open source, and may not be redistributed or resold.

@@ -27,6 +27,7 @@ rm -f "$zip_path"
 cd "$parent_dir"
 zip -r -X "$zip_path" "$skill_name" \
     -x "$skill_name/dist/*" \
+    -x "$skill_name/scripts/package.sh" \
     -x "*.sqlite" \
     -x "*.db" \
     -x "*.DS_Store" \

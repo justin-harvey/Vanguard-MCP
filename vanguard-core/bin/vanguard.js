@@ -1,12 +1,12 @@
 #!/usr/bin/env node
 /**
- * vanguard, command line for the Vanguard MCP core.
+ * cc-auditor, command line for the Civic-Chain Grant & Budget Auditor engine.
  *
- *   vanguard seed                        build the demo warehouse
- *   vanguard ask "question"              answer a question, record the lineage
- *   vanguard audit                       verify the chain and show the log
- *   vanguard audit --export out.json     write the audit package
- *   vanguard explain "SELECT ..."        run the guard against SQL, no model call
+ *   cc-auditor seed                        build the demo warehouse
+ *   cc-auditor ask "question"              answer a question, record the lineage
+ *   cc-auditor audit                       verify the chain and show the log
+ *   cc-auditor audit --export out.json     write the audit package
+ *   cc-auditor explain "SELECT ..."        run the guard against SQL, no model call
  */
 
 import { writeFileSync } from 'node:fs';
@@ -130,7 +130,7 @@ async function main() {
         case 'ask': {
             const question = rest.join(' ');
             if (!question) {
-                console.error('Usage: vanguard ask "how has MRR trended?"');
+                console.error('Usage: cc-auditor ask "how has MRR trended?"');
                 process.exitCode = 2;
                 return;
             }
@@ -178,7 +178,7 @@ async function main() {
             if (exportIndex !== -1) {
                 const target = rest[exportIndex + 1];
                 if (!target) {
-                    console.error('Usage: vanguard audit --export <file.json>');
+                    console.error('Usage: cc-auditor audit --export <file.json>');
                     process.exitCode = 2;
                     return;
                 }
@@ -232,7 +232,7 @@ async function main() {
                 case 'net-position': {
                     const ticker = rest[1];
                     if (!ticker) {
-                        console.error('Usage: vanguard markets net-position <TICKER>');
+                        console.error('Usage: cc-auditor markets net-position <TICKER>');
                         process.exitCode = 2;
                         return;
                     }
@@ -278,10 +278,10 @@ async function main() {
                 }
                 default:
                     console.log('Usage:');
-                    console.log('  vanguard markets seed                    build the markets warehouse');
-                    console.log('  vanguard markets net-position <TICKER>   net position at close, attested');
-                    console.log('  vanguard markets surveillance            flag rapid place-and-cancel accounts');
-                    console.log('  vanguard markets audit                   verify the markets audit chain');
+                    console.log('  cc-auditor markets seed                    build the markets warehouse');
+                    console.log('  cc-auditor markets net-position <TICKER>   net position at close, attested');
+                    console.log('  cc-auditor markets surveillance            flag rapid place-and-cancel accounts');
+                    console.log('  cc-auditor markets audit                   verify the markets audit chain');
                     process.exitCode = sub ? 2 : 0;
             }
             break;
@@ -392,10 +392,10 @@ async function main() {
                 }
                 default:
                     console.log('Usage:');
-                    console.log('  vanguard enron seed          build the synthetic Enron POC warehouse');
-                    console.log('  vanguard enron revenue       reported (gross) vs merchant (net) revenue, attested');
-                    console.log('  vanguard enron debt          reported vs true debt incl. off-balance-sheet SPEs');
-                    console.log('  vanguard enron audit         verify the Enron audit chain');
+                    console.log('  cc-auditor enron seed          build the synthetic Enron POC warehouse');
+                    console.log('  cc-auditor enron revenue       reported (gross) vs merchant (net) revenue, attested');
+                    console.log('  cc-auditor enron debt          reported vs true debt incl. off-balance-sheet SPEs');
+                    console.log('  cc-auditor enron audit         verify the Enron audit chain');
                     console.log('    add --export <file.json|.md>   write a verifiable evidence packet');
                     process.exitCode = sub ? 2 : 0;
             }
@@ -630,7 +630,7 @@ async function main() {
                         const result = ingestFundamentals({ session, universe, fields, period: ingestPeriod });
                         console.log(
                             `Landed ${result.datapoints} datapoints across ${result.instruments} instrument(s). ` +
-                                `Run: vanguard lseg reconcile ${universe[0]} ${ingestPeriod}`,
+                                `Run: cc-auditor lseg reconcile ${universe[0]} ${ingestPeriod}`,
                         );
                     } catch (error) {
                         console.error('Ingest halted:', error.message);
@@ -695,17 +695,17 @@ async function main() {
                 }
                 default:
                     console.log('Usage:');
-                    console.log('  vanguard lseg seed                     build the LSEG fundamentals warehouse');
-                    console.log('  vanguard lseg fundamentals [RIC] [FY]  attested fundamentals snapshot (default IBM.N FY2023)');
-                    console.log('  vanguard lseg reconcile [RIC] [FY]     gross profit = Revenue − Cost of Revenue, attested (standardized integrity)');
-                    console.log('  vanguard lseg basis [RIC] [FY]         standardized (COA) gross profit vs as-reported, attested');
+                    console.log('  cc-auditor lseg seed                     build the LSEG fundamentals warehouse');
+                    console.log('  cc-auditor lseg fundamentals [RIC] [FY]  attested fundamentals snapshot (default IBM.N FY2023)');
+                    console.log('  cc-auditor lseg reconcile [RIC] [FY]     gross profit = Revenue − Cost of Revenue, attested (standardized integrity)');
+                    console.log('  cc-auditor lseg basis [RIC] [FY]         standardized (COA) gross profit vs as-reported, attested');
                     console.log('    add --as-of YYYY-MM-DD to fundamentals/reconcile/basis   read the vintage known at that knowledge date');
-                    console.log('  vanguard lseg prices [RIC] [--from DATE] [--to DATE]   closing-price time series (own grain, quote PermID)');
-                    console.log('  vanguard lseg ingest [RIC...] [--period FY2024] [--live] [--app-key KEY]   land data via the ingest seam');
+                    console.log('  cc-auditor lseg prices [RIC] [--from DATE] [--to DATE]   closing-price time series (own grain, quote PermID)');
+                    console.log('  cc-auditor lseg ingest [RIC...] [--period FY2024] [--live] [--app-key KEY]   land data via the ingest seam');
                     console.log('    --live needs an LSEG entitlement: set LSEG_APP_KEY (or pass --app-key) + install lseg-data');
-                    console.log('  vanguard lseg retention [--as-of DATE] [--purge]   cache-TTL + licensing-tag governance (finding #7)');
-                    console.log('  vanguard lseg license                  show the per-source licensing/redistribution posture');
-                    console.log('  vanguard lseg audit                    verify the LSEG audit chain');
+                    console.log('  cc-auditor lseg retention [--as-of DATE] [--purge]   cache-TTL + licensing-tag governance (finding #7)');
+                    console.log('  cc-auditor lseg license                  show the per-source licensing/redistribution posture');
+                    console.log('  cc-auditor lseg audit                    verify the LSEG audit chain');
                     console.log('    add --export <file.json|.md> to reconcile   write a verifiable evidence packet');
                     process.exitCode = sub ? 2 : 0;
             }
@@ -728,7 +728,7 @@ async function main() {
                 case 'run': {
                     const id = rest[1];
                     if (!id) {
-                        console.error('Usage: vanguard controls run <control-id> [--export <file>]');
+                        console.error('Usage: cc-auditor controls run <control-id> [--export <file>]');
                         process.exitCode = 2;
                         return;
                     }
@@ -764,8 +764,8 @@ async function main() {
                 }
                 default:
                     console.log('Usage:');
-                    console.log('  vanguard controls list             list the SOC 2 control catalog');
-                    console.log('  vanguard controls run <id>         run a control, print PASS/EXCEPTION');
+                    console.log('  cc-auditor controls list             list the SOC 2 control catalog');
+                    console.log('  cc-auditor controls run <id>         run a control, print PASS/EXCEPTION');
                     console.log('    add --export <file.json|.md>   also write a verifiable evidence packet');
                     process.exitCode = sub ? 2 : 0;
             }
@@ -773,13 +773,25 @@ async function main() {
         }
 
         case 'serve': {
+            // The HTTP API must never run unauthenticated: it is a server-to-server
+            // surface over the same tools as the MCP server, so an open port is an
+            // open door to every warehouse. Require a bearer token at startup rather
+            // than defaulting to "dev, no auth".
+            if (!process.env.ENGINE_SERVICE_TOKEN) {
+                console.error(
+                    'cc-auditor serve: ENGINE_SERVICE_TOKEN is not set. The HTTP API will not start ' +
+                        'unauthenticated. Set a strong bearer token first, e.g.\n' +
+                        '  export ENGINE_SERVICE_TOKEN="$(openssl rand -hex 32)"',
+                );
+                process.exitCode = 1;
+                return;
+            }
             const portArg = rest[rest.indexOf('--port') + 1];
             const port = Number(portArg ?? process.env.PORT ?? 8787);
             const { startApiServer } = await import('../src/http-server.js');
             await startApiServer({ port });
-            const authed = Boolean(process.env.ENGINE_SERVICE_TOKEN);
             console.error(
-                `vanguard HTTP API on :${port}, ${authed ? 'bearer-token required' : 'NO TOKEN (dev; set ENGINE_SERVICE_TOKEN)'}. ` +
+                `cc-auditor HTTP API on :${port}, bearer-token required. ` +
                     `Routes: GET /health, GET /tools, POST /tools/<name>, GET /resources.`,
             );
             break;
@@ -787,7 +799,7 @@ async function main() {
 
         case 'mcp': {
             // Validate a custom warehouse before the transport starts, so a bad
-            // VANGUARD_DB_PATH / VANGUARD_ALLOWLIST_PATH fails here, on stderr,
+            // CIVIC_DB_PATH / CIVIC_ALLOWLIST_PATH fails here, on stderr,
             // rather than as an error on the client's first resource read.
             try {
                 const { loadCustomWarehouse } = await import('../src/custom.js');
@@ -797,19 +809,19 @@ async function main() {
                     const { validateNamedQueries } = await import('../src/named-run.js');
                     const checked = validateNamedQueries(custom, guard);
                     console.error(
-                        `vanguard: custom warehouse "${custom.name}" loaded from ${custom.dbPath} ` +
+                        `cc-auditor: custom warehouse "${custom.name}" loaded from ${custom.dbPath} ` +
                             `(${Object.keys(custom.queries).length} named queries, ${checked} statements guarded).`,
                     );
                 }
             } catch (error) {
-                console.error(`vanguard: ${error.message}`);
+                console.error(`cc-auditor: ${error.message}`);
                 process.exitCode = 1;
                 return;
             }
             try {
                 const { startMcpServer } = await import('../src/mcp-server.js');
                 await startMcpServer();
-                console.error('vanguard MCP server running on stdio (tools + schema resources).');
+                console.error('cc-auditor MCP server running on stdio (tools + schema resources).');
                 // The stdio transport keeps the process alive to serve requests.
             } catch (error) {
                 if (error.code === 'ERR_MODULE_NOT_FOUND') {
@@ -824,17 +836,17 @@ async function main() {
 
         default:
             console.log('Usage:');
-            console.log('  vanguard seed                      build the SaaS demo warehouse');
-            console.log('  vanguard ask "question"            answer a question, record lineage');
-            console.log('  vanguard explain "SELECT ..."      run the guard alone, no model call');
-            console.log('  vanguard audit                     verify the hash chain, list entries');
-            console.log('  vanguard audit --export out.json   write the audit package');
-            console.log('  vanguard markets <sub>             capital-markets surveillance demo');
-            console.log('  vanguard enron <sub>               synthetic Enron reporting-gap demo');
-            console.log('  vanguard lseg <sub>                LSEG fundamentals warehouse + ingest seam');
-            console.log('  vanguard controls <sub>            run SOC 2 controls (PASS/EXCEPTION + evidence)');
-            console.log('  vanguard mcp                       serve the engine over MCP (stdio)');
-            console.log('  vanguard serve [--port N]          serve the engine over HTTP (for the web proxy)');
+            console.log('  cc-auditor seed                      build the SaaS demo warehouse');
+            console.log('  cc-auditor ask "question"            answer a question, record lineage');
+            console.log('  cc-auditor explain "SELECT ..."      run the guard alone, no model call');
+            console.log('  cc-auditor audit                     verify the hash chain, list entries');
+            console.log('  cc-auditor audit --export out.json   write the audit package');
+            console.log('  cc-auditor markets <sub>             capital-markets surveillance demo');
+            console.log('  cc-auditor enron <sub>               synthetic Enron reporting-gap demo');
+            console.log('  cc-auditor lseg <sub>                LSEG fundamentals warehouse + ingest seam');
+            console.log('  cc-auditor controls <sub>            run SOC 2 controls (PASS/EXCEPTION + evidence)');
+            console.log('  cc-auditor mcp                       serve the engine over MCP (stdio)');
+            console.log('  cc-auditor serve [--port N]          serve the engine over HTTP (needs ENGINE_SERVICE_TOKEN)');
             process.exitCode = command ? 2 : 0;
     }
 }

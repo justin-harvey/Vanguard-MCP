@@ -12,7 +12,9 @@
  * non-repudiation, not just integrity: verification must be possible for a
  * third party who was never trusted with the signing secret. The private key is
  * never in the repository, it is read from the environment (a PEM in
- * VANGUARD_SIGNING_KEY, or a path in VANGUARD_SIGNING_KEY_FILE). With no key
+ * CIVIC_SIGNING_KEY, or a path in CIVIC_SIGNING_KEY_FILE; the former
+ * VANGUARD_SIGNING_KEY[_FILE] names are honoured as a fallback for one
+ * release). With no key
  * configured, signing is simply skipped and entries are unsigned; the chain
  * still verifies. Signing is an added guarantee, not a required one.
  */
@@ -41,7 +43,7 @@ export function keyIdOf(publicKey) {
 }
 
 /**
- * Generate an ephemeral signer. Handy for tests and for `vanguard keygen`; a real
+ * Generate an ephemeral signer. Handy for tests and for `cc-auditor keygen`; a real
  * deployment supplies a persisted key through the environment instead.
  *
  * @returns {{ privateKey: import('node:crypto').KeyObject, publicKey: import('node:crypto').KeyObject, keyId: string }}
@@ -87,9 +89,10 @@ export function verifyHash(hashHex, signatureB64, publicKey) {
  * @returns {{ privateKey: import('node:crypto').KeyObject, publicKey: import('node:crypto').KeyObject, keyId: string } | null}
  */
 export function loadSigner(env = process.env) {
-    let pem = env.VANGUARD_SIGNING_KEY;
-    if (!pem && env.VANGUARD_SIGNING_KEY_FILE) {
-        pem = readFileSync(env.VANGUARD_SIGNING_KEY_FILE, 'utf8');
+    let pem = env.CIVIC_SIGNING_KEY ?? env.VANGUARD_SIGNING_KEY;
+    const keyFile = env.CIVIC_SIGNING_KEY_FILE ?? env.VANGUARD_SIGNING_KEY_FILE;
+    if (!pem && keyFile) {
+        pem = readFileSync(keyFile, 'utf8');
     }
     if (!pem) return null;
 

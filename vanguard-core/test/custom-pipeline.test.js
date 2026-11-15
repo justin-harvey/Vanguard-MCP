@@ -125,12 +125,12 @@ test('over MCP: the custom warehouse is advertised, routable for free text, and 
     const dbPath = freshMunicipalDb();
     await withCustomEnv(dbPath, async () => {
         const uris = listResources().map((r) => r.uri);
-        assert.ok(uris.includes('vanguard://schema/municipal'));
+        assert.ok(uris.includes('civic-chain://schema/municipal'));
 
-        const warehouses = readResource('vanguard://warehouses');
+        const warehouses = readResource('civic-chain://warehouses');
         assert.equal(warehouses.find((x) => x.name === 'municipal').freeText, true);
 
-        const schema = readResource('vanguard://schema/municipal');
+        const schema = readResource('civic-chain://schema/municipal');
         const vendorCols = schema.tables.find((t) => t.table === 'vendors').columns.map((c) => c.name);
         assert.deepEqual(vendorCols, ['vendor_id', 'vendor_name', 'category']);
 
@@ -186,7 +186,7 @@ test('over MCP: run_canonical runs a named query with checks and provenance, no 
     await withCustomEnv(freshMunicipalDb(), async () => {
         const tool = listTools().find((t) => t.name === 'run_canonical');
         assert.match(tool.description, /municipal\/grant-status/);
-        const listed = readResource('vanguard://warehouses').find((x) => x.name === 'municipal');
+        const listed = readResource('civic-chain://warehouses').find((x) => x.name === 'municipal');
         assert.deepEqual(listed.queries.map((q) => q.name), [
             'municipal/grant-status',
             'municipal/spending-by-vendor',

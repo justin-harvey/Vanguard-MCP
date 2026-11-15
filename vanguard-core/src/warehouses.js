@@ -90,8 +90,8 @@ export function warehouseDescriptors() {
             freeText: false,
             metrics: LSEG_REGISTRY.list(),
         },
-        // A warehouse configured from the environment (VANGUARD_DB_PATH and
-        // VANGUARD_ALLOWLIST_PATH), when one is set; see custom.js.
+        // A warehouse configured from the environment (CIVIC_DB_PATH and
+        // CIVIC_ALLOWLIST_PATH), when one is set; see custom.js.
         ...customEntry(),
     };
 }

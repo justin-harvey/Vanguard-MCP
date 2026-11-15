@@ -27,7 +27,7 @@ execute_financial_query { "warehouse": "municipal", "question": "List each vendo
 
 **Agent** recognizes `column_not_allowed` for a column the user explicitly asked for. The refusal rule is **stop** — do not retry, do not try to infer it:
 
-> I can't provide vendor tax IDs. The Vanguard allow-list withholds `vendors.tax_id` by policy, so the guard refused the query (`column_not_allowed`) before it ran. I won't try to derive the field another way.
+> I can't provide vendor tax IDs. The Civic-Chain Auditor allow-list withholds `vendors.tax_id` by policy, so the guard refused the query (`column_not_allowed`) before it ran. I won't try to derive the field another way.
 >
 > I can show the vendors I *am* allowed to read — `vendor_id`, `vendor_name`, and `category` — or break spending down by vendor with `municipal/spending-by-vendor`. Want either of those?
 
