@@ -8,11 +8,50 @@
 
 ---
 
-## State: S7 is built and pushed, NOT yet deployed
+## State: S7 built + pushed; FLY ENGINE DEPLOYED (2026-11-15), proxy/Netlify remain
 
-All the S7 **code** for the hosted demo is on `main` (commit `66676d3`). What is
-left is the **deploy**, which needs Justin's own isolated cloud accounts and so
-was not run here. See "Remaining steps" below.
+All the S7 **code** for the hosted demo is on `main` (commit `66676d3`). The **Fly
+engine (step 1) is now LIVE**; the Supabase proxy (2), Netlify front-end (3), and
+end-to-end isolation check (4) still need Justin's Supabase + Netlify accounts.
+
+### Fly engine — DONE 2026-11-15
+- Account: `jharvmail@gmail.com`, org `personal` (slug `justin-harvey-502`) —
+  clean, no other apps, so isolation holds.
+- App `civic-chain-auditor-demo`, region **`ewr`** (Secaucus; `bos` is retired and
+  `fly.toml` was regenerated to match — volume also in `ewr`).
+- `ENGINE_SERVICE_TOKEN` set as a Fly secret; **plaintext stashed at
+  `~/.civic-chain-auditor-demo.token` (0600)** — reuse the SAME value for the
+  Supabase proxy in step 2, then consider deleting it.
+- Encrypted volume `auditor_data` (1GB, vol_v3g3dge6l281xjm4) mounted at `/data`.
+- Verified LIVE at `https://civic-chain-auditor-demo.fly.dev`: `/health` ok, health
+  check passing, `/tools` 401 without token, `run_canonical municipal/grant-status
+  G-402` → rows + integrity pass + the cash-ahead flag, `verify_audit municipal` →
+  INTACT (chain persisted on the volume). Machine scales to zero when idle.
+- flyctl installed at `~/.fly/bin/flyctl` (PATH: `export FLYCTL_INSTALL="$HOME/.fly";
+  export PATH="$FLYCTL_INSTALL/bin:$PATH"`).
+
+### Supabase proxy — DONE 2026-11-15
+- Supabase CLI at `~/.local/bin/supabase` (v3.1.0). Auth via Justin's PAT (inline,
+  not persisted). Org `AUDit` (slug `llfkbiptjmlmppitlgpu`).
+- Project **`bmexhpraiixqymqwxfuo`** (`jharvmail@gmail.com's Project`, region
+  `us-west-2`) — created today, empty, so isolated.
+- Secrets set: `MCP_ENGINE_URL=https://civic-chain-auditor-demo.fly.dev`,
+  `ENGINE_SERVICE_TOKEN` = same value as the Fly secret. `ALLOWED_ORIGIN` left
+  UNSET (defaults to `*`) — tighten to the real Netlify origin in step 3/4.
+- Function `query` deployed **`--no-verify-jwt`** (Justin authorized). This is
+  required because the public demo calls anonymously (`CIVIC_AUTH_TOKEN` empty in
+  demo.js); role-gating inside the function is the real boundary. Flip JWT
+  verification back ON only if the `auditor`/`execute_financial_query` tier is ever
+  enabled behind a sign-in.
+- **Proxy URL = `https://bmexhpraiixqymqwxfuo.functions.supabase.co/query`** →
+  this is the value for `window.CIVIC_PROXY_URL` in step 3.
+- Verified LIVE (anonymous, through the proxy): `run_canonical
+  municipal/grant-status G-402` → full result; `verify_audit` → INTACT (chain grew
+  on the Fly volume); `execute_financial_query` → **403** for the standard tier.
+
+### Remaining: step 3 (Netlify front-end) + step 4 (isolation check)
+Set `window.CIVIC_PROXY_URL` to the proxy URL above and deploy `site/` to Netlify,
+then run the browser isolation check. See "Remaining steps" below.
 
 ### Decisions locked (2026-11-14, with Justin)
 - **Engine host = Fly.io.** The engine is Node + `node:sqlite`, so it cannot run

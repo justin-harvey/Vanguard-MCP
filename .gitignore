@@ -27,3 +27,6 @@ skills/**/*.sqlite
 
 # Packaged skill zip, produced by skills/*/scripts/package.sh
 skills/**/dist/
+
+# Supabase CLI local state (linked project ref, cli version cache)
+supabase/.temp/
