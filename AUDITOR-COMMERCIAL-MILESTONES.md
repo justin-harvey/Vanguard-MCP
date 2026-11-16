@@ -1,7 +1,6 @@
-# Civic-Chain Auditor: Commercial Milestones (proposal)
+# Civic-Chain Auditor: Commercial Milestones
 
-**Status:** proposal, not committed. Supersedes the "free listing" goal in `AUDITOR-SKILL-MILESTONES.md`.
-**Base branch:** `feat/auditor-skill-s3-s5` (S0–S3 and S5 done; `npm test` reported 220/220 green on 2026-11-13).
+**Status:** Proposal.
 **Date:** 2026-11-14
 
 ## The three decisions this plan implements
