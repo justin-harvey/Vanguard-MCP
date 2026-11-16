@@ -1,0 +1,44 @@
+# Fly.io app for the Civic-Chain Grant & Budget Auditor hosted demo (S7).
+#
+# ISOLATION: deploy this in a Fly organization that holds NOTHING from any
+# Civic-Chain production system. The demo serves synthetic data only; its whole
+# point is that no production infrastructure is involved. Do not co-locate it.
+#
+# One-time setup (see deploy/README.md for the full runbook):
+#   fly launch --no-deploy --copy-config --name civic-chain-auditor-demo
+#   fly secrets set ENGINE_SERVICE_TOKEN="$(openssl rand -hex 32)"
+#   fly volumes create auditor_data --size 1 --region <same-region>
+#   fly deploy
+
+app = "civic-chain-auditor-demo"
+primary_region = "bos"
+
+[build]
+  dockerfile = "Dockerfile"
+
+[env]
+  PORT = "8787"
+
+[http_service]
+  internal_port = 8787
+  force_https = true
+  auto_stop_machines = "stop"
+  auto_start_machines = true
+  min_machines_running = 0
+
+  [[http_service.checks]]
+    interval = "30s"
+    timeout = "5s"
+    grace_period = "10s"
+    method = "get"
+    path = "/health"
+
+# Persist the demo's tamper-evident audit chain across deploys. Matches
+# CIVIC_AUDIT_LOG=/data/municipal-audit.jsonl in the Dockerfile.
+[[mounts]]
+  source = "auditor_data"
+  destination = "/data"
+
+[[vm]]
+  size = "shared-cpu-1x"
+  memory = "512mb"

@@ -1,4 +1,4 @@
-# Vanguard MCP, a Civic-Chain product. Pre-built static site, nothing to compile.
+# Civic-Chain Grant & Budget Auditor, a Civic-Chain product. Pre-built static site, nothing to compile.
 # A Netlify site with base directory = "site" reads this file.
 [build]
   command = "echo 'No build step, pre-built static site.'"

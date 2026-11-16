@@ -1,4 +1,4 @@
-// Vanguard MCP, the M7 secure proxy (Supabase Edge Function, Deno).
+// Civic-Chain Grant & Budget Auditor, the secure proxy (Supabase Edge Function, Deno).
 //
 // The browser calls THIS; this calls the engine's HTTP API. The engine URL and
 // its service token live only here (server-side), so no secret and no direct
@@ -6,8 +6,12 @@
 // nothing else: verify the caller's role, gate which tool that role may call,
 // sanitise the arguments, and forward to the engine.
 //
-// Role gating (this is the M9 gate, enforced server-side):
-//   - standard : the pre-approved control templates + canonical reads
+// The engine behind this proxy runs on infrastructure fully separate from any
+// Civic-Chain production system and serves SYNTHETIC demo data only (the Town of
+// Sampleton municipal warehouse). That isolation is the product's trust story.
+//
+// Role gating (enforced server-side):
+//   - standard : the pre-approved control templates + canonical/named reads
 //   - auditor  : the above, plus execute_financial_query (free-text custom SQL)
 //
 // Deploy:  supabase functions deploy query
@@ -20,6 +24,12 @@ const ENGINE_URL = (Deno.env.get("MCP_ENGINE_URL") ?? "").replace(/\/$/, "");
 const ENGINE_TOKEN = Deno.env.get("ENGINE_SERVICE_TOKEN") ?? "";
 const ALLOWED_ORIGIN = Deno.env.get("ALLOWED_ORIGIN") ?? "*";
 
+// The warehouse the hosted demo is about. Free-text and audit verification
+// default here; a caller may name another built-in only from the allow-list
+// below (so the Enron/SOC 2 pages can verify their own chains), never a path.
+const DEMO_WAREHOUSE = "municipal";
+const KNOWN_WAREHOUSES = new Set(["municipal", "saas", "enron", "markets", "lseg"]);
+
 const ROLE_TOOLS: Record<string, Set<string>> = {
   standard: new Set(["list_controls", "run_control", "run_canonical", "verify_audit"]),
   auditor: new Set([
@@ -29,6 +39,18 @@ const ROLE_TOOLS: Record<string, Set<string>> = {
     "verify_audit",
     "execute_financial_query",
   ]),
+};
+
+// run_canonical's query arguments, whitelisted by name and coerced to a safe
+// scalar. The municipal named queries take grant_id/status/fiscal_year/dept_id;
+// the built-in market/forensics canonicals take ticker. Anything else a caller
+// sends is dropped before it reaches the engine.
+const CANONICAL_ARG_COERCE: Record<string, (v: unknown) => unknown> = {
+  grant_id: String,
+  status: String,
+  dept_id: String,
+  ticker: String,
+  fiscal_year: (v) => Math.trunc(Number(v)),
 };
 
 function corsHeaders(): HeadersInit {
@@ -56,6 +78,25 @@ function roleFromAuth(authHeader: string | null): string {
   }
 }
 
+// Keep only the whitelisted, coerced canonical args; drop everything else.
+function cleanCanonicalArgs(raw: Record<string, unknown>): Record<string, unknown> {
+  const out: Record<string, unknown> = {};
+  for (const [key, coerce] of Object.entries(CANONICAL_ARG_COERCE)) {
+    if (raw[key] !== undefined && raw[key] !== null && raw[key] !== "") {
+      const value = coerce(raw[key]);
+      if (typeof value !== "number" || Number.isFinite(value)) out[key] = value;
+    }
+  }
+  return out;
+}
+
+// Resolve a caller-named warehouse to a known built-in, or the demo default.
+// A caller may pick which chain to verify, never a file path.
+function resolveWarehouse(raw: unknown): string {
+  const name = String(raw ?? "");
+  return KNOWN_WAREHOUSES.has(name) ? name : DEMO_WAREHOUSE;
+}
+
 // Never forward raw client arguments to the engine, a caller must not be able
 // to point a control at an arbitrary db/log path. Pass only the fields each tool
 // legitimately takes.
@@ -67,13 +108,15 @@ function sanitize(tool: string, args: Record<string, unknown>): Record<string, u
       const inner = (args.args ?? {}) as Record<string, unknown>;
       return {
         name: String(args.name ?? ""),
-        args: inner.ticker ? { ticker: String(inner.ticker) } : {},
+        args: cleanCanonicalArgs(typeof inner === "object" && inner ? inner : {}),
       };
     }
     case "verify_audit":
-      return {}; // the engine verifies its own default chain
+      // Verify the demo's own municipal chain by default; a caller may name
+      // another known warehouse's chain, but never a path.
+      return { warehouse: resolveWarehouse(args.warehouse) };
     case "execute_financial_query":
-      return { question: String(args.question ?? ""), warehouse: "saas" };
+      return { question: String(args.question ?? ""), warehouse: DEMO_WAREHOUSE };
     default:
       return {};
   }

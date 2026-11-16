@@ -3,6 +3,36 @@
 All notable changes to the Civic-Chain Grant & Budget Auditor are recorded here.
 The project follows [Semantic Versioning](https://semver.org/): MAJOR.MINOR.PATCH.
 
+## [Unreleased]
+
+### Added — hosted demo (S7)
+- A public, click-through demo of the Auditor running on isolated infrastructure,
+  serving **synthetic municipal data only** (the fictional Town of Sampleton).
+  - **Engine host:** `Dockerfile`, `.dockerignore`, `fly.toml` at the repo root
+    run `cc-auditor serve` on Fly.io. The image bakes the synthetic warehouses at
+    build time (municipal from its SQL seed; saas/enron/markets via the CLI
+    seeders) and keeps the tamper-evident audit chain on a `/data` volume.
+    `ENGINE_SERVICE_TOKEN` is a Fly secret, never baked in.
+  - **Front-end:** `site/demo.html` + `site/assets/demo.js`, a live municipal
+    query builder (grant-status, spending-by-vendor, budget-variance) that renders
+    rows, automatic integrity checks, findings, and the provenance chain, with a
+    "verify the audit chain" action. Falls back to a labelled sample when no proxy
+    is wired. Every surface carries a synthetic-data + "not a professional audit
+    opinion" notice. Linked from the home page and `/demo`.
+  - **Runbook:** `deploy/README.md` (Fly engine → Supabase proxy → Netlify site,
+    plus the isolation and network-tab checks).
+
+### Changed — hosted surface rebrand (carries C2 into the web layer)
+- Replaced the buyer-visible "Vanguard" name across `site/` and `netlify.toml`
+  with **Civic-Chain Grant & Budget Auditor** / **Civic-Chain Auditor**.
+- Reworked the secure proxy (`supabase/functions/query/index.ts`) for the
+  municipal demo: `run_canonical` now forwards a whitelist of named-query params
+  (`grant_id`, `status`, `fiscal_year`, `dept_id`, plus `ticker`) instead of only
+  `ticker`; `verify_audit` and free-text default to the `municipal` warehouse
+  (a caller may still name another known built-in's chain, never a path).
+- Standardised the front-end proxy variables to `CIVIC_PROXY_URL` /
+  `CIVIC_AUTH_TOKEN`.
+
 ## [1.0.0] — 2026-11-14
 
 **This release is the licence cut-over.** Everything published at or after the

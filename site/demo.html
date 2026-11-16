@@ -1,0 +1,149 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="assets/civic-chain-logo.svg" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Civic-Chain Grant &amp; Budget Auditor · live demo</title>
+    <meta name="description" content="Run the Civic-Chain Grant & Budget Auditor live over a synthetic municipal ledger: a named query returns rows, automatic integrity checks, findings, and a reproducible, tamper-evident provenance chain." />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=DM+Serif+Text&family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="assets/civic.css" />
+    <style>
+      .hero { padding: 64px 0 24px; }
+      .section { padding: 24px 0; }
+
+      .builder { background: var(--surface); border: 1px solid var(--border); border-radius: 16px; padding: 20px; box-shadow: var(--shadow-sm); }
+      .builder .controls { display: grid; grid-template-columns: 1fr; gap: 14px; }
+      .field { display: flex; flex-direction: column; gap: 6px; font: 600 12px var(--font-sans); color: var(--slate-700); text-transform: uppercase; letter-spacing: .06em; }
+      .field input, .field select, #query { font: 500 15px var(--font-sans); color: var(--foreground); background: var(--control-bg); border: 1px solid var(--border-strong); border-radius: 10px; padding: 11px 12px; }
+      #params { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 14px; }
+      #q-blurb { font-size: 14px; color: var(--slate-700); margin: 2px 0 0; text-transform: none; letter-spacing: 0; font-weight: 500; }
+      .run-row { display: flex; align-items: center; gap: 14px; margin-top: 16px; flex-wrap: wrap; }
+      #run-status { font-size: 13px; color: var(--slate-700); }
+      #live-note { font-size: 12.5px; color: var(--slate-700); margin-top: 10px; }
+
+      #result { margin-top: 18px; }
+      .res-head { display: flex; align-items: center; gap: 12px; margin-bottom: 12px; }
+      .verdict { display: inline-block; font: 700 11px var(--font-sans); text-transform: uppercase; letter-spacing: .06em; padding: 4px 10px; border-radius: 999px; }
+      .verdict.ok { background: var(--green-300); color: var(--green-900); }
+      .verdict.flag { background: var(--rose-300); color: var(--rose-700); }
+      .muted { font-size: 13px; color: var(--slate-700); }
+
+      .tbl-wrap { overflow-x: auto; border: 1px solid var(--border); border-radius: 12px; }
+      table.rows { width: 100%; border-collapse: collapse; font-size: 13px; min-width: 560px; }
+      table.rows th, table.rows td { text-align: left; padding: 10px 13px; border-bottom: 1px solid var(--border); white-space: nowrap; }
+      table.rows thead th { font: 600 11px var(--font-sans); text-transform: uppercase; letter-spacing: .05em; color: var(--slate-700); }
+      table.rows tr:last-child td { border-bottom: none; }
+      table.rows td.num { text-align: right; font-family: var(--font-code); }
+
+      .sec { font: 600 11px var(--font-sans); text-transform: uppercase; letter-spacing: .1em; color: var(--slate-700); margin: 20px 0 8px; }
+      ul.checks { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+      .chk { display: grid; grid-template-columns: 1fr auto auto; gap: 10px; align-items: center; padding: 10px 12px; border: 1px solid var(--border); border-radius: 10px; background: var(--surface); font-size: 13px; }
+      .chk .chk-id { font-family: var(--font-code); color: var(--foreground); }
+      .chk .chk-sev { font-size: 11px; color: var(--slate-700); text-transform: uppercase; letter-spacing: .05em; }
+      .chk .chk-st { font: 700 11px var(--font-sans); text-transform: uppercase; letter-spacing: .05em; }
+      .chk.ok .chk-st { color: var(--green-700); }
+      .chk.flag { border-color: color-mix(in oklab, var(--rose-600) 40%, transparent); background: color-mix(in oklab, var(--rose-600) 7%, transparent); }
+      .chk.flag .chk-st { color: var(--rose-700); }
+      .chk .chk-msg { grid-column: 1 / -1; font-size: 12.5px; color: var(--slate-800); }
+
+      .prov { background: var(--blue-900); color: var(--cream-50); border-radius: 12px; padding: 16px 18px; font-family: var(--font-code); font-size: 12.5px; }
+      .prov .k { color: color-mix(in oklab, var(--cream-50) 55%, transparent); }
+      .prov .row { padding: 4px 0; overflow-wrap: anywhere; }
+      .prov .pill { color: var(--green-300); }
+
+      #verify-wrap { margin-top: 20px; display: flex; align-items: center; gap: 14px; flex-wrap: wrap; }
+      #verify-out { display: flex; align-items: center; gap: 10px; font-size: 13px; }
+
+      @media (max-width: 760px) { .hero { padding: 44px 0 20px; } }
+    </style>
+  </head>
+  <body>
+    <header class="site">
+      <div class="wrap">
+        <a class="brand" href="index.html">
+          <img class="mark" src="assets/civic-logo-w-text-horizontal.svg" alt="Civic-Chain" />
+          <span class="product"><b>Civic-Chain Auditor</b><span>grant &amp; budget verification</span></span>
+        </a>
+        <nav class="back">
+          <a href="index.html">Overview</a>
+          <span class="sep">·</span>
+          <a href="value.html">Why it matters</a>
+          <span class="sep">·</span>
+          <a href="controls.html">SOC&nbsp;2 panel</a>
+        </nav>
+      </div>
+    </header>
+
+    <main class="wrap">
+      <section class="hero wash guilloche">
+        <p class="kicker">Live demo · synthetic municipal ledger</p>
+        <h1>Run the Auditor yourself.</h1>
+        <p class="lede">
+          Pick a question about the Town of Sampleton's books. A named query runs through the
+          guarded, read-only pipeline on an isolated server; you get the rows, the automatic
+          integrity checks, any findings, and a reproducible, tamper-evident provenance chain.
+          Never an unverified number.
+        </p>
+        <div class="disc" style="margin-top:20px">
+          <b>Synthetic data.</b> Everything here is fictional demo data for the Town of Sampleton,
+          served from infrastructure isolated from any real system. <b>This is not a professional
+          audit opinion</b> and produces no certification; it demonstrates the verification
+          mechanism only.
+        </div>
+      </section>
+
+      <section class="section">
+        <div class="builder mat-blueprint">
+          <div class="controls">
+            <label class="field">
+              <span>Question</span>
+              <select id="query"></select>
+            </label>
+            <p id="q-blurb"></p>
+            <div id="params"></div>
+          </div>
+          <div class="run-row">
+            <button class="btn" id="run-btn">Run verified query →</button>
+            <span id="run-status"></span>
+          </div>
+          <p id="live-note"></p>
+
+          <div id="result"></div>
+
+          <div id="verify-wrap" hidden>
+            <button class="btn ghost" id="verify-btn">Verify the audit chain →</button>
+            <div id="verify-out"></div>
+          </div>
+        </div>
+      </section>
+
+      <section class="section">
+        <h2>What just happened</h2>
+        <div class="disc">
+          The model never saw a row: a named, pre-written query ran on a read-only connection, the
+          <b>integrity checks</b> confirmed the result is internally consistent (so it may be
+          presented as fact), and the <b>findings</b> surface data conditions worth a human's
+          attention, like grant cash drawn ahead of spending. The <b>result hash</b> lets an auditor
+          recompute and compare; the <b>audit entry</b> is appended to a hash-chained log, so
+          <em>Verify the audit chain</em> reports the first entry that was ever altered. Tamper-evident,
+          not an assertion.
+        </div>
+      </section>
+    </main>
+
+    <footer class="site">
+      <div class="wrap">
+        <span>Civic-Chain · Grant &amp; Budget Auditor, live demo over synthetic data. Every figure is verified
+        against the underlying rows or refused.</span>
+        <span>Not a professional audit opinion. Town of Sampleton is fictional.</span>
+      </div>
+    </footer>
+
+    <!-- Set the proxy URL here or via window.CIVIC_PROXY_URL before this loads. -->
+    <script>window.CIVIC_PROXY_URL = window.CIVIC_PROXY_URL || '';</script>
+    <script src="assets/demo.js"></script>
+  </body>
+</html>

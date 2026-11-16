@@ -4,7 +4,7 @@
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="assets/civic-chain-logo.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Civic-Chain · Vanguard MCP, SOC 2 Evidence Panel</title>
+    <title>Civic-Chain Grant & Budget Auditor, SOC 2 Evidence Panel</title>
     <meta name="description" content="One-click SOC 2 controls: each runs a blessed query, asserts PASS or EXCEPTION, and produces a verifiable evidence packet." />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -86,7 +86,7 @@
       <div class="wrap">
         <a class="brand" href="index.html">
           <img class="mark" src="assets/civic-logo-w-text-horizontal.svg" alt="Civic-Chain" />
-          <span class="product"><b>Vanguard MCP</b><span>verified financial intelligence</span></span>
+          <span class="product"><b>Civic-Chain Auditor</b><span>verified financial intelligence</span></span>
         </a>
         <nav class="back">
           <a href="index.html">Overview</a>
@@ -142,7 +142,7 @@
 
     <footer class="site">
       <div class="wrap">
-        <span>Civic-Chain · Vanguard MCP, a green control means evidence produced and verified, not a certification.
+        <span>Civic-Chain Grant & Budget Auditor, a green control means evidence produced and verified, not a certification.
         SOC 2 is an attestation a CPA firm issues about an organisation; this is the evidence it rests on.</span>
       </div>
     </footer>
@@ -336,10 +336,10 @@
       };
       const ALL = DATA.concat([EXCEPTION_EXAMPLE]);
 
-      // Set window.VANGUARD_PROXY_URL to the deployed Supabase function to run live
+      // Set window.CIVIC_PROXY_URL to the deployed Supabase function to run live
       // (see supabase/README.md). Unset → the panel uses the embedded attestations.
-      const PROXY_URL = (typeof window !== 'undefined' && window.VANGUARD_PROXY_URL) || '';
-      const AUTH = (typeof window !== 'undefined' && window.VANGUARD_AUTH_TOKEN) || '';
+      const PROXY_URL = (typeof window !== 'undefined' && window.CIVIC_PROXY_URL) || '';
+      const AUTH = (typeof window !== 'undefined' && window.CIVIC_AUTH_TOKEN) || '';
 
       function fmt(v, unit) {
         if (unit === "usd_millions") return "$" + Number(v).toLocaleString("en-US") + "m";
@@ -408,7 +408,7 @@
 
       async function rerunById(id) {
         if (!PROXY_URL) {
-          alert('Live runs go through the deployed proxy. Set window.VANGUARD_PROXY_URL to the Supabase function URL; see supabase/README.md.');
+          alert('Live runs go through the deployed proxy. Set window.CIVIC_PROXY_URL to the Supabase function URL; see supabase/README.md.');
           return;
         }
         const headers = { 'content-type': 'application/json' };

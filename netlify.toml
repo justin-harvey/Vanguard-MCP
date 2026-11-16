@@ -1,4 +1,4 @@
-# Vanguard MCP, a Civic-Chain product. The deployable web front-end lives in site/.
+# Civic-Chain Grant & Budget Auditor, a Civic-Chain product. The deployable web front-end lives in site/.
 # Works whether or not the Netlify site sets a base directory. Redirects live in site/_redirects.
 [build]
   command = "echo 'No build step, pre-built static site.'"
