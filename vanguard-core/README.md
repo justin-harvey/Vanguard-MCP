@@ -50,6 +50,7 @@ export ANTHROPIC_API_KEY=...      # or: ant auth login
 node bin/vanguard.js ask "How has MRR trended over the period?"
 node bin/vanguard.js audit
 node bin/vanguard.js audit --export audit-package.json
+node bin/vanguard.js report --out report.md    # shareable report over the log (.md or .html)
 
 # run SOC 2 controls, or serve the engine over MCP (stdio) or HTTP (for the web proxy)
 node bin/vanguard.js controls run PI1.2-enron-debt-reconciliation --export packet.json

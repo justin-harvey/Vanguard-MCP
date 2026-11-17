@@ -6,6 +6,7 @@
  *   cc-auditor ask "question"              answer a question, record the lineage
  *   cc-auditor audit                       verify the chain and show the log
  *   cc-auditor audit --export out.json     write the audit package
+ *   cc-auditor report --out report.md      write a shareable audit report (.md|.html)
  *   cc-auditor explain "SELECT ..."        run the guard against SQL, no model call
  */
 
@@ -13,7 +14,9 @@ import { writeFileSync, readFileSync } from 'node:fs';
 import { seed, ensureSeeded } from '../src/db.js';
 import { guard, SqlRejected } from '../src/guard.js';
 import { ask } from '../src/ask.js';
-import { verify, readLog, exportPackage, headHash } from '../src/audit.js';
+import { verify, readLog, exportPackage, headHash, DEFAULT_LOG_PATH } from '../src/audit.js';
+import { getWarehouse } from '../src/warehouses.js';
+import { buildAuditReport, renderReportMarkdown, renderReportHtml } from '../src/report.js';
 import { loadSigner } from '../src/signing.js';
 import { anchorHead, localStubAnchor } from '../src/anchor.js';
 import {
@@ -76,6 +79,12 @@ function printRows(rows, limit = 12) {
 /** `--export <path>` value, or null. Accepts `.json` (packet) or `.md` (rendered). */
 function exportPath(args) {
     const i = args.indexOf('--export');
+    return i >= 0 ? args[i + 1] ?? null : null;
+}
+
+/** The value following a named flag, or null when the flag is absent. */
+function flagValue(args, flag) {
+    const i = args.indexOf(flag);
     return i >= 0 ? args[i + 1] ?? null : null;
 }
 
@@ -215,6 +224,45 @@ async function main() {
                         `${entry.complianceTags.join(' · ')}`,
                 );
                 console.log(`        ${entry.question}`);
+            }
+            break;
+        }
+
+        case 'report': {
+            // Render a shareable report over a whole audit log: every attested
+            // figure, the ruleset and data behind it, and the chain status. Reads
+            // only what the entries already record; adds no provenance. The
+            // warehouse names the log (never a file path from the wire), exactly
+            // as `audit` and `verify_audit` do.
+            const warehouseFlag = flagValue(rest, '--warehouse');
+            const out = flagValue(rest, '--out');
+            const forceSynthetic = rest.includes('--synthetic');
+
+            const signer = loadSigner();
+            const verifier = signer ? { publicKey: signer.publicKey } : null;
+            const logPath = warehouseFlag ? getWarehouse(warehouseFlag).logPath : DEFAULT_LOG_PATH;
+
+            const entries = readLog(logPath);
+            const integrity = verify(logPath, { verifier });
+            const report = buildAuditReport({
+                entries,
+                integrity,
+                warehouse: warehouseFlag ?? null,
+                synthetic: forceSynthetic ? true : null,
+            });
+
+            const asHtml = typeof out === 'string' && /\.html?$/i.test(out);
+            const rendered = asHtml ? renderReportHtml(report) : renderReportMarkdown(report);
+
+            if (out) {
+                writeFileSync(out, rendered);
+                console.log(
+                    `Wrote audit report: ${out} (${report.summary.attestations} attestations, ` +
+                        `chain ${report.chain.ok ? 'INTACT' : 'BROKEN'}, ` +
+                        `${report.synthetic ? 'synthetic demo data' : 'imported data'}).`,
+                );
+            } else {
+                console.log(rendered);
             }
             break;
         }
@@ -986,6 +1034,7 @@ async function main() {
             console.log('  cc-auditor explain "SELECT ..."      run the guard alone, no model call');
             console.log('  cc-auditor audit                     verify the hash chain, list entries');
             console.log('  cc-auditor audit --export out.json   write the audit package');
+            console.log('  cc-auditor report --out report.md    write a shareable audit report (.md|.html)');
             console.log('  cc-auditor markets <sub>             capital-markets surveillance demo');
             console.log('  cc-auditor enron <sub>               synthetic Enron reporting-gap demo');
             console.log('  cc-auditor lseg <sub>                LSEG fundamentals warehouse + ingest seam');
