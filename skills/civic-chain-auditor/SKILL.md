@@ -27,6 +27,8 @@ Needs Node 22+. Full environment variables, custom-ledger setup, and the complet
 | Tool | Args | Credential | Use for |
 |---|---|---|---|
 | `run_canonical` | `name`, `args` | none | Pre-written queries: the built-in ones, plus a custom warehouse's **named queries** (`<warehouse>/<query>`), which also return automatic checks. **Prefer this.** |
+| `run_query` | `sql`, `warehouse` (default `"saas"`), `question` | none | SQL **you** write for an open-ended question when no API key is configured. Guarded (SELECT-only, allow-list), run read-only, audited, with provenance. |
+| `verify_answer` | `sql`, `warehouse`, `claimedResultHash` or `claimedFigure` | none | Re-run SQL behind a figure and confirm it reproduces. Checks a number without trusting any narration. Read-only. |
 | `execute_financial_query` | `question`, `warehouse` (default `"saas"`) | API key | Free-text questions on any warehouse with `freeText: true` |
 | `list_controls` / `run_control` | `id` (for run) | none | SOC 2 reconciliations with PASS / EXCEPTION and provenance |
 | `verify_audit` | `warehouse` | none | Hash-chain integrity check on one audit log (named by warehouse, never by file path) |
@@ -41,10 +43,10 @@ Only pass the business arguments a query documents. Never pass `dbPath`, `logPat
 
 - **Budget, grant, vendor or spending question, and a custom warehouse is listed:**
   - **A named query covers it** → `run_canonical` with that query. **Always try this first.** No credential, fewest tokens, operator-fixed definitions (e.g. "spent means paid, never void"), and results come with automatic checks. Several related questions may be answerable from one call.
-  - **No named query covers it** → `execute_financial_query` with `warehouse` set to that name. Read its schema resource first if you don't know the column names.
+  - **No named query covers it** → if an API key is configured, `execute_financial_query` with `warehouse` set to that name. **With no key, write the SQL yourself and call `run_query`** (read the schema resource first for the column names); it is guarded, audited and verifiable just the same, only the prose narration is yours to write. Then `verify_answer` with the same SQL and the figure you quoted to prove it reproduces.
 - **Budget or grant question, and no such warehouse is listed** → say plainly the connected instance has no budget or grant ledger, and point to `scripts/verify-setup.js` to load the demo or the user's own data. Do **not** send it to `saas`, and do not answer from general knowledge.
 - **The question matches a canonical query or control** → `run_canonical` or `run_control`.
-- **Free-text question on `saas`** → `execute_financial_query`. On `enron`, `markets` or `lseg`, free text is refused (`warehouse_not_supported`); offer the nearest canonical query or control.
+- **Free-text question on `saas`** → `execute_financial_query` with a key, or `run_query` with SQL you write when there is none. On `enron`, `markets` or `lseg`, both are refused (`warehouse_not_supported`); offer the nearest canonical query or control.
 
 ### 2. Phrase the question so SQL does the math
 

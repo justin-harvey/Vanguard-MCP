@@ -10,7 +10,10 @@
  *
  * Two families of tool, deliberately:
  *   - credential-free: list_controls, run_control, run_canonical, verify_audit,
- *     canonical queries and the control catalog, no model call;
+ *     run_query and verify_answer, canonical queries and the control catalog, no
+ *     model call. run_query runs SQL the host AI already wrote (S4), so an
+ *     open-ended question needs no key; verify_answer re-runs it to confirm a
+ *     figure without trusting the narration;
  *   - credentialed: execute_financial_query, the planner writes SQL, so it needs
  *     an API key. Free text is supported over the SaaS warehouse and over a
  *     custom warehouse configured from the environment (see custom.js).
@@ -24,6 +27,7 @@ import { loadSigner } from './signing.js';
 import { warehouseDescriptors, warehouseSchema, getWarehouse } from './warehouses.js';
 import { guard } from './guard.js';
 import { runNamedQuery } from './named-run.js';
+import { runAgentQuery, verifyAgentQuery } from './query-run.js';
 import { describeQuery } from './named-queries.js';
 import { revenueByBasis, debtWithHiddenLeverage } from './enron.js';
 import { netPositionAtClose, surveillanceRapidCancels } from './markets.js';
@@ -96,6 +100,45 @@ function freeTextWarehouses() {
     return Object.values(warehouseDescriptors())
         .filter((d) => d.freeText)
         .map((d) => d.name);
+}
+
+/**
+ * Resolve a free-text warehouse for run_query/verify_answer, applying trusted
+ * infra overrides (dbPath/logPath) so a test or a trusted embedding can isolate
+ * the database and log, exactly as run_control/run_canonical honour them. A
+ * named-query-only warehouse is refused with the same shape execute_financial_query
+ * uses, so the three open-ended tools reject a bad warehouse identically.
+ *
+ * @param {string|undefined} name caller-supplied warehouse, untrusted
+ * @param {{ dbPath?: string, logPath?: string }} infra trusted ctx overrides
+ * @returns {{ ok: true, descriptor: object } | { ok: false, refusal: object }}
+ */
+function resolveFreeText(name, infra) {
+    const warehouse = name ?? 'saas';
+    const descriptor = warehouseDescriptors()[warehouse];
+    if (!descriptor || !descriptor.freeText) {
+        const freeText = freeTextWarehouses().map((w) => `"${w}"`).join(', ');
+        return {
+            ok: false,
+            refusal: {
+                ok: false,
+                stage: 'route',
+                reason: 'warehouse_not_supported',
+                message: descriptor
+                    ? `Ad-hoc SQL is supported over ${freeText}. The "${warehouse}" warehouse ` +
+                      `exposes canonical queries via run_canonical and controls via run_control.`
+                    : `Unknown warehouse "${warehouse}". Ad-hoc SQL is supported over ${freeText}.`,
+            },
+        };
+    }
+    return {
+        ok: true,
+        descriptor: {
+            ...descriptor,
+            ...(infra.dbPath !== undefined ? { dbPath: infra.dbPath } : {}),
+            ...(infra.logPath !== undefined ? { logPath: infra.logPath } : {}),
+        },
+    };
 }
 
 /**
@@ -203,6 +246,43 @@ export function listTools() {
                     warehouse: { type: 'string', description: 'defaults to "saas"' },
                 },
                 required: ['question'],
+            },
+        },
+        {
+            name: 'run_query',
+            description:
+                'Run SQL you (the host AI) wrote, with no API credential: the guard parses it, holds it to the ' +
+                'warehouse allow-list and SELECT-only, runs it read-only, records lineage and a hash-chained audit entry, ' +
+                'and returns the rows with their provenance (result hash, ruleset and data hashes). Use this for an ' +
+                'open-ended question when no planner key is configured; the result is reproducible and verify_answer can confirm it. ' +
+                `Warehouses that accept ad-hoc SQL: ${freeText.join(', ')}.`,
+            inputSchema: {
+                type: 'object',
+                properties: {
+                    sql: { type: 'string', description: 'a single SELECT statement' },
+                    warehouse: { type: 'string', description: 'defaults to "saas"' },
+                    question: { type: 'string', description: 'optional: what the SQL is meant to answer, recorded in lineage' },
+                },
+                required: ['sql'],
+            },
+        },
+        {
+            name: 'verify_answer',
+            description:
+                'Re-run the SQL behind a claimed answer and confirm it reproduces, with no API credential. Given the SQL and ' +
+                'either a prior result hash or a claimed figure, it recomputes from the live data and reports whether the ' +
+                'hash matches and whether the figure is grounded in the result. This is how a figure is checked without ' +
+                'trusting the narration. Read-only; it records nothing. ' +
+                `Warehouses: ${freeText.join(', ')}.`,
+            inputSchema: {
+                type: 'object',
+                properties: {
+                    sql: { type: 'string', description: 'the SELECT to re-run' },
+                    warehouse: { type: 'string', description: 'defaults to "saas"' },
+                    claimedResultHash: { type: 'string', description: 'a prior lineage result hash to match' },
+                    claimedFigure: { type: ['string', 'number'], description: 'a figure that should appear in the result' },
+                },
+                required: ['sql'],
             },
         },
     ];
@@ -322,6 +402,52 @@ export async function callTool(name, args = {}, { client, overrides = {} } = {})
                 dbPath: r.paths.dbPath,
                 allowlistPath: r.paths.allowlistPath,
             };
+        }
+
+        case 'run_query': {
+            // The host AI's own SQL, no key. Route only to a free-text warehouse
+            // (saas or a custom ledger); the named-query-only warehouses expose
+            // just their blessed queries by design. The guard is the trust
+            // boundary; infra paths come from trusted ctx, never the wire.
+            const resolved = resolveFreeText(args.warehouse, infra);
+            if (!resolved.ok) return resolved.refusal;
+            const out = runAgentQuery(resolved.descriptor, args.sql, {
+                guard,
+                signer: loadSigner(),
+                question: args.question ?? null,
+            });
+            if (!out.ok) return out;
+            return {
+                ok: true,
+                sql: out.sql,
+                rows: out.rows,
+                limitInjected: out.limitInjected,
+                provenance: provenanceOf(out.entry),
+                rulesetHash: out.entry.rulesetHash ?? null,
+                dataHash: out.entry.dataHash ?? null,
+            };
+        }
+
+        case 'verify_answer': {
+            const resolved = resolveFreeText(args.warehouse, infra);
+            if (!resolved.ok) return resolved.refusal;
+            if (args.claimedResultHash == null && args.claimedFigure == null) {
+                return {
+                    ok: false,
+                    stage: 'verify',
+                    reason: 'no_claim',
+                    message: 'Provide claimedResultHash or claimedFigure to verify against the SQL.',
+                };
+            }
+            return verifyAgentQuery(
+                resolved.descriptor,
+                {
+                    sql: args.sql,
+                    claimedResultHash: args.claimedResultHash ?? null,
+                    claimedFigure: args.claimedFigure ?? null,
+                },
+                { guard },
+            );
         }
 
         case 'execute_financial_query': {
