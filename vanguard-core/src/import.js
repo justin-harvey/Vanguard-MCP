@@ -21,7 +21,7 @@
 
 import { basename } from 'node:path';
 import { readFileSync, writeFileSync, rmSync } from 'node:fs';
-import { resolveImportPath, importedLedgerPaths, ensureParent, importDir } from './paths.js';
+import { resolveImportPath, importedLedgerPaths, ensureParent, importDir, assetPath } from './paths.js';
 import {
     parseCsv,
     proposeMapping,
@@ -29,8 +29,12 @@ import {
     CANONICAL_SCHEMA_VERSION,
     ImportError,
 } from './import-csv.js';
+import { loadRuleset } from './ruleset.js';
 
 const PKG = '@civic-chain/auditor';
+
+/** The bundled Civic-Chain ruleset for the canonical municipal schema (S9). */
+export const MUNICIPAL_RULESET_PATH = assetPath('municipal', 'ruleset.municipal-v1.json');
 
 /** The three named queries the import gate re-runs. */
 export const GATE_QUERIES = ['grant-status', 'spending-by-vendor', 'budget-variance'];
@@ -83,8 +87,20 @@ export async function runImport({ file, mapping = null, env = process.env, runGa
         JSON.stringify({ canonicalSchemaVersion: CANONICAL_SCHEMA_VERSION, source: basename(file), mapping: built.mapping }, null, 2),
     );
 
+    // The Civic-Chain ruleset in force for this schema: its content hash and
+    // signature status are recorded on the import entry and reported in results.
+    const ruleset = loadRuleset(MUNICIPAL_RULESET_PATH);
+    const rulesetMeta = {
+        name: ruleset.name,
+        version: ruleset.version,
+        contentHash: ruleset.contentHash,
+        status: ruleset.signature.status,
+        signedBy: ruleset.signature.signedBy,
+    };
+
     // Record the import as the first audit entry: the source bytes' hash is the
-    // anchor every later figure ties back to.
+    // anchor every later figure ties back to (dataHash), under a named, signed
+    // ruleset version (rulesetHash).
     const { append } = await import('./audit.js');
     const importEntry = append(
         {
@@ -97,6 +113,9 @@ export async function runImport({ file, mapping = null, env = process.env, runGa
             counts: built.counts,
             mapping: built.mapping,
             canonicalSchemaVersion: CANONICAL_SCHEMA_VERSION,
+            ruleset: rulesetMeta,
+            rulesetHash: rulesetMeta.contentHash,
+            dataHash: built.sourceFileSha256,
             tables: ['expenditures', 'vendors', 'departments', 'funds', 'budget_lines', 'grants'],
             resultHash: built.sourceFileSha256,
             llmScope: 'none',
@@ -116,19 +135,25 @@ export async function runImport({ file, mapping = null, env = process.env, runGa
         byteLength: built.byteLength,
         mapping: built.mapping,
         canonicalSchemaVersion: CANONICAL_SCHEMA_VERSION,
+        ruleset: rulesetMeta,
         audit: { seq: importEntry.seq, hash: importEntry.hash, signed: Boolean(importEntry.signature) },
         gate: null,
         config: null,
     };
 
-    if (runGate) result.gate = await runGateQueries(paths, signer);
+    if (runGate) result.gate = await runGateQueries(paths, signer, { rulesetPath: MUNICIPAL_RULESET_PATH, dataHash: built.sourceFileSha256 });
 
     result.config = {
         mcpServers: {
             'civic-chain-auditor': {
                 command: 'npx',
                 args: ['-y', PKG, 'mcp'],
-                env: { CIVIC_DB_PATH: paths.dbPath, CIVIC_ALLOWLIST_PATH: paths.allowlistPath },
+                env: {
+                    CIVIC_DB_PATH: paths.dbPath,
+                    CIVIC_ALLOWLIST_PATH: paths.allowlistPath,
+                    CIVIC_RULESET_PATH: MUNICIPAL_RULESET_PATH,
+                    CIVIC_DATA_HASH: built.sourceFileSha256,
+                },
             },
         },
     };
@@ -142,14 +167,23 @@ export async function runImport({ file, mapping = null, env = process.env, runGa
  *
  * @param {{ dbPath: string, allowlistPath: string, logPath: string }} paths
  * @param {object|null} signer
+ * @param {object} [options]
+ * @param {string} [options.rulesetPath] the Civic-Chain ruleset to run under
+ * @param {string} [options.dataHash]    the data fingerprint to record (the CSV's SHA-256)
  * @returns {Promise<{ ok: boolean, queries: object[] }>}
  */
-export async function runGateQueries(paths, signer = null) {
+export async function runGateQueries(paths, signer = null, { rulesetPath = null, dataHash = null } = {}) {
     const { loadCustomWarehouse } = await import('./custom.js');
     const { guard } = await import('./guard.js');
     const { runNamedQuery } = await import('./named-run.js');
     const warehouse = loadCustomWarehouse({
-        env: { CIVIC_DB_PATH: paths.dbPath, CIVIC_ALLOWLIST_PATH: paths.allowlistPath, CIVIC_AUDIT_LOG: paths.logPath },
+        env: {
+            CIVIC_DB_PATH: paths.dbPath,
+            CIVIC_ALLOWLIST_PATH: paths.allowlistPath,
+            CIVIC_AUDIT_LOG: paths.logPath,
+            ...(rulesetPath ? { CIVIC_RULESET_PATH: rulesetPath } : {}),
+            ...(dataHash ? { CIVIC_DATA_HASH: dataHash } : {}),
+        },
     });
     const queries = [];
     for (const name of GATE_QUERIES) {
@@ -194,6 +228,7 @@ function formatImported(r) {
         `  bytes          : ${r.byteLength}`,
         `  derived        : ${c.vendors} vendor(s), ${c.departments} department(s), ${c.funds} fund(s), ${c.budgetLines} budget line(s), ${c.grants} grant(s)`,
         `  schema         : ${r.canonicalSchemaVersion}`,
+        `  ruleset        : ${r.ruleset.name}/${r.ruleset.version} (${r.ruleset.status}${r.ruleset.signedBy ? `, key ${r.ruleset.signedBy}` : ''})`,
         `  ledger         : ${r.paths.dbPath}`,
         `  mapping saved  : ${r.paths.mappingPath}`,
         `  audit entry    : #${r.audit.seq} ${r.audit.hash.slice(0, 16)}… (${r.audit.signed ? 'signed' : 'unsigned'})`,

@@ -858,6 +858,86 @@ async function main() {
             break;
         }
 
+        case 'ruleset': {
+            // Inspect, sign and key-manage Civic-Chain rulesets (S9). Local only.
+            const sub = rest[0];
+            const { loadRuleset, writeRulesetSignature } = await import('../src/ruleset.js');
+            const { assetPath } = await import('../src/paths.js');
+            const bundled = assetPath('municipal', 'ruleset.municipal-v1.json');
+            switch (sub) {
+                case 'list': {
+                    const r = loadRuleset(bundled);
+                    console.log('\nBundled rulesets\n');
+                    console.log(`  ${r.name}/${r.version}`);
+                    console.log(`    status      : ${r.signature.status}${r.signature.signedBy ? ` (key ${r.signature.signedBy})` : ''}`);
+                    console.log(`    contentHash : ${r.contentHash}`);
+                    console.log(`    queries     : ${Object.keys(r.queries).join(', ')}`);
+                    for (const line of r.changelog) console.log(`    - ${line}`);
+                    break;
+                }
+                case 'show': {
+                    const file = rest[1];
+                    if (!file) {
+                        console.error('Usage: cc-auditor ruleset show <ruleset.json>');
+                        process.exitCode = 2;
+                        return;
+                    }
+                    const r = loadRuleset(file);
+                    console.log(`${r.name}/${r.version}  ${r.signature.status}  ${r.contentHash}`);
+                    if (r.signature.status === 'modified') {
+                        console.log('  WARNING: this ruleset does not match a Civic-Chain signature (edited or signed by another key).');
+                        process.exitCode = 1;
+                    }
+                    break;
+                }
+                case 'keygen': {
+                    // Generate an offline Civic-Chain signing key. The private key
+                    // must never live in the repo or CI; write it somewhere safe.
+                    const outIdx = rest.indexOf('--out');
+                    const out = outIdx >= 0 ? rest[outIdx + 1] : null;
+                    const { generateSigner } = await import('../src/signing.js');
+                    const { privateKey, publicKey, keyId } = generateSigner();
+                    const privPem = privateKey.export({ type: 'pkcs8', format: 'pem' });
+                    const pubPem = publicKey.export({ type: 'spki', format: 'pem' });
+                    console.log(`Civic-Chain ruleset key, id ${keyId}`);
+                    if (out) {
+                        writeFileSync(out, privPem, { mode: 0o600 });
+                        console.log(`  private key → ${out} (keep OFFLINE: never commit, never put in CI)`);
+                    } else {
+                        console.log('\n' + privPem);
+                    }
+                    console.log('Public key (commit as assets/civic-chain-ruleset-pub.pem):\n');
+                    console.log(pubPem);
+                    break;
+                }
+                case 'sign': {
+                    const file = rest[1];
+                    const keyIdx = rest.indexOf('--key');
+                    const keyPath = keyIdx >= 0 ? rest[keyIdx + 1] : null;
+                    if (!file || !keyPath) {
+                        console.error('Usage: cc-auditor ruleset sign <ruleset.json> --key <private-key.pem>');
+                        process.exitCode = 2;
+                        return;
+                    }
+                    const { createPrivateKey, createPublicKey } = await import('node:crypto');
+                    const { keyIdOf } = await import('../src/signing.js');
+                    const privateKey = createPrivateKey(readFileSync(keyPath, 'utf8'));
+                    const publicKey = createPublicKey(privateKey);
+                    const sigPath = writeRulesetSignature(file, { privateKey, publicKey, keyId: keyIdOf(publicKey) });
+                    console.log(`Signed ${file} → ${sigPath} (key ${keyIdOf(publicKey)}).`);
+                    break;
+                }
+                default:
+                    console.log('Usage:');
+                    console.log('  cc-auditor ruleset list                        list bundled rulesets + signature status');
+                    console.log('  cc-auditor ruleset show <ruleset.json>         load a ruleset, print its status + content hash');
+                    console.log('  cc-auditor ruleset keygen [--out key.pem]      generate an offline Civic-Chain signing key');
+                    console.log('  cc-auditor ruleset sign <ruleset.json> --key key.pem   write a detached signature');
+                    process.exitCode = sub ? 2 : 0;
+            }
+            break;
+        }
+
         case 'mcp': {
             // Validate a custom warehouse before the transport starts, so a bad
             // CIVIC_DB_PATH / CIVIC_ALLOWLIST_PATH fails here, on stderr,
@@ -912,6 +992,7 @@ async function main() {
             console.log('  cc-auditor controls <sub>            run SOC 2 controls (PASS/EXCEPTION + evidence)');
             console.log('  cc-auditor doctor                    check the install, print the MCP client config');
             console.log('  cc-auditor import <file.csv>         import a buyer CSV from CIVIC_IMPORT_DIR (--map to confirm)');
+            console.log('  cc-auditor ruleset <sub>             inspect/sign Civic-Chain rulesets (list, show, keygen, sign)');
             console.log('  cc-auditor mcp                       serve the engine over MCP (stdio)');
             console.log('  cc-auditor serve [--port N]          serve the engine over HTTP (needs ENGINE_SERVICE_TOKEN)');
             process.exitCode = command ? 2 : 0;

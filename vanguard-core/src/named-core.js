@@ -98,6 +98,13 @@ export function executeNamedQuery(descriptor, name, args, { guard, warehouse, ap
             checks: evaluation.checks,
             integrity: evaluation.integrity,
             findings: evaluation.findings,
+            // S9: tie the result to the ruleset that produced it and the data it
+            // ran against. rulesetHash is deterministic from the ruleset bytes,
+            // so the same ruleset version on another machine records the same
+            // hash; dataHash (e.g. the imported CSV's SHA-256) ties to the data.
+            ruleset: descriptor.ruleset ?? null,
+            rulesetHash: descriptor.ruleset?.contentHash ?? null,
+            dataHash: descriptor.dataHash ?? null,
         },
         { complianceTags: NAMED_QUERY_TAGS },
     );

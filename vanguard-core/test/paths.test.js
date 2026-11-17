@@ -92,4 +92,20 @@ test('the bundled municipal assets match the skill copy byte for byte (one sourc
         readFileSync(MUNICIPAL_ALLOWLIST_PATH),
         readFileSync(join(skillAssets, 'sample_allowlist.json')),
     );
+    // The S9 ruleset, its signature and the Civic-Chain public key ship in both
+    // copies too; they must stay byte-identical or the signature check diverges.
+    // The package nests municipal assets under assets/municipal/; the skill copy
+    // is flat, so the ruleset lands directly in its assets/.
+    const coreAssets = join(here, '..', 'assets');
+    for (const [coreRel, skillRel] of [
+        ['municipal/ruleset.municipal-v1.json', 'ruleset.municipal-v1.json'],
+        ['municipal/ruleset.municipal-v1.json.sig', 'ruleset.municipal-v1.json.sig'],
+        ['civic-chain-ruleset-pub.pem', 'civic-chain-ruleset-pub.pem'],
+    ]) {
+        assert.deepEqual(
+            readFileSync(join(coreAssets, coreRel)),
+            readFileSync(join(skillAssets, skillRel)),
+            `${coreRel} drifted between the package and the skill copy`,
+        );
+    }
 });

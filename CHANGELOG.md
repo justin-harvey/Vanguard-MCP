@@ -5,6 +5,43 @@ The project follows [Semantic Versioning](https://semver.org/): MAJOR.MINOR.PATC
 
 ## [Unreleased]
 
+### Added — rulesets as the product (S9)
+- The named queries and their checks are now a **versioned, signed Civic-Chain
+  ruleset**, separate from the buyer's access policy (the allow-list). Every
+  result reports whether the ruleset is the one Civic-Chain published.
+  - **`src/ruleset.js`.** A ruleset is `{ name, version, changelog, queries }`.
+    Its **content hash** is the SHA-256 of the file's exact bytes, so editing a
+    single byte changes it. A detached `<file>.sig` carries an Ed25519 signature
+    over that hash, made **offline** with the Civic-Chain private key (never in
+    the repo or CI); the public key ships in the package
+    (`assets/civic-chain-ruleset-pub.pem`). `verifyRuleset` reports **signed**
+    (bytes match the trusted key's signature), **modified** (a signature exists
+    but does not verify — edited, or another key), or **unsigned** (no signature).
+  - **Bundled, signed municipal ruleset.** `assets/municipal/ruleset.municipal-v1.json`
+    (+ `.sig`) carries the three queries — `grant-status`, `spending-by-vendor`,
+    `budget-variance` — with a version and changelog. Rulesets **ship inside the
+    npm package**; a subscription update is a new package version, no registry
+    server. `scripts/build-municipal-ruleset.js` rebuilds/signs it from the
+    allow-list (one SQL source of truth); both the package and the skill asset
+    copies stay byte-identical (guarded by `paths.test.js`).
+  - **Provenance carries it.** `CIVIC_RULESET_PATH` selects a ruleset (its queries
+    replace the allow-list's); `CIVIC_DATA_HASH` records a data fingerprint. Every
+    audit entry and `provenanceOf` result now carries **`rulesetHash`**, **`dataHash`**
+    and the ruleset's `{ name, version, status }`, so the same CSV and ruleset
+    version on two machines produce identical hashes, and a modified ruleset is
+    visible in every result.
+  - **Import runs under the ruleset.** `cc-auditor import` now runs the gate
+    queries under the signed `municipal-v1` ruleset, records `rulesetHash` +
+    `dataHash` (the source CSV's SHA-256) on the import entry, and emits
+    `CIVIC_RULESET_PATH`/`CIVIC_DATA_HASH` in the MCP config it prints.
+  - **`cc-auditor ruleset`** — `list` (bundled rulesets + signature status),
+    `show <file>`, `keygen [--out key.pem]` (generate an offline Civic-Chain key),
+    and `sign <file> --key key.pem` (write a detached signature).
+  - New `test/ruleset.test.js` (11 tests): content-hash determinism, the
+    signed/unsigned/modified verdicts, the one-byte-flip → modified rule, the
+    bundled ruleset verifying against the shipped key, and cross-machine hash
+    determinism.
+
 ### Added — import the buyer's CSV (S8)
 - A buyer can now point the three named queries at **their own** exported
   expenditure CSV, locally, with a tamper-evident record of exactly which file

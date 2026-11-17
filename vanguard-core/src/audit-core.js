@@ -123,7 +123,7 @@ export function verifyEntries(entries, { verifySignature = null } = {}) {
  * written in the browser carries no signature, so those fields are null.
  *
  * @param {object} entry
- * @returns {{ resultHash: string, auditSeq: number, auditHash: string, signature: string|null, signingKeyId: string|null, complianceTags: string[] }}
+ * @returns {{ resultHash: string, auditSeq: number, auditHash: string, signature: string|null, signingKeyId: string|null, complianceTags: string[], ruleset: object|null, rulesetHash: string|null, dataHash: string|null }}
  */
 export function provenanceOf(entry) {
     return {
@@ -133,5 +133,11 @@ export function provenanceOf(entry) {
         signature: entry.signature ?? null,
         signingKeyId: entry.signingKeyId ?? null,
         complianceTags: entry.complianceTags ?? [],
+        // S9: which ruleset produced this result (with its signature status) and
+        // the data it ran against. Null on entries written before S9 or without
+        // a ruleset configured.
+        ruleset: entry.ruleset ?? null,
+        rulesetHash: entry.rulesetHash ?? null,
+        dataHash: entry.dataHash ?? null,
     };
 }

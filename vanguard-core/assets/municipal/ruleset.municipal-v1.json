@@ -1,0 +1,131 @@
+{
+  "name": "municipal",
+  "version": "municipal-v1",
+  "changelog": [
+    "municipal-v1: initial Civic-Chain municipal ruleset — grant-status, spending-by-vendor, budget-variance, with integrity (unique, total_matches) and finding (compare) checks."
+  ],
+  "queries": {
+    "grant-status": {
+      "description": "Per grant: award, paid spending, pending spending, cash drawn down, remaining balance and percent of award spent. Use for 'how much of grant X is spent', remaining balances, and drawdown-versus-spending questions.",
+      "params": {
+        "grant_id": {
+          "type": "string",
+          "description": "A grant ID such as G-402. Omit for every grant."
+        },
+        "status": {
+          "type": "string",
+          "enum": [
+            "active",
+            "closed"
+          ],
+          "description": "Limit to active or closed grants."
+        }
+      },
+      "sql": "SELECT g.grant_id, g.grant_name, g.grantor, g.status, g.award_cents, COALESCE((SELECT SUM(e.amount_cents) FROM expenditures e WHERE e.grant_id = g.grant_id AND e.status = 'paid'), 0) AS paid_cents, COALESCE((SELECT SUM(e.amount_cents) FROM expenditures e WHERE e.grant_id = g.grant_id AND e.status = 'pending'), 0) AS pending_cents, COALESCE((SELECT SUM(d.amount_cents) FROM grant_drawdowns d WHERE d.grant_id = g.grant_id AND d.status = 'received'), 0) AS drawn_cents, g.award_cents - COALESCE((SELECT SUM(e.amount_cents) FROM expenditures e WHERE e.grant_id = g.grant_id AND e.status = 'paid'), 0) AS remaining_cents, COALESCE((SELECT SUM(d.amount_cents) FROM grant_drawdowns d WHERE d.grant_id = g.grant_id AND d.status = 'received'), 0) - COALESCE((SELECT SUM(e.amount_cents) FROM expenditures e WHERE e.grant_id = g.grant_id AND e.status = 'paid'), 0) AS drawn_minus_paid_cents, ROUND(100.0 * COALESCE((SELECT SUM(e.amount_cents) FROM expenditures e WHERE e.grant_id = g.grant_id AND e.status = 'paid'), 0) / g.award_cents, 1) AS pct_award_spent FROM grants g WHERE (:grant_id IS NULL OR g.grant_id = :grant_id) AND (:status IS NULL OR g.status = :status) ORDER BY g.grant_id",
+      "checks": [
+        {
+          "id": "one-row-per-grant",
+          "type": "unique",
+          "columns": [
+            "grant_id"
+          ]
+        },
+        {
+          "id": "paid-total-reconciles",
+          "type": "total_matches",
+          "column": "paid_cents",
+          "sql": "SELECT COALESCE(SUM(e.amount_cents), 0) AS total FROM expenditures e WHERE e.status = 'paid' AND e.grant_id IN (SELECT g.grant_id FROM grants g WHERE (:grant_id IS NULL OR g.grant_id = :grant_id) AND (:status IS NULL OR g.status = :status))"
+        },
+        {
+          "id": "spending-within-award",
+          "type": "compare",
+          "left": "paid_cents",
+          "op": "<=",
+          "right": "award_cents",
+          "key": "grant_id",
+          "message": "Paid spending exceeds the grant award."
+        },
+        {
+          "id": "cash-not-ahead-of-spending",
+          "type": "compare",
+          "left": "drawn_cents",
+          "op": "<=",
+          "right": "paid_cents",
+          "key": "grant_id",
+          "message": "More grant cash has been drawn down than has been spent; the excess is grantor money held in advance."
+        }
+      ]
+    },
+    "spending-by-vendor": {
+      "description": "Paid spending and invoice count per vendor, optionally for one grant, fiscal year or department. Use for 'who was paid', 'spending by vendor' and vendor concentration questions.",
+      "params": {
+        "grant_id": {
+          "type": "string",
+          "description": "A grant ID such as G-402."
+        },
+        "fiscal_year": {
+          "type": "integer",
+          "description": "Fiscal year, e.g. 2026 (July 2025 to June 2026)."
+        },
+        "dept_id": {
+          "type": "string",
+          "description": "Department ID: PW, PR, LIB, PD, SR or FIN."
+        }
+      },
+      "sql": "SELECT v.vendor_id, v.vendor_name, COUNT(e.expenditure_id) AS invoice_count, SUM(e.amount_cents) AS paid_cents FROM expenditures e JOIN vendors v ON v.vendor_id = e.vendor_id JOIN budget_lines b ON b.line_id = e.line_id WHERE e.status = 'paid' AND (:grant_id IS NULL OR e.grant_id = :grant_id) AND (:fiscal_year IS NULL OR e.fiscal_year = :fiscal_year) AND (:dept_id IS NULL OR b.dept_id = :dept_id) GROUP BY v.vendor_id, v.vendor_name ORDER BY SUM(e.amount_cents) DESC, v.vendor_id",
+      "checks": [
+        {
+          "id": "one-row-per-vendor",
+          "type": "unique",
+          "columns": [
+            "vendor_id"
+          ]
+        },
+        {
+          "id": "paid-total-reconciles",
+          "type": "total_matches",
+          "column": "paid_cents",
+          "sql": "SELECT COALESCE(SUM(e.amount_cents), 0) AS total FROM expenditures e WHERE e.status = 'paid' AND (:grant_id IS NULL OR e.grant_id = :grant_id) AND (:fiscal_year IS NULL OR e.fiscal_year = :fiscal_year) AND (:dept_id IS NULL OR e.line_id IN (SELECT b.line_id FROM budget_lines b WHERE b.dept_id = :dept_id))"
+        }
+      ]
+    },
+    "budget-variance": {
+      "description": "Per budget line: adopted and amended budget, paid and pending spending, remaining budget and percent used. Use for overspending, budget-versus-actual and remaining-budget questions.",
+      "params": {
+        "fiscal_year": {
+          "type": "integer",
+          "description": "Fiscal year, e.g. 2026 (July 2025 to June 2026)."
+        },
+        "dept_id": {
+          "type": "string",
+          "description": "Department ID: PW, PR, LIB, PD, SR or FIN."
+        }
+      },
+      "sql": "SELECT b.line_id, b.fiscal_year, d.dept_name, b.line_description, b.adopted_cents, b.amended_cents, COALESCE((SELECT SUM(e.amount_cents) FROM expenditures e WHERE e.line_id = b.line_id AND e.status = 'paid'), 0) AS paid_cents, COALESCE((SELECT SUM(e.amount_cents) FROM expenditures e WHERE e.line_id = b.line_id AND e.status = 'pending'), 0) AS pending_cents, b.amended_cents - COALESCE((SELECT SUM(e.amount_cents) FROM expenditures e WHERE e.line_id = b.line_id AND e.status = 'paid'), 0) AS remaining_cents, ROUND(100.0 * COALESCE((SELECT SUM(e.amount_cents) FROM expenditures e WHERE e.line_id = b.line_id AND e.status = 'paid'), 0) / b.amended_cents, 1) AS pct_used FROM budget_lines b JOIN departments d ON d.dept_id = b.dept_id WHERE (:fiscal_year IS NULL OR b.fiscal_year = :fiscal_year) AND (:dept_id IS NULL OR b.dept_id = :dept_id) ORDER BY b.fiscal_year, b.line_id",
+      "checks": [
+        {
+          "id": "one-row-per-line",
+          "type": "unique",
+          "columns": [
+            "line_id"
+          ]
+        },
+        {
+          "id": "paid-total-reconciles",
+          "type": "total_matches",
+          "column": "paid_cents",
+          "sql": "SELECT COALESCE(SUM(e.amount_cents), 0) AS total FROM expenditures e WHERE e.status = 'paid' AND e.line_id IN (SELECT b.line_id FROM budget_lines b WHERE (:fiscal_year IS NULL OR b.fiscal_year = :fiscal_year) AND (:dept_id IS NULL OR b.dept_id = :dept_id))"
+        },
+        {
+          "id": "within-amended-budget",
+          "type": "compare",
+          "left": "paid_cents",
+          "op": "<=",
+          "right": "amended_cents",
+          "key": "line_id",
+          "message": "This budget line has spent more than its amended budget."
+        }
+      ]
+    }
+  }
+}

@@ -39,6 +39,7 @@ import { readFileSync, existsSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { openReadOnly } from './db.js';
 import { parseAllowlist, CustomWarehouseInvalid, RESERVED_NAMES } from './allowlist.js';
+import { loadRuleset } from './ruleset.js';
 
 // parseAllowlist, CustomWarehouseInvalid and RESERVED_NAMES moved to the pure
 // allowlist.js (no node: imports) so the browser build can reuse them; they are
@@ -49,6 +50,13 @@ export const CUSTOM_ENV = Object.freeze({
     db: 'CIVIC_DB_PATH',
     allowlist: 'CIVIC_ALLOWLIST_PATH',
     log: 'CIVIC_AUDIT_LOG',
+    // S9: the Civic-Chain ruleset (queries + checks), separate from the buyer's
+    // access policy (the allow-list). When set, its queries replace the
+    // allow-list's and every result reports the ruleset's signature status.
+    ruleset: 'CIVIC_RULESET_PATH',
+    // A fingerprint of the data behind this warehouse (e.g. the imported CSV's
+    // SHA-256), recorded on every audit entry so a figure ties back to its data.
+    dataHash: 'CIVIC_DATA_HASH',
 });
 
 /**
@@ -167,7 +175,30 @@ export function loadCustomWarehouse({ env = process.env } = {}) {
         throw new CustomWarehouseInvalid(`Could not parse ${allowlistPath} as JSON: ${error.message}`);
     }
     const allowlist = parseAllowlist(doc);
-    const schemaDescription = describeAgainstDatabase(dbPath, allowlist.tables, allowlist.notes, allowlist.queries);
+
+    // S9: queries come from the Civic-Chain ruleset when one is configured,
+    // otherwise from the allow-list (the legacy, buyer-defined path). A ruleset
+    // carries a version and a signature status that every result then reports.
+    let queries = allowlist.queries;
+    let ruleset = null;
+    const rulesetVar = env[CUSTOM_ENV.ruleset];
+    if (rulesetVar) {
+        const rulesetPath = resolve(rulesetVar);
+        if (!existsSync(rulesetPath)) {
+            throw new CustomWarehouseInvalid(`${CUSTOM_ENV.ruleset} points at ${rulesetPath}, which does not exist.`);
+        }
+        const loaded = loadRuleset(rulesetPath);
+        queries = loaded.queries;
+        ruleset = {
+            name: loaded.name,
+            version: loaded.version,
+            contentHash: loaded.contentHash,
+            status: loaded.signature.status,
+            signedBy: loaded.signature.signedBy,
+        };
+    }
+
+    const schemaDescription = describeAgainstDatabase(dbPath, allowlist.tables, allowlist.notes, queries);
 
     const allowedTables = Object.freeze(Object.keys(allowlist.tables));
     const allowedColumns = Object.freeze(
@@ -188,7 +219,9 @@ export function loadCustomWarehouse({ env = process.env } = {}) {
         freeText: true,
         metrics: [],
         custom: true,
-        queries: allowlist.queries,
+        queries,
+        ruleset,
+        dataHash: env[CUSTOM_ENV.dataHash] ?? null,
         planSchema: {
             domain: allowlist.domain,
             schemaDescription,

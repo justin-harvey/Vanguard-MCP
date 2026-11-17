@@ -14,6 +14,9 @@ node_modules/
 .env.*
 *.pem
 *.key
+# …but the Civic-Chain ruleset *public* key is meant to ship (S9): it lets anyone
+# verify a ruleset signature. The private key is never in the repo.
+!**/civic-chain-ruleset-pub.pem
 
 # OS / editor cruft
 .DS_Store

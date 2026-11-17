@@ -72,7 +72,7 @@
 
 **Shipped:** `cc-auditor import` (propose → confirm with `--map`) + `src/import-csv.js` (zero-dep RFC-4180 parser, money→integer cents, ISO dates, status mapping, Canonical Municipal Schema v1 with derived dimensions, atomic build) + `src/import.js` (orchestrator, source-SHA-256 audit entry, persisted mapping, three-query gate) + `CIVIC_IMPORT_DIR` path confinement in `paths.js` + MCP `propose_csv_mapping`/`import_csv` (gated on the import folder) + `test/import-csv.test.js` (18 tests) with the fictional `riverton_expenditures.csv` fixture. Full suite 255/255 on Node 22. **Open:** the imported schema's `grants`/`grant_drawdowns` are derived as placeholders (award 0) from an expenditure-only export, so `grant-status` is empty until a grant register is also imported — a natural S9+ follow-up.
 
-### S9 · Rulesets as the product · L
+### S9 · Rulesets as the product · L — SHIPPED
 - Separate **access policy** (allow-list, the buyer's) from **rulesets** (queries + checks, Civic-Chain's).
 - Canonical Municipal Schema v1.
 - Ruleset format with name, version, changelog, and a content hash. Every audit entry records `rulesetHash` and `dataHash`.
@@ -80,6 +80,8 @@
 - **Sign each ruleset** with a Civic-Chain Ed25519 key (reuse `signing.js`). The engine verifies the signature and reports "Civic-Chain signed" or "unsigned / modified" in every result. The private key lives offline, never on a server or in CI.
 
 **Done when:** the same CSV and ruleset version on two machines give identical result hashes, and editing one byte of a ruleset flips it to "modified".
+
+**Shipped:** `src/ruleset.js` (parse + SHA-256-of-bytes content hash + Ed25519 sign/verify → signed/unsigned/modified) + bundled signed `assets/municipal/ruleset.municipal-v1.json` (+`.sig`, +`assets/civic-chain-ruleset-pub.pem`) built by `scripts/build-municipal-ruleset.js`. `CIVIC_RULESET_PATH`/`CIVIC_DATA_HASH` wired through `custom.js` → `named-core.js` → `provenanceOf`, so every entry/result carries `rulesetHash`+`dataHash`+`{name,version,status}`. Import runs under the signed ruleset. `cc-auditor ruleset list|show|keygen|sign`. `test/ruleset.test.js` (11 tests) incl. the one-byte-flip → modified and cross-machine determinism. Full suite 266/266 on Node 22. **Private key kept offline at `~/Claudia/vanguard-mcp-internal-docs/civic-chain-ruleset-key.pem` (key id `acb80e87885da931`), never committed.** **Open:** Canonical Municipal Schema v1 is still defined twice (embedded `SCHEMA_DDL` in `import-csv.js` + the demo seed SQL) — lift to one shared definition; confirm-step hardening (RFC 9162 Merkle checkpoint) still pending from the main memory.
 
 ### S4 · Key-free open-ended questions · M
 - `run_query` (the agent's SQL through the guard) and `verify_answer` (figure check against re-run rows).

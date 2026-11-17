@@ -188,6 +188,19 @@ test('a real expenditure CSV imports and all three named queries pass integrity'
     assert.equal(integrity.entries, 4);
     assert.equal(result.audit.seq, 0);
 
+    // S9: the import runs under the signed Civic-Chain ruleset, and the import
+    // entry ties the data (dataHash) to the ruleset version (rulesetHash).
+    assert.equal(result.ruleset.version, 'municipal-v1');
+    assert.equal(result.ruleset.status, 'signed');
+    const importEntry = JSON.parse(readFileSync(result.paths.logPath, 'utf8').trim().split('\n')[0]);
+    assert.equal(importEntry.dataHash, expectHash);
+    assert.equal(importEntry.rulesetHash, result.ruleset.contentHash);
+    // The three gate queries each recorded the same ruleset + data hashes.
+    const queryEntry = JSON.parse(readFileSync(result.paths.logPath, 'utf8').trim().split('\n')[1]);
+    assert.equal(queryEntry.rulesetHash, result.ruleset.contentHash);
+    assert.equal(queryEntry.dataHash, expectHash);
+    assert.equal(queryEntry.ruleset.status, 'signed');
+
     // The confirmed mapping was persisted.
     assert.ok(existsSync(result.paths.mappingPath));
     assert.equal(JSON.parse(readFileSync(result.paths.mappingPath, 'utf8')).canonicalSchemaVersion, 'municipal-v1');
