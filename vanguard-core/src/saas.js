@@ -8,17 +8,15 @@
  * queries live, starting with the MRR reconciliation the PI control resolves to.
  */
 
-import { dirname, join } from 'node:path';
-import { fileURLToPath } from 'node:url';
 import { guard } from './guard.js';
 import { buildLineage } from './lineage.js';
 import { append } from './audit.js';
 import { SqliteWarehouse } from './warehouse.js';
 import { DEFAULT_DB_PATH } from './db.js';
+import { dataPath } from './paths.js';
 
-const here = dirname(fileURLToPath(import.meta.url));
 export const SAAS_DB_PATH = DEFAULT_DB_PATH;
-export const SAAS_LOG_PATH = join(here, '..', 'db', 'saas-audit.jsonl');
+export const SAAS_LOG_PATH = dataPath('saas-audit.jsonl');
 
 /**
  * Reconcile current MRR two independent ways, in one attested statement:

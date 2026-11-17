@@ -26,11 +26,12 @@ import { append } from './audit.js';
 import { marketsRegistry } from './registry.js';
 import { SqliteWarehouse } from './warehouse.js';
 import { scopeForPrincipal } from './auth.js';
+import { dataPath, ensureParent } from './paths.js';
 
 const here = dirname(fileURLToPath(import.meta.url));
 export const MARKETS_SCHEMA_PATH = join(here, '..', 'db', 'markets-schema.sql');
-export const MARKETS_DB_PATH = join(here, '..', 'db', 'markets.db');
-export const MARKETS_LOG_PATH = join(here, '..', 'db', 'markets-audit.jsonl');
+export const MARKETS_DB_PATH = dataPath('markets.db');
+export const MARKETS_LOG_PATH = dataPath('markets-audit.jsonl');
 
 /** The single trading session the warehouse covers. */
 export const TRADING_DATE = '2026-03-02';
@@ -102,7 +103,7 @@ function mulberry32(seed) {
  * @returns {{ accounts: number, orders: number, executions: number }}
  */
 export function seedMarkets(path = MARKETS_DB_PATH) {
-    const db = new DatabaseSync(path);
+    const db = new DatabaseSync(ensureParent(path));
     db.exec('PRAGMA foreign_keys = ON');
     for (const table of ['positions', 'prices', 'executions', 'orders', 'accounts']) {
         db.exec(`DROP TABLE IF EXISTS ${table}`);

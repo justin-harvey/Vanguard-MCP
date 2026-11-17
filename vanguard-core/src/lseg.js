@@ -39,11 +39,12 @@ import { buildLineage } from './lineage.js';
 import { append } from './audit.js';
 import { lsegRegistry } from './registry.js';
 import { SqliteWarehouse } from './warehouse.js';
+import { dataPath, ensureParent } from './paths.js';
 
 const here = dirname(fileURLToPath(import.meta.url));
 export const LSEG_SCHEMA_PATH = join(here, '..', 'db', 'lseg-schema.sql');
-export const LSEG_DB_PATH = join(here, '..', 'db', 'lseg.db');
-export const LSEG_LOG_PATH = join(here, '..', 'db', 'lseg-audit.jsonl');
+export const LSEG_DB_PATH = dataPath('lseg.db');
+export const LSEG_LOG_PATH = dataPath('lseg-audit.jsonl');
 
 /** The instrument and period the scenarios default to. */
 export const DEFAULT_RIC = 'IBM.N';
@@ -325,7 +326,7 @@ export function periodicityOf(period) {
  * @returns {{ organizations: number, instruments: number, fields: number, datapoints: number }}
  */
 export function seedLseg(path = LSEG_DB_PATH, { retrievedAt = new Date().toISOString().slice(0, 10) } = {}) {
-    const db = new DatabaseSync(path);
+    const db = new DatabaseSync(ensureParent(path));
     db.exec('PRAGMA foreign_keys = ON');
     // Drop children before parents (prices → instruments/lseg_fields;
     // fundamentals → organizations/lseg_fields) so the FKs don't block a re-seed.

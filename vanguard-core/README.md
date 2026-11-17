@@ -17,12 +17,34 @@ question
    └─ audit     appended to a hash-chained log
 ```
 
-## Quick start
+## Install (from npm)
+
+The engine is published as [`@civic-chain/auditor`](https://www.npmjs.com/package/@civic-chain/auditor)
+with npm provenance. A buyer needs one command to check the install and one
+config block to wire it into an agent:
+
+```bash
+npx -y @civic-chain/auditor doctor
+```
+
+`doctor` runs entirely on your machine — no network, no subprocess, no
+credential read. It verifies Node 22+ and `node:sqlite`, builds the bundled
+Town of Sampleton demo into your per-user data directory, loads it through the
+engine as a smoke test, and prints the MCP client config to paste into Claude
+Code (`.mcp.json`), Cursor or Claude Desktop. The config points at the engine
+over `npx @civic-chain/auditor mcp`; canonical queries, controls and audit
+verification need no API key. Set `CIVIC_DATA_DIR` to choose where the engine
+keeps the demo database and audit logs (it defaults to the platform's per-user
+data location).
+
+See the [changelog](../CHANGELOG.md) for what each release ships.
+
+## Quick start (from a checkout)
 
 ```bash
 npm install
 npm run seed                      # build the demo warehouse
-npm test                          # 120 tests, no credential required
+npm test                          # full suite, no credential required
 
 export ANTHROPIC_API_KEY=...      # or: ant auth login
 node bin/vanguard.js ask "How has MRR trended over the period?"

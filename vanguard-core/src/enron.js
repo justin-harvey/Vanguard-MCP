@@ -35,11 +35,12 @@ import { buildLineage } from './lineage.js';
 import { append } from './audit.js';
 import { enronRegistry } from './registry.js';
 import { SqliteWarehouse } from './warehouse.js';
+import { dataPath, ensureParent } from './paths.js';
 
 const here = dirname(fileURLToPath(import.meta.url));
 export const ENRON_SCHEMA_PATH = join(here, '..', 'db', 'enron-schema.sql');
-export const ENRON_DB_PATH = join(here, '..', 'db', 'enron.db');
-export const ENRON_LOG_PATH = join(here, '..', 'db', 'enron-audit.jsonl');
+export const ENRON_DB_PATH = dataPath('enron.db');
+export const ENRON_LOG_PATH = dataPath('enron-audit.jsonl');
 
 /** The fiscal year the scenarios default to, Enron's last full year reported. */
 export const FISCAL_YEAR = 2000;
@@ -152,7 +153,7 @@ const REPORTED_FINANCIALS = [
  * @returns {{ entities: number, revenueTransactions: number, debtInstruments: number, reportedLineItems: number }}
  */
 export function seedEnron(path = ENRON_DB_PATH) {
-    const db = new DatabaseSync(path);
+    const db = new DatabaseSync(ensureParent(path));
     db.exec('PRAGMA foreign_keys = ON');
     for (const table of ['debt_instruments', 'revenue_transactions', 'reported_financials', 'entities']) {
         db.exec(`DROP TABLE IF EXISTS ${table}`);

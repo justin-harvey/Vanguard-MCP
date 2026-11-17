@@ -19,13 +19,14 @@
  */
 
 import { appendFileSync, readFileSync, existsSync, mkdirSync } from 'node:fs';
-import { dirname, join } from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { dirname } from 'node:path';
 import { signHash, verifyHash } from './signing.js';
 import { GENESIS, hashEntry, appendEntry, verifyEntries } from './audit-core.js';
+import { dataPath } from './paths.js';
 
-const here = dirname(fileURLToPath(import.meta.url));
-export const DEFAULT_LOG_PATH = join(here, '..', 'db', 'audit.jsonl');
+// The audit log is runtime output; it lives in the writable per-user data
+// directory (see paths.js), not inside the shipped package.
+export const DEFAULT_LOG_PATH = dataPath('audit.jsonl');
 
 // The chaining logic lives in audit-core.js so it can run in the browser with
 // no node: imports. This module is the file-backed, optionally-signed wrapper

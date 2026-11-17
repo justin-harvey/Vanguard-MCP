@@ -5,6 +5,31 @@ The project follows [Semantic Versioning](https://semver.org/): MAJOR.MINOR.PATC
 
 ## [Unreleased]
 
+### Added — one-line install (S6)
+- The engine now publishes to npm as **`@civic-chain/auditor`** with a `bin`
+  (`cc-auditor`, and `civic-chain-auditor`), a `files` whitelist, and npm
+  **provenance** enabled, so a buyer verifies the package came from this repo.
+  - **Writable data directory.** The engine no longer writes inside its own
+    install (fatal once it lives under a read-only `node_modules`). A new
+    `src/paths.js` resolves a per-user data directory — `CIVIC_DATA_DIR`, else the
+    platform convention (`%APPDATA%`, `~/Library/Application Support`,
+    `$XDG_DATA_HOME`/`~/.local/share`), all under `civic-chain-auditor`. The
+    default SaaS, markets, Enron and LSEG databases and every audit log now live
+    there; the shipped schemas and the municipal sample stay read-only in the
+    package.
+  - **First-run seed.** `cc-auditor ask`, and `cc-auditor mcp` with no warehouse
+    configured, build the demo warehouse on first use (`ensureSeeded`), so a
+    fresh install answers immediately.
+  - **Bundled municipal demo.** The Town of Sampleton seed and allow-list ship in
+    the package (`assets/municipal`, kept byte-identical to the skill copy by a
+    drift test). `src/municipal.js` builds them into the data directory on demand.
+  - **`cc-auditor doctor`.** A local-only setup check (no network, no subprocess,
+    no credential read): verifies Node 22+/`node:sqlite`, a writable data dir,
+    builds the municipal demo, loads it through the engine as a smoke test, and
+    prints a ready-to-paste `npx`-based MCP client config pointing at the stable
+    data-dir copies. Replaces the checkout-oriented `skills/.../verify-setup.js`
+    for the npm path. New `test/paths.test.js` and `test/doctor.test.js` cover it.
+
 ### Added — in-browser demo (S7B)
 - The public demo now runs the engine **entirely in the visitor's browser**:
   no server, no proxy, no endpoint. The page reads the synthetic Town of

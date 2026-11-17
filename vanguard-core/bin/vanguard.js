@@ -10,7 +10,7 @@
  */
 
 import { writeFileSync } from 'node:fs';
-import { seed } from '../src/db.js';
+import { seed, ensureSeeded } from '../src/db.js';
 import { guard, SqlRejected } from '../src/guard.js';
 import { ask } from '../src/ask.js';
 import { verify, readLog, exportPackage, headHash } from '../src/audit.js';
@@ -134,6 +134,9 @@ async function main() {
                 process.exitCode = 2;
                 return;
             }
+
+            // A fresh install has no seeded demo warehouse; build it on first ask.
+            if (ensureSeeded()) console.error('cc-auditor: built the demo warehouse on first run.');
 
             const result = await ask(question);
 
@@ -797,6 +800,15 @@ async function main() {
             break;
         }
 
+        case 'doctor': {
+            // Check the install and print the MCP client config. Local only.
+            const { runDoctor, formatDoctor } = await import('../src/doctor.js');
+            const report = await runDoctor({ rebuild: rest.includes('--rebuild') });
+            console.log(formatDoctor(report));
+            if (report.failures > 0) process.exitCode = 1;
+            break;
+        }
+
         case 'mcp': {
             // Validate a custom warehouse before the transport starts, so a bad
             // CIVIC_DB_PATH / CIVIC_ALLOWLIST_PATH fails here, on stderr,
@@ -812,6 +824,10 @@ async function main() {
                         `cc-auditor: custom warehouse "${custom.name}" loaded from ${custom.dbPath} ` +
                             `(${Object.keys(custom.queries).length} named queries, ${checked} statements guarded).`,
                     );
+                } else if (ensureSeeded()) {
+                    // No warehouse configured: this is the zero-config demo. Build
+                    // the SaaS demo warehouse so canonical queries answer at once.
+                    console.error('cc-auditor: no CIVIC_DB_PATH set; built the SaaS demo warehouse for a zero-config demo.');
                 }
             } catch (error) {
                 console.error(`cc-auditor: ${error.message}`);
@@ -845,6 +861,7 @@ async function main() {
             console.log('  cc-auditor enron <sub>               synthetic Enron reporting-gap demo');
             console.log('  cc-auditor lseg <sub>                LSEG fundamentals warehouse + ingest seam');
             console.log('  cc-auditor controls <sub>            run SOC 2 controls (PASS/EXCEPTION + evidence)');
+            console.log('  cc-auditor doctor                    check the install, print the MCP client config');
             console.log('  cc-auditor mcp                       serve the engine over MCP (stdio)');
             console.log('  cc-auditor serve [--port N]          serve the engine over HTTP (needs ENGINE_SERVICE_TOKEN)');
             process.exitCode = command ? 2 : 0;

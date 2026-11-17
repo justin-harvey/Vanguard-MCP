@@ -1,20 +1,47 @@
 {
-  "name": "vanguard-core",
-  "version": "1.0.0",
-  "private": true,
+  "name": "@civic-chain/auditor",
+  "version": "1.1.0",
   "license": "SEE LICENSE IN LICENSE",
   "type": "module",
   "description": "The Civic-Chain Grant & Budget Auditor engine: the model writes SQL, the database produces the numbers, and every answer carries a verifiable provenance chain.",
+  "homepage": "https://civic-chain.com",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/justin-harvey/Vanguard-MCP.git",
+    "directory": "vanguard-core"
+  },
+  "bugs": {
+    "url": "https://github.com/justin-harvey/Vanguard-MCP/issues"
+  },
   "engines": {
     "node": ">=22"
+  },
+  "bin": {
+    "cc-auditor": "bin/vanguard.js",
+    "civic-chain-auditor": "bin/vanguard.js"
+  },
+  "files": [
+    "bin/",
+    "src/",
+    "db/*.sql",
+    "db/*.md",
+    "assets/",
+    "LICENSE",
+    "README.md"
+  ],
+  "publishConfig": {
+    "access": "public",
+    "provenance": true
   },
   "scripts": {
     "seed": "node bin/vanguard.js seed",
     "ask": "node bin/vanguard.js ask",
     "audit": "node bin/vanguard.js audit",
+    "doctor": "node bin/vanguard.js doctor",
     "mcp": "node bin/vanguard.js mcp",
     "build:demo": "node scripts/build-demo.js",
-    "test": "node --test"
+    "test": "node --test",
+    "prepublishOnly": "node --test"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.72.0",

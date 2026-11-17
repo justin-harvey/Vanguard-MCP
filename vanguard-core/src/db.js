@@ -14,13 +14,16 @@
  */
 
 import { DatabaseSync } from 'node:sqlite';
-import { readFileSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { dataPath, ensureParent } from './paths.js';
 
 const here = dirname(fileURLToPath(import.meta.url));
+// The schema is a shipped, read-only source; the seeded database is runtime
+// output and lives in the writable per-user data directory (see paths.js).
 export const SCHEMA_PATH = join(here, '..', 'db', 'schema.sql');
-export const DEFAULT_DB_PATH = join(here, '..', 'db', 'warehouse.db');
+export const DEFAULT_DB_PATH = dataPath('warehouse.db');
 
 /**
  * Open the warehouse for reading. Writes are impossible on this handle.
@@ -146,7 +149,7 @@ function pickWeighted(rand, weights) {
  * @returns {{ customers: number, movements: number, spendRows: number }}
  */
 export function seed(path = DEFAULT_DB_PATH) {
-    const db = new DatabaseSync(path);
+    const db = new DatabaseSync(ensureParent(path));
     db.exec('PRAGMA foreign_keys = ON');
 
     for (const table of ['acquisition_spend', 'mrr_movements', 'subscriptions', 'customers']) {
@@ -261,4 +264,19 @@ export function seed(path = DEFAULT_DB_PATH) {
 
     db.close();
     return { customers: customerId, movements, spendRows };
+}
+
+/**
+ * Seed the demo warehouse on first use. A fresh install has no database (the
+ * seeded `.db` is runtime output, never shipped), so the read-only query path
+ * would fail with "unable to open database file". This builds it once, the
+ * first time it is needed, and is a no-op afterwards.
+ *
+ * @param {string} [path]
+ * @returns {boolean} true if it seeded, false if the database already existed
+ */
+export function ensureSeeded(path = DEFAULT_DB_PATH) {
+    if (existsSync(path)) return false;
+    seed(path);
+    return true;
 }
