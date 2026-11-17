@@ -14,7 +14,7 @@
  * same row.
  */
 
-import { createHash } from 'node:crypto';
+import { sha256hex } from './platform/hash.js';
 
 /**
  * Canonically serialise a value: object keys sorted, arrays in order.
@@ -42,7 +42,7 @@ export function canonicalize(value) {
  * @returns {string}
  */
 export function fingerprint(value) {
-    return createHash('sha256').update(canonicalize(value)).digest('hex');
+    return sha256hex(canonicalize(value));
 }
 
 /**

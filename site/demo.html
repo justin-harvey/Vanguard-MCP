@@ -57,6 +57,11 @@
       #verify-wrap { margin-top: 20px; display: flex; align-items: center; gap: 14px; flex-wrap: wrap; }
       #verify-out { display: flex; align-items: center; gap: 10px; font-size: 13px; }
 
+      pre.sql { background: var(--blue-900); color: var(--cream-50); border-radius: 12px; padding: 14px 16px; font-family: var(--font-code); font-size: 12.5px; line-height: 1.5; overflow-x: auto; white-space: pre-wrap; word-break: break-word; margin: 0; }
+      #trysql-input { font: 500 13.5px var(--font-code); color: var(--foreground); background: var(--control-bg); border: 1px solid var(--border-strong); border-radius: 10px; padding: 11px 12px; width: 100%; resize: vertical; }
+      #trysql-out { margin-top: 14px; display: grid; gap: 10px; }
+      #trysql-out .verdict { justify-self: start; }
+
       @media (max-width: 760px) { .hero { padding: 44px 0 20px; } }
     </style>
   </head>
@@ -83,15 +88,15 @@
         <h1>Run the Auditor yourself.</h1>
         <p class="lede">
           Pick a question about the Town of Sampleton's books. A named query runs through the
-          guarded, read-only pipeline on an isolated server; you get the rows, the automatic
-          integrity checks, any findings, and a reproducible, tamper-evident provenance chain.
-          Never an unverified number.
+          guarded, read-only pipeline <b>entirely in your browser</b>; you get the rows, the
+          automatic integrity checks, any findings, and a reproducible, tamper-evident provenance
+          chain. Never an unverified number.
         </p>
         <div class="disc" style="margin-top:20px">
-          <b>Synthetic data.</b> Everything here is fictional demo data for the Town of Sampleton,
-          served from infrastructure isolated from any real system. <b>This is not a professional
-          audit opinion</b> and produces no certification; it demonstrates the verification
-          mechanism only.
+          <b>Runs in your browser.</b> The engine, a WebAssembly SQLite database and the audit
+          chain all run on this page; nothing is sent to Civic-Chain or anyone else. The data is
+          fictional demo data for the Town of Sampleton. <b>This is not a professional audit
+          opinion</b> and produces no certification; it demonstrates the verification mechanism only.
         </div>
       </section>
 
@@ -115,8 +120,31 @@
 
           <div id="verify-wrap" hidden>
             <button class="btn ghost" id="verify-btn">Verify the audit chain →</button>
+            <button class="btn ghost" id="tamper-btn">Tamper with an entry</button>
+            <button class="btn ghost" id="reset-btn">Reset chain</button>
             <div id="verify-out"></div>
+            <p class="muted" style="flex-basis:100%">This chain lives in your browser. Run a few queries, verify it, then tamper with an entry and verify again to watch the break surface.</p>
           </div>
+        </div>
+      </section>
+
+      <section class="section">
+        <h2>Try your own SQL</h2>
+        <div class="disc" style="margin-bottom:14px">
+          The same guard that protects a real ledger runs here. Only <code>SELECT</code>, only the
+          allow-listed tables and columns, named explicitly (no <code>SELECT *</code>). Try a write,
+          the <code>payroll</code> table, or <code>vendors.tax_id</code> and watch it get refused.
+          Nothing here is audited; it is the guard, exposed.
+        </div>
+        <div class="builder">
+          <label class="field">
+            <span>SQL</span>
+            <textarea id="trysql-input" rows="3" placeholder="SELECT grant_id, award_cents FROM grants ORDER BY award_cents DESC"></textarea>
+          </label>
+          <div class="run-row">
+            <button class="btn ghost" id="trysql-btn">Run through the guard →</button>
+          </div>
+          <div id="trysql-out"></div>
         </div>
       </section>
 
@@ -142,10 +170,11 @@
       </div>
     </footer>
 
-    <!-- Set the proxy URL here or via window.CIVIC_PROXY_URL before this loads.
-         Points at the Supabase edge proxy (S7 hosted demo); the engine URL and
-         its bearer token live only server-side, never in this page. -->
-    <script>window.CIVIC_PROXY_URL = window.CIVIC_PROXY_URL || 'https://bmexhpraiixqymqwxfuo.functions.supabase.co/query';</script>
-    <script src="assets/demo.js"></script>
+    <!-- The entire engine runs in your browser. sql-wasm.js is the SQLite
+         WebAssembly loader (self-hosted, no CDN); demo-engine.js is the bundled
+         engine and page controller, built by `npm run build:demo`. No proxy, no
+         token, no request leaves the page after these assets load. -->
+    <script src="assets/sql-wasm.js"></script>
+    <script type="module" src="assets/demo-engine.js"></script>
   </body>
 </html>

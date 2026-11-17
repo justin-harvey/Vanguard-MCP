@@ -18,6 +18,7 @@
 
 import { controlCatalog, getControl } from './controls.js';
 import { verify, DEFAULT_LOG_PATH } from './audit.js';
+import { provenanceOf } from './audit-core.js';
 import { loadSigner } from './signing.js';
 import { warehouseDescriptors, warehouseSchema, getWarehouse } from './warehouses.js';
 import { guard } from './guard.js';
@@ -72,17 +73,8 @@ function pickCallerArgs(name, allowed, provided = {}) {
     return safe;
 }
 
-/** Reduce an audit entry to the provenance a caller should carry. */
-function provenanceOf(entry) {
-    return {
-        resultHash: entry.resultHash,
-        auditSeq: entry.seq,
-        auditHash: entry.hash,
-        signature: entry.signature ?? null,
-        signingKeyId: entry.signingKeyId ?? null,
-        complianceTags: entry.complianceTags ?? [],
-    };
-}
+// provenanceOf (the shape run_canonical returns) lives in audit-core.js so the
+// browser demo returns provenance identically; imported above.
 
 /** Canonical names of every custom warehouse's named queries, e.g. "municipal/grant-status". */
 function namedQueryNames() {

@@ -5,33 +5,50 @@ The project follows [Semantic Versioning](https://semver.org/): MAJOR.MINOR.PATC
 
 ## [Unreleased]
 
-### Added — hosted demo (S7)
-- A public, click-through demo of the Auditor running on isolated infrastructure,
-  serving **synthetic municipal data only** (the fictional Town of Sampleton).
-  - **Engine host:** `Dockerfile`, `.dockerignore`, `fly.toml` at the repo root
-    run `cc-auditor serve` on Fly.io. The image bakes the synthetic warehouses at
-    build time (municipal from its SQL seed; saas/enron/markets via the CLI
-    seeders) and keeps the tamper-evident audit chain on a `/data` volume.
-    `ENGINE_SERVICE_TOKEN` is a Fly secret, never baked in.
-  - **Front-end:** `site/demo.html` + `site/assets/demo.js`, a live municipal
-    query builder (grant-status, spending-by-vendor, budget-variance) that renders
-    rows, automatic integrity checks, findings, and the provenance chain, with a
-    "verify the audit chain" action. Falls back to a labelled sample when no proxy
-    is wired. Every surface carries a synthetic-data + "not a professional audit
-    opinion" notice. Linked from the home page and `/demo`.
-  - **Runbook:** `deploy/README.md` (Fly engine → Supabase proxy → Netlify site,
-    plus the isolation and network-tab checks).
+### Added — in-browser demo (S7B)
+- The public demo now runs the engine **entirely in the visitor's browser**:
+  no server, no proxy, no endpoint. The page reads the synthetic Town of
+  Sampleton ledger, runs the three named queries with their checks, the guard,
+  result hashing and the audit chain locally, and sends nothing anywhere.
+  - **Shared engine, two leaves.** New `src/browser/engine.js` assembles the
+    *same* engine source the Node package runs (`guard.js`, the new pure
+    `named-core.js`, `lineage.js`, `audit-core.js`); only SQLite (WASM via
+    sql.js, in-memory, `PRAGMA query_only`) and hashing (the new dependency-free
+    `src/platform/sha256.js`) differ from Node.
+  - **Parity gate.** `test/browser-parity.test.js` runs every demo case through
+    both engines and asserts identical rows, checks, findings, executed SQL and
+    **result hash**; `test/sha256.test.js` pins the pure SHA-256 against
+    `node:crypto`.
+  - **Build.** `npm run build:demo` (esbuild) emits `site/assets/demo-engine.js`
+    plus the self-hosted `sql-wasm.{js,wasm}`, inlining the seed SQL and
+    allow-list from the skill assets (one source of truth). ~1.0 MB transferred.
+    Built files are committed, so Netlify stays build-free.
+  - **Page.** `site/demo.html` runs the queries locally, shows the executed SQL,
+    and adds *Reset chain* and *Tamper with an entry* controls plus a guarded
+    "try your own SQL" box. A labelled sample remains for when WASM cannot load.
+  - **Locked down.** `netlify.toml` serves a Content-Security-Policy
+    (`script-src 'self' 'wasm-unsafe-eval'; connect-src 'self'`), verified with
+    no violations by `scripts/verify-demo.mjs` (headless Chromium: engine loads,
+    chain verifies/tampers/resets, guard refuses out-of-bounds SQL, zero
+    network requests after load).
 
-### Changed — hosted surface rebrand (carries C2 into the web layer)
-- Replaced the buyer-visible "Vanguard" name across `site/` and `netlify.toml`
-  with **Civic-Chain Grant & Budget Auditor** / **Civic-Chain Auditor**.
-- Reworked the secure proxy (`supabase/functions/query/index.ts`) for the
-  municipal demo: `run_canonical` now forwards a whitelist of named-query params
-  (`grant_id`, `status`, `fiscal_year`, `dept_id`, plus `ticker`) instead of only
-  `ticker`; `verify_audit` and free-text default to the `municipal` warehouse
-  (a caller may still name another known built-in's chain, never a path).
-- Standardised the front-end proxy variables to `CIVIC_PROXY_URL` /
-  `CIVIC_AUTH_TOKEN`.
+### Changed — engine seam (no behaviour change in Node)
+- Split three Node-bound modules so their logic is pure and their I/O injected,
+  with all existing tests passing unchanged: hashing moved behind
+  `src/platform/hash.js` (Node `node:crypto`, browser pure SHA-256); the chain
+  logic moved to pure `src/audit-core.js` (`appendEntry`/`verifyEntries`), with
+  `audit.js` the file-backed, signing wrapper; the orchestration moved to pure
+  `src/named-core.js`, with `named-run.js` the Node wrapper; `parseAllowlist`
+  moved to pure `src/allowlist.js`. `provenanceOf` is now one shared definition.
+- Rebranded the demo surface to **Civic-Chain Grant & Budget Auditor** across
+  `site/` and `netlify.toml` (carries C2 into the web layer).
+
+### Removed — the S7 hosted path
+- Deleted `Dockerfile`, `.dockerignore`, `fly.toml` and `supabase/` (the Fly
+  engine and Supabase edge proxy). `cc-auditor serve` stays for enterprise use
+  and still refuses to start without `ENGINE_SERVICE_TOKEN`. The live Fly app,
+  Supabase function and its token are torn down post-deploy per the checklist in
+  `deploy/README.md`.
 
 ## [1.0.0] — 2026-11-14
 

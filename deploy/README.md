@@ -1,104 +1,80 @@
-# S7 — Hosted demo runbook
+# Deploy runbook — in-browser demo (S7B)
 
-A public, click-through demo of the **Civic-Chain Grant & Budget Auditor** running
-on a server, so a prospect can try it without installing anything. Two moving
-parts plus the static site:
+The public demo of the **Civic-Chain Grant & Budget Auditor** runs **entirely in
+the visitor's browser**. There is no engine host and no proxy: the static site
+is the only moving part.
 
 ```
- browser ──▶ Supabase Edge Function (proxy) ──▶ Fly.io engine (cc-auditor serve)
- (site/)     role gate · arg sanitiser            synthetic municipal warehouse
-             engine URL + token live here only     bearer-token required
+ browser ──▶ loads site/assets/demo-engine.js + sql-wasm.{js,wasm}
+             │
+             └─▶ runs the real engine locally: guard · named queries · WASM
+                 SQLite (synthetic Town of Sampleton ledger) · lineage ·
+                 tamper-evident audit chain (in localStorage). Nothing is sent
+                 anywhere after the page loads.
 ```
 
-**Isolation is the whole point.** The engine host and the Supabase project must
-live in accounts/organizations that hold **nothing** from any Civic-Chain
-production system. The demo serves **synthetic data only** (the fictional Town of
-Sampleton). Never co-locate it with anything real.
+This replaces the S7 hosted path (Fly.io engine + Supabase Edge proxy), which
+has been removed from the repo. See the teardown checklist at the end for the
+live cloud resources that still need to be destroyed once this is deployed.
 
 ---
 
-## 1. Engine on Fly.io
+## 1. Build the bundle
 
-Files at the repo root: `Dockerfile`, `.dockerignore`, `fly.toml`. The image
-bakes the synthetic warehouses at build time (municipal from its SQL seed; saas/
-enron/markets via the CLI seeders) and runs `cc-auditor serve` on port 8787.
+From `vanguard-core/` (Node ≥ 22):
 
 ```sh
-# in a Fly org isolated from Civic-Chain prod
-fly launch --no-deploy --copy-config --name civic-chain-auditor-demo
-
-# the engine refuses to start without this; the browser never sees it
-fly secrets set ENGINE_SERVICE_TOKEN="$(openssl rand -hex 32)"
-
-# persist the demo's tamper-evident audit chain across deploys
-fly volumes create auditor_data --size 1 --region bos   # match primary_region
-
-fly deploy
+npm install           # dev deps: esbuild, sql.js
+npm run build:demo
 ```
 
-Verify:
+This writes, under `site/assets/`:
+
+- `demo-engine.js` — the engine + page controller, one ES module, with the seed
+  SQL and the allow-list inlined from `skills/civic-chain-auditor/assets/`
+- `sql-wasm.js`, `sql-wasm.wasm` — the self-hosted SQLite WebAssembly build
+
+The built files are **committed**, so Netlify needs no build step. Re-run after
+any change to the engine or the skill assets, and commit the result. The script
+prints the transferred size (budget: ~1.5 MB; currently ~1.0 MB).
+
+## 2. Front-end on Netlify
+
+`site/` is published as-is (no build step; see root `netlify.toml`). That file
+also sets the Content-Security-Policy that locks the page down:
+`script-src 'self' 'wasm-unsafe-eval'; connect-src 'self'` — the page cannot
+phone home, which is the privacy claim enforced in the server response, not just
+asserted in copy. `demo.html` loads `sql-wasm.js` then `demo-engine.js`.
+
+## 3. End-to-end check (as the public sees it)
+
+Either open the deployed site, or locally from `vanguard-core/`:
 
 ```sh
-curl https://civic-chain-auditor-demo.fly.dev/health
-# → {"ok":true,"name":"civic-chain-auditor","version":"1.0.0"}
+node scripts/verify-demo.mjs   # headless Chromium; needs a local playwright
 ```
 
-The `/tools`, `/tools/:name`, `/resources` routes all require
-`Authorization: Bearer <ENGINE_SERVICE_TOKEN>` — only the proxy has it.
+It asserts: the engine loads, a query returns a real 64-hex result hash, the
+audit chain verifies `INTACT`, tampering is caught (`BROKEN`), reset clears it,
+the guard refuses `payroll` / `vendors.tax_id`, there are **zero network
+requests after load**, and there are no CSP violations.
 
-## 2. Proxy on Supabase
-
-`supabase/functions/query/index.ts` (Deno). It verifies the caller's role, gates
-which tool the role may call, sanitises arguments, and forwards to the engine.
-Anon callers are the public `standard` tier (list_controls, run_control,
-run_canonical, verify_audit); the credentialed `execute_financial_query` tier is
-`auditor`-only and off for the public demo.
-
-```sh
-supabase link --project-ref <isolated-project-ref>
-supabase secrets set \
-  MCP_ENGINE_URL="https://civic-chain-auditor-demo.fly.dev" \
-  ENGINE_SERVICE_TOKEN="<the same token from step 1>" \
-  ALLOWED_ORIGIN="https://<the-netlify-site>"
-supabase functions deploy query
-```
-
-The proxy defaults `verify_audit` and free-text to the `municipal` warehouse; a
-caller may name another known built-in (`enron`, `saas`, `markets`) to verify its
-chain, but never a file path.
-
-## 3. Front-end on Netlify
-
-`site/` is published as-is (no build step; see root `netlify.toml`). Point the
-demo page at the proxy by setting the edge-function URL once:
-
-- Edit `site/assets/demo.js` → `PROXY_URL`, **or**
-- set `window.CIVIC_PROXY_URL` before the script loads (e.g. a Netlify snippet).
-
-`site/demo.html` is the live municipal demo; `index.html` links to it. Every
-demo surface carries the synthetic-data + "not a professional audit opinion"
-notice.
-
-## 4. End-to-end check (as the public sees it)
-
-1. Open the Netlify site, go to **Try the live demo**.
-2. Run a grant-status query (e.g. grant `G-402`). Confirm rows, the integrity
-   checks, and the finding flag render, and that the result + audit hashes show.
-3. Click **Verify the audit chain** → `INTACT`.
-4. In the browser Network tab, confirm requests go **only** to the Supabase
-   function URL and that **no `ENGINE_SERVICE_TOKEN` and no Fly URL** appear in
-   any client payload.
+Manually, open **Run the live demo** and confirm the same in the browser Network
+tab: assets load, then nothing.
 
 ---
 
-## Notes / follow-ups
+## Decommission the old hosted path
 
-- **Cost/safety tier.** The public demo stays on no-credential tools
-  (canonical/named queries, controls, audit verify). `execute_financial_query`
-  needs an Anthropic key and bills per call; leave it gated behind the `auditor`
-  role (a signed-in user) if ever enabled.
-- **Shared audit log growth.** Every anon query appends to
-  `/data/municipal-audit.jsonl`. Fine for a demo; add rotation (or make it
-  ephemeral by dropping the volume) if it is abused.
-- **Rename.** When the GitHub repo rename `Vanguard-MCP → Civic-Chain-Auditor`
-  happens, move the Netlify site name off `vanguard-mcp.netlify.app` too.
+The repo files (`Dockerfile`, `.dockerignore`, `fly.toml`, `supabase/`) are
+already removed. The live cloud resources must be destroyed **after** this demo
+is deployed and verified:
+
+- [ ] Destroy the Fly app `civic-chain-auditor-demo` and its `auditor_data` volume
+- [ ] Delete the Supabase `query` function and its secrets (`MCP_ENGINE_URL`,
+      `ENGINE_SERVICE_TOKEN`, `ALLOWED_ORIGIN`); revoke the engine token
+- [ ] Close or pause the isolated Fly / Supabase accounts if nothing else uses them
+
+`cc-auditor serve` (the HTTP API) stays in the engine for enterprise use; it
+already refuses to start without `ENGINE_SERVICE_TOKEN` (verified in
+`bin/vanguard.js`), so there is no open unauthenticated port to leave behind.

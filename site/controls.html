@@ -336,8 +336,10 @@
       };
       const ALL = DATA.concat([EXCEPTION_EXAMPLE]);
 
-      // Set window.CIVIC_PROXY_URL to the deployed Supabase function to run live
-      // (see supabase/README.md). Unset → the panel uses the embedded attestations.
+      // This SOC 2 panel shows embedded, pre-computed attestations. The hosted
+      // engine/proxy that once backed "re-run live" was retired with S7B (the
+      // municipal demo now runs in-browser instead); the controls panel stays
+      // Node-only, so live re-runs are off unless a CIVIC_PROXY_URL is wired.
       const PROXY_URL = (typeof window !== 'undefined' && window.CIVIC_PROXY_URL) || '';
       const AUTH = (typeof window !== 'undefined' && window.CIVIC_AUTH_TOKEN) || '';
 
@@ -408,7 +410,7 @@
 
       async function rerunById(id) {
         if (!PROXY_URL) {
-          alert('Live runs go through the deployed proxy. Set window.CIVIC_PROXY_URL to the Supabase function URL; see supabase/README.md.');
+          alert('This panel shows embedded attestations. Live re-runs over a hosted engine were retired with S7B; run the control locally with the cc-auditor MCP server instead.');
           return;
         }
         const headers = { 'content-type': 'application/json' };

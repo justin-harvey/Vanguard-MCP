@@ -1,5 +1,21 @@
 # Civic-Chain Grant & Budget Auditor, a Civic-Chain product. The deployable web front-end lives in site/.
 # Works whether or not the Netlify site sets a base directory. Redirects live in site/_redirects.
+#
+# The demo runs entirely in the browser (see site/assets/demo-engine.js, built
+# by `npm run build:demo` in vanguard-core). The built files are committed, so
+# there is still no build step here.
 [build]
   command = "echo 'No build step, pre-built static site.'"
   publish = "site"
+
+# Lock the site down. The demo needs WebAssembly (SQLite); 'wasm-unsafe-eval'
+# permits WASM compilation without permitting eval of JavaScript. Everything
+# loads from 'self' (engine, WASM, styles), and connect-src 'self' means the
+# page cannot phone home, which is the privacy claim, enforced. Fonts come from
+# Google Fonts, the one third-party origin.
+[[headers]]
+  for = "/*"
+  [headers.values]
+    Content-Security-Policy = "default-src 'self'; script-src 'self' 'wasm-unsafe-eval'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data:; connect-src 'self'; object-src 'none'; base-uri 'none'; frame-ancestors 'none'"
+    X-Content-Type-Options = "nosniff"
+    Referrer-Policy = "strict-origin-when-cross-origin"

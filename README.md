@@ -73,29 +73,33 @@ One engine, two front doors. The pipeline at the top of this README (guard, exec
 
 The engine speaks two protocols from the one `vanguard-core` codebase:
 
-- **HTTP** (`vanguard mcp` → `serve`), a token-guarded JSON API, used by the hosted web demo below.
-- **stdio MCP**, the Model Context Protocol over a pipe, used by the agent skill below.
+- **stdio MCP**, the Model Context Protocol over a pipe, used by the agent skill below — the way a buyer runs the engine.
+- **HTTP** (`cc-auditor serve`), a token-guarded JSON API, kept for enterprise server-to-server use. It refuses to start without `ENGINE_SERVICE_TOKEN`.
 
-### The hosted demo: browser → proxy → engine
+The public web demo uses neither: it runs the engine **in the browser**.
 
-The public demo at **https://vanguard-mcp.netlify.app/demo.html** is three tiers, deliberately split so that no secret and no direct engine reach ever ships to the browser. The data serves is the synthetic Town of Sampleton municipal warehouse, on infrastructure isolated from any Civic-Chain production system; that isolation is the trust story.
+### The browser demo: the engine runs on the visitor's page
+
+The public demo at **https://vanguard-mcp.netlify.app/demo.html** reads a synthetic ledger (the fictional Town of Sampleton) and runs three named queries, their checks, the guard, result hashing and the audit chain **entirely in the visitor's browser**. There is no server, no proxy and no endpoint to attack: the privacy story is literally "this page sends nothing anywhere," enforced by a `connect-src 'self'` Content-Security-Policy.
 
 ```
- browser (Netlify static)          Supabase Edge Function            Fly.io engine
- site/demo.html + demo.js   ──▶     supabase/functions/query   ──▶    cc-auditor serve
- knows only the proxy URL           role gate · arg sanitiser         synthetic municipal warehouse
-                                     engine URL + token live here      bearer token required · audit chain on /data
+ browser (Netlify static site)
+ site/demo.html
+   ├─ sql-wasm.js + sql-wasm.wasm   WebAssembly SQLite (in-memory, read-only)
+   └─ demo-engine.js                the real engine, bundled from vanguard-core:
+                                    guard · named queries · lineage · audit chain
+                                    audit chain persists in localStorage, per visitor
 ```
 
 Step by step, what happens when a visitor runs a grant-status query:
 
-1. **Netlify** serves `site/` as static files. `demo.html` sets `window.CIVIC_PROXY_URL` to the edge-function URL and nothing else; the Fly engine URL and its bearer token are never in the page (verifiably: the served HTML contains zero `fly.dev` and zero token references).
-2. **The browser** POSTs a small `{ tool, args }` envelope to the Supabase function, for example `{ "tool": "run_canonical", "args": { "name": "municipal/grant-status", "args": { "grant_id": "G-402" } } }`. It sends no credential; a public visitor is anonymous.
-3. **The Supabase edge proxy** (`query/index.ts`, Deno) does four things and nothing else: it reads the caller's role from the JWT (an anonymous caller is the public `standard` tier), gates which tool that role may call (`standard` gets the credential-free reads `list_controls` / `run_control` / `run_canonical` / `verify_audit`; the model-backed `execute_financial_query` is `auditor`-only and returns **403** to the public), sanitises the arguments against a per-tool whitelist (so a caller cannot redirect a query at an arbitrary database or audit-log path), and forwards the cleaned call to the engine. It attaches the `ENGINE_SERVICE_TOKEN` as a server-side bearer here, where the browser cannot see it. CORS is locked to the Netlify origin.
-4. **The Fly engine** (`cc-auditor serve`) refuses any request without that bearer token. For an accepted call it runs the full pipeline against the baked-in municipal warehouse: guard the SQL, execute read-only, ground every figure, capture lineage, and append the result to the hash-chained audit log on the mounted `/data` volume (so the chain survives restarts and deploys). The machine scales to zero when idle.
-5. **The response** flows back out through the proxy unchanged: the rows, the `integrity` verdict, any `findings`, and the `provenance` block (result hash, audit sequence, entry hash). `verify_audit` recomputes the chain and reports `INTACT` or the first broken index.
+1. **The page loads** `sql-wasm.js`/`sql-wasm.wasm` and `demo-engine.js` (an ES module built by `npm run build:demo`), all self-hosted from `assets/`. After that, the Network tab stays silent: nothing else is fetched for the rest of the session.
+2. **A WASM SQLite database** is built in memory from the inlined seed SQL, then switched to `PRAGMA query_only = ON` — the browser equivalent of the Node engine's read-only file handle.
+3. **The query runs through the same engine source a buyer runs.** `demo-engine.js` bundles the actual `guard.js`, `named-core.js`, `lineage.js` and `audit-core.js`; only the leaves differ — SQLite is WASM instead of `node:sqlite`, and hashing is a dependency-free pure-JS SHA-256 instead of `node:crypto`. A parity test (`test/browser-parity.test.js`) pins that both produce **identical result hashes**.
+4. **The result is appended to a hash-chained audit log in `localStorage`** — one chain per visitor. *Verify the audit chain* recomputes it and reports `INTACT`; a *Tamper with an entry* button lets the visitor corrupt an entry and watch the next verify report the broken index. That demonstration is only possible because the chain is local.
+5. **The response shape matches the MCP `run_canonical` tool exactly** (rows, `integrity`, `findings`, `checks`, `provenance`), via a single shared `provenanceOf`, so the demo cannot drift from the tool a buyer calls.
 
-The trust boundary is step 3: the engine URL and bearer token exist only as a Fly secret and a matching Supabase secret, never in client code or any response payload. Deploy details and the exact runbook are in [`deploy/README.md`](deploy/README.md).
+Because the engine is bundled, it is downloadable from the page. That is accepted: the product is source-available by decision, and the bundle carries the licence (see [`THIRD-PARTY-NOTICES.md`](THIRD-PARTY-NOTICES.md)). Build and deploy details are in [`deploy/README.md`](deploy/README.md).
 
 ### The agent skill: MCP host → MCP server → engine
 
@@ -114,7 +118,7 @@ Step by step:
 3. **The MCP server runs the same pipeline** the HTTP path does: guard, read-only execute, grounding, lineage, hash-chained audit. A malformed or out-of-policy request is refused by the engine, not by the skill; the refusal is the system working.
 4. **The host presents the result in three parts** and does no arithmetic of its own: the grounded answer (figures exactly as returned), the provenance (executed SQL, tables and columns, row count), and the audit trail (result hash, audit sequence and entry hash, each check's verdict). For a named query it reads `integrity` before anything else: an `integrity: "flag"` result must not be presented as fact, and each `finding` is an audit observation about the ledger, not an error.
 
-The engine is the same in both paths, so an answer obtained through the hosted demo and the same answer obtained through the agent skill carry the same result hash and land in the same kind of tamper-evident chain. The hosted demo is the click-through proof; the skill is how an operator wires the Auditor into their own agent against their own books. Full tool reference, routing rules, and worked transcripts are in [`skills/civic-chain-auditor/SKILL.md`](skills/civic-chain-auditor/SKILL.md) and its `references/`.
+The engine is the same in both paths, so an answer obtained through the browser demo and the same answer obtained through the agent skill carry the same result hash and land in the same kind of tamper-evident chain — a parity test asserts it. The browser demo is the click-through proof; the skill is how an operator wires the Auditor into their own agent against their own books. Full tool reference, routing rules, and worked transcripts are in [`skills/civic-chain-auditor/SKILL.md`](skills/civic-chain-auditor/SKILL.md) and its `references/`.
 
 ## The reporting-gap problem
 

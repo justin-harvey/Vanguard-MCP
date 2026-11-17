@@ -13,6 +13,7 @@
     "ask": "node bin/vanguard.js ask",
     "audit": "node bin/vanguard.js audit",
     "mcp": "node bin/vanguard.js mcp",
+    "build:demo": "node scripts/build-demo.js",
     "test": "node --test"
   },
   "dependencies": {
@@ -20,5 +21,9 @@
     "@modelcontextprotocol/sdk": "^1.12.0",
     "node-sql-parser": "^5.3.0",
     "zod": "^4.4.3"
+  },
+  "devDependencies": {
+    "esbuild": "^0.24.2",
+    "sql.js": "^1.16.0"
   }
 }
