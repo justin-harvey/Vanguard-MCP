@@ -34,6 +34,7 @@ import { DatabaseSync } from 'node:sqlite';
 import { createHash } from 'node:crypto';
 import { readFileSync, writeFileSync, rmSync, renameSync, existsSync } from 'node:fs';
 import { MUNICIPAL_ALLOWLIST_PATH, ensureParent } from './paths.js';
+import { CANONICAL_SCHEMA_VERSION, CANONICAL_SCHEMA_DDL } from './schema.js';
 
 export class ImportError extends Error {
     constructor(message) {
@@ -42,85 +43,10 @@ export class ImportError extends Error {
     }
 }
 
-/** The schema this importer targets. S9 will formalise and sign this version. */
-export const CANONICAL_SCHEMA_VERSION = 'municipal-v1';
-
-// ── canonical schema v1 ─────────────────────────────────────────────────────
-//
-// The same tables as the bundled municipal demo, minus its sample data. Kept
-// here as the one explicit definition of the import target so the importer does
-// not depend on parsing the demo's seed file. The gate test proves it stays
-// compatible with the allow-list by running all three named queries against it.
-const SCHEMA_DDL = `
-PRAGMA foreign_keys = ON;
-
-CREATE TABLE funds (
-  fund_id   TEXT PRIMARY KEY,
-  fund_name TEXT NOT NULL,
-  fund_type TEXT NOT NULL
-);
-
-CREATE TABLE departments (
-  dept_id   TEXT PRIMARY KEY,
-  dept_name TEXT NOT NULL
-);
-
-CREATE TABLE vendors (
-  vendor_id            TEXT PRIMARY KEY,
-  vendor_name          TEXT NOT NULL,
-  category             TEXT NOT NULL,
-  tax_id               TEXT NOT NULL,
-  remit_account_last4  TEXT NOT NULL
-);
-
-CREATE TABLE grants (
-  grant_id              TEXT PRIMARY KEY,
-  grant_name            TEXT NOT NULL,
-  grantor               TEXT NOT NULL,
-  grantor_type          TEXT NOT NULL CHECK (grantor_type IN ('federal', 'state', 'county', 'private')),
-  fund_id               TEXT NOT NULL REFERENCES funds(fund_id),
-  dept_id               TEXT NOT NULL REFERENCES departments(dept_id),
-  award_cents           INTEGER NOT NULL,
-  match_required_cents  INTEGER NOT NULL,
-  period_start          TEXT NOT NULL,
-  period_end            TEXT NOT NULL,
-  status                TEXT NOT NULL CHECK (status IN ('active', 'closed'))
-);
-
-CREATE TABLE budget_lines (
-  line_id           TEXT PRIMARY KEY,
-  fiscal_year       INTEGER NOT NULL,
-  dept_id           TEXT NOT NULL REFERENCES departments(dept_id),
-  fund_id           TEXT NOT NULL REFERENCES funds(fund_id),
-  account_code      TEXT NOT NULL,
-  line_description  TEXT NOT NULL,
-  adopted_cents     INTEGER NOT NULL,
-  amended_cents     INTEGER NOT NULL
-);
-
-CREATE TABLE expenditures (
-  expenditure_id  TEXT PRIMARY KEY,
-  fiscal_year     INTEGER NOT NULL,
-  line_id         TEXT NOT NULL REFERENCES budget_lines(line_id),
-  grant_id        TEXT REFERENCES grants(grant_id),
-  vendor_id       TEXT NOT NULL REFERENCES vendors(vendor_id),
-  invoice_number  TEXT NOT NULL,
-  invoice_date    TEXT NOT NULL,
-  paid_date       TEXT,
-  amount_cents    INTEGER NOT NULL,
-  memo            TEXT NOT NULL,
-  status          TEXT NOT NULL CHECK (status IN ('paid', 'pending', 'void'))
-);
-
-CREATE TABLE grant_drawdowns (
-  drawdown_id   TEXT PRIMARY KEY,
-  grant_id      TEXT NOT NULL REFERENCES grants(grant_id),
-  request_date  TEXT NOT NULL,
-  received_date TEXT,
-  amount_cents  INTEGER NOT NULL,
-  status        TEXT NOT NULL CHECK (status IN ('received', 'pending'))
-);
-`;
+// The schema this importer targets lives in schema.js (one definition, shared
+// with the drift test); re-exported here so existing importers of this module
+// keep resolving CANONICAL_SCHEMA_VERSION from the same place.
+export { CANONICAL_SCHEMA_VERSION };
 
 // ── mapping target ──────────────────────────────────────────────────────────
 //
@@ -605,7 +531,7 @@ export function buildLedgerFromCsv({ csvPath, mapping, dbPath, allowlistPath = n
         rmSync(tmp, { force: true });
         const db = new DatabaseSync(tmp);
         try {
-            db.exec(SCHEMA_DDL);
+            db.exec(CANONICAL_SCHEMA_DDL);
             counts = loadCanonical(db, records);
         } finally {
             db.close();
