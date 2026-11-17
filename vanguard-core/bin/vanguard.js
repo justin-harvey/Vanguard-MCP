@@ -865,34 +865,51 @@ async function main() {
             const { ImportPathError } = await import('../src/paths.js');
             const { ImportError } = await import('../src/import-csv.js');
             // The first non-flag argument is the CSV file name within CIVIC_IMPORT_DIR.
-            const file = rest.find((a) => !a.startsWith('--'));
+            // The first non-flag argument is the expenditure CSV; --grants names
+            // an optional grant-register CSV applied onto the same ledger.
+            const grantsIdx = rest.indexOf('--grants');
+            const grantsFile = grantsIdx !== -1 ? rest[grantsIdx + 1] : null;
+            const flagValues = new Set(
+                ['--map', '--grants', '--grants-map']
+                    .map((f) => rest.indexOf(f))
+                    .filter((i) => i !== -1)
+                    .map((i) => rest[i + 1])
+                    .filter(Boolean),
+            );
+            const file = rest.find((a) => !a.startsWith('--') && !flagValues.has(a));
             if (!file) {
-                console.error('Usage: cc-auditor import <file.csv> [--map mapping.json]');
+                console.error('Usage: cc-auditor import <file.csv> [--map mapping.json] [--grants register.csv --grants-map grants.json]');
                 console.error('  Set CIVIC_IMPORT_DIR to the folder your CSV lives in. Without --map, prints a proposed mapping.');
+                console.error('  --grants adds a grant register (award amounts) so grant-status is meaningful.');
                 process.exitCode = 2;
                 return;
             }
-            const mapIdx = rest.indexOf('--map');
-            let mapping = null;
-            if (mapIdx !== -1) {
-                const mapFile = rest[mapIdx + 1];
+            // Read a mapping JSON, accepting a bare object or the saved {mapping:{…}} form.
+            const readMapping = (flag) => {
+                const i = rest.indexOf(flag);
+                if (i === -1) return undefined;
+                const mapFile = rest[i + 1];
                 if (!mapFile) {
-                    console.error('--map needs a path to a mapping JSON file (field -> column).');
+                    console.error(`${flag} needs a path to a mapping JSON file (field -> column).`);
                     process.exitCode = 2;
-                    return;
+                    return null;
                 }
                 try {
                     const doc = JSON.parse(readFileSync(mapFile, 'utf8'));
-                    // Accept either a bare mapping object or the saved {mapping:{…}} form.
-                    mapping = doc && typeof doc.mapping === 'object' ? doc.mapping : doc;
+                    return doc && typeof doc.mapping === 'object' ? doc.mapping : doc;
                 } catch (error) {
                     console.error(`Could not read mapping ${mapFile}: ${error.message}`);
                     process.exitCode = 2;
-                    return;
+                    return null;
                 }
-            }
+            };
+            const mapping = readMapping('--map') ?? null;
+            if (process.exitCode === 2) return;
+            const grantsMapping = readMapping('--grants-map');
+            if (process.exitCode === 2) return;
+            const grantRegister = grantsFile ? { file: grantsFile, mapping: grantsMapping ?? null } : null;
             try {
-                const result = await runImport({ file, mapping, signer: loadSigner() });
+                const result = await runImport({ file, mapping, grantRegister, signer: loadSigner() });
                 console.log(formatImport(result));
                 if (result.stage === 'imported' && result.gate && !result.gate.ok) process.exitCode = 1;
             } catch (error) {

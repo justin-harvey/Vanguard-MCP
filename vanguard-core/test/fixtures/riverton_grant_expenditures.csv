@@ -1,0 +1,11 @@
+Payment Date,Vendor Name,Department,Fund,Account Code,Account Description,Line Budget,Amount,Payment Status,Grant,Check Number
+04/15/2026,Northline Engineering Group,Public Works,Highway & Streets Fund,5410,Road resurfacing,"$160,000.00","$8,450.00",paid,G-402,CK-26000
+05/20/2026,Riverton Asphalt & Paving,Public Works,Highway & Streets Fund,5410,Road resurfacing,"$160,000.00","$21,780.00",paid,G-402,CK-26007
+06/10/2026,Tri-County Aggregates,Public Works,Highway & Streets Fund,5410,Road resurfacing,"$160,000.00","$6,325.00",paid,G-402,CK-26014
+06/24/2026,Riverton Asphalt & Paving,Public Works,Highway & Streets Fund,5410,Road resurfacing (duplicate invoice),"$160,000.00","$18,960.00",void,G-402,CK-26021
+07/22/2026,Riverton Asphalt & Paving,Public Works,Highway & Streets Fund,5410,Maple Drive resurfacing,"$70,000.00","$16,240.00",paid,G-402,CK-26035
+09/30/2026,Riverton Asphalt & Paving,Public Works,Highway & Streets Fund,5410,Cedar Lane resurfacing,"$70,000.00","$9,880.00",pending,G-402,CK-26063
+08/18/2025,Bluewater Civil Consultants,Public Works,Capital Projects Fund,5430,Hydrologic study,"$120,000.00","$12,500.00",paid,G-317,CK-26112
+11/07/2025,Bluewater Civil Consultants,Public Works,Capital Projects Fund,5430,Culvert replacement design,"$120,000.00","$18,750.00",paid,G-317,CK-26119
+12/05/2025,Granite Ridge Salt Supply,Public Works,General Fund,5420,Winter road salt,"$18,000.00","$6,840.00",paid,,CK-26084
+07/25/2025,Evergreen Landscape Services,Parks & Recreation,General Fund,5510,Parks maintenance,"$32,000.00","$4,200.00",paid,,CK-26252

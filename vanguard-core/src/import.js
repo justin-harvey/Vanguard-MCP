@@ -26,7 +26,9 @@ import {
     parseCsv,
     proposeMapping,
     buildLedgerFromCsv,
+    applyGrantRegisterToLedger,
     CANONICAL_SCHEMA_VERSION,
+    CANONICAL_GRANT_FIELDS,
     ImportError,
 } from './import-csv.js';
 import { loadRuleset } from './ruleset.js';
@@ -48,24 +50,49 @@ function readSample(text, n = 25) {
 /**
  * Run an import, or propose a mapping when none is confirmed yet.
  *
+ * A grant register can be imported alongside the expenditures (multi-file): the
+ * expenditure CSV builds the ledger, then the register fills the `grants` table
+ * with real award amounts so municipal/grant-status is meaningful. Each file
+ * records its own source-SHA-256 audit entry on the ledger's chain.
+ *
  * @param {object} params
  * @param {string} params.file            CSV file name within CIVIC_IMPORT_DIR
  * @param {Record<string,string>|null} [params.mapping] confirmed mapping; null = propose only
+ * @param {{ file: string, mapping: (Record<string,string>|null) }|null} [params.grantRegister]
+ *   an optional grant-register file to apply after the expenditure import
  * @param {NodeJS.ProcessEnv} [params.env]
  * @param {boolean} [params.runGate]      after import, run the three named queries (default true)
  * @param {object|null} [params.signer]   audit signer (CLI passes loadSigner())
  * @returns {Promise<object>} structured result; see formatImport for the shape consumed
  * @throws {ImportError|Error}
  */
-export async function runImport({ file, mapping = null, env = process.env, runGate = true, signer = null }) {
+export async function runImport({ file, mapping = null, grantRegister = null, env = process.env, runGate = true, signer = null }) {
     const csvPath = resolveImportPath(file, { env });
     const text = readFileSync(csvPath, 'utf8');
     const { headers, sample } = readSample(text);
 
-    // Propose-only: read and suggest, write nothing.
+    // Propose-only: read and suggest, write nothing. If a grant register was
+    // named without a confirmed mapping, propose its mapping too.
     if (!mapping) {
         const proposal = proposeMapping(headers, sample);
-        return { stage: 'propose', csvPath, file: basename(file), headers, ...proposal };
+        let grantProposal = null;
+        if (grantRegister?.file && !grantRegister.mapping) {
+            const gPath = resolveImportPath(grantRegister.file, { env });
+            const { headers: gHeaders, sample: gSample } = readSample(readFileSync(gPath, 'utf8'));
+            grantProposal = {
+                file: basename(grantRegister.file),
+                headers: gHeaders,
+                ...proposeMapping(gHeaders, gSample, CANONICAL_GRANT_FIELDS),
+            };
+        }
+        return { stage: 'propose', csvPath, file: basename(file), headers, ...proposal, grantRegister: grantProposal };
+    }
+
+    // A grant register confirmed alongside the expenditures is resolved (and
+    // path-confined) up front, so a bad register name fails before any write.
+    const registerPath = grantRegister?.file ? resolveImportPath(grantRegister.file, { env }) : null;
+    if (registerPath && !grantRegister.mapping) {
+        throw new ImportError(`a grant register (${basename(grantRegister.file)}) was given without a confirmed --grants-map; run without --map to see a proposed grant mapping.`);
     }
 
     // Confirmed: build the ledger into a fresh per-import subtree of the data
@@ -137,9 +164,46 @@ export async function runImport({ file, mapping = null, env = process.env, runGa
         canonicalSchemaVersion: CANONICAL_SCHEMA_VERSION,
         ruleset: rulesetMeta,
         audit: { seq: importEntry.seq, hash: importEntry.hash, signed: Boolean(importEntry.signature) },
+        grantRegister: null,
         gate: null,
         config: null,
     };
+
+    // Second import: apply the grant register onto the just-built ledger and
+    // record it as its own audit entry, so grant-status measures real awards.
+    if (registerPath) {
+        const applied = applyGrantRegisterToLedger({ csvPath: registerPath, mapping: grantRegister.mapping, dbPath: paths.dbPath });
+        const grantEntry = append(
+            {
+                kind: 'import-grants',
+                question: `Applied a grant register of ${applied.counts.grants} grant(s) from ${basename(grantRegister.file)} (${applied.counts.updated} updated, ${applied.counts.inserted} inserted)`,
+                sourceFile: basename(grantRegister.file),
+                sourceFileSha256: applied.sourceFileSha256,
+                byteLength: applied.byteLength,
+                rowCount: applied.counts.grants,
+                counts: applied.counts,
+                mapping: grantRegister.mapping,
+                canonicalSchemaVersion: CANONICAL_SCHEMA_VERSION,
+                ruleset: rulesetMeta,
+                rulesetHash: rulesetMeta.contentHash,
+                dataHash: applied.sourceFileSha256,
+                tables: ['grants'],
+                resultHash: applied.sourceFileSha256,
+                llmScope: 'none',
+                dataModified: true,
+                at: new Date().toISOString(),
+            },
+            { path: paths.logPath, complianceTags: ['import'], signer },
+        );
+        result.grantRegister = {
+            file: basename(grantRegister.file),
+            sourceFileSha256: applied.sourceFileSha256,
+            byteLength: applied.byteLength,
+            counts: applied.counts,
+            mapping: grantRegister.mapping,
+            audit: { seq: grantEntry.seq, hash: grantEntry.hash, signed: Boolean(grantEntry.signature) },
+        };
+    }
 
     if (runGate) result.gate = await runGateQueries(paths, signer, { rulesetPath: MUNICIPAL_RULESET_PATH, dataHash: built.sourceFileSha256 });
 
@@ -195,9 +259,9 @@ export async function runGateQueries(paths, signer = null, { rulesetPath = null,
 
 // ── formatting ──────────────────────────────────────────────────────────────
 
-/** Format a propose-stage result for the terminal. */
-function formatPropose(r) {
-    const lines = [`Proposed mapping for ${r.file} (nothing written yet)`, ''];
+/** Render one proposal block (fields, unused columns, the mapping to confirm). */
+function formatProposalBlock(r, { mapFlag }) {
+    const lines = [];
     const width = Math.max(...r.fields.map((f) => f.field.length));
     for (const f of r.fields) {
         const mark = f.header ? '→' : (f.required ? '✖' : '·');
@@ -208,12 +272,25 @@ function formatPropose(r) {
     if (r.unmappedHeaders.length) lines.push(`  Unused CSV columns: ${r.unmappedHeaders.join(', ')}`);
     if (r.missingRequired.length) {
         lines.push('');
-        lines.push(`  ✖ Required field(s) not mapped: ${r.missingRequired.join(', ')}. Supply a mapping with --map.`);
+        lines.push(`  ✖ Required field(s) not mapped: ${r.missingRequired.join(', ')}. Supply a mapping with ${mapFlag}.`);
     } else {
         const mapping = Object.fromEntries(r.fields.filter((f) => f.header).map((f) => [f.field, f.header]));
-        lines.push('  To import with this mapping, save it and pass it with --map:');
+        lines.push(`  To import with this mapping, save it and pass it with ${mapFlag}:`);
         lines.push('');
         lines.push(JSON.stringify(mapping, null, 2));
+    }
+    return lines;
+}
+
+/** Format a propose-stage result for the terminal. */
+function formatPropose(r) {
+    const lines = [`Proposed mapping for ${r.file} (nothing written yet)`, ''];
+    lines.push(...formatProposalBlock(r, { mapFlag: '--map' }));
+    if (r.grantRegister) {
+        lines.push('');
+        lines.push(`Proposed grant-register mapping for ${r.grantRegister.file} (nothing written yet)`);
+        lines.push('');
+        lines.push(...formatProposalBlock(r.grantRegister, { mapFlag: '--grants-map' }));
     }
     return lines.join('\n');
 }
@@ -233,6 +310,13 @@ function formatImported(r) {
         `  mapping saved  : ${r.paths.mappingPath}`,
         `  audit entry    : #${r.audit.seq} ${r.audit.hash.slice(0, 16)}… (${r.audit.signed ? 'signed' : 'unsigned'})`,
     ];
+    if (r.grantRegister) {
+        const g = r.grantRegister;
+        lines.push('');
+        lines.push(`  Grant register ${g.file}: ${g.counts.grants} grant(s) (${g.counts.updated} updated, ${g.counts.inserted} inserted)`);
+        lines.push(`    source SHA-256 : ${g.sourceFileSha256}`);
+        lines.push(`    audit entry    : #${g.audit.seq} ${g.audit.hash.slice(0, 16)}… (${g.audit.signed ? 'signed' : 'unsigned'})`);
+    }
     if (r.gate) {
         lines.push('');
         lines.push(`  Named-query gate: ${r.gate.ok ? 'clean integrity on all three' : 'INTEGRITY FLAGGED'}`);

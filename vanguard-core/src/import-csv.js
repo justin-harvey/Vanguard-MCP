@@ -100,6 +100,48 @@ export const CANONICAL_IMPORT_FIELDS = Object.freeze([
       description: 'Grant identifier when the row is grant-funded; derives the grants dimension.' },
 ]);
 
+// ── grant-register mapping target ─────────────────────────────────────────────
+//
+// An expenditure-only import derives the `grants` it sees referenced as award-0
+// placeholders (see loadCanonical), so `municipal/grant-status` has no award to
+// measure spending against. A second import of the buyer's grant register fills
+// those tables in: one row per grant award. It writes onto the *same* ledger the
+// expenditure import built (see applyGrantRegisterToLedger), so a grant an
+// expenditure already referenced is updated in place and the foreign key holds.
+// fund_id/dept_id are deliberately not mappable here: the dimension ids are
+// derived from the expenditure names, not the register's codes, so a placeholder
+// grant keeps its existing dimensions and a brand-new grant takes an existing
+// fund/dept — the same fallback the placeholder path uses.
+export const CANONICAL_GRANT_FIELDS = Object.freeze([
+    { field: 'grant_id', type: 'text', required: true,
+      synonyms: ['grant', 'grant id', 'grant number', 'grant no', 'award', 'award id', 'award number', 'cfda'],
+      description: 'The grant identifier, e.g. G-402; must match the grant_id expenditures are charged to.' },
+    { field: 'grant_name', type: 'text', required: true,
+      synonyms: ['grant name', 'name', 'program', 'program name', 'title', 'description'],
+      description: 'The grant or program name.' },
+    { field: 'grantor', type: 'text', required: true,
+      synonyms: ['grantor', 'funder', 'agency', 'awarding agency', 'source', 'funding source', 'sponsor'],
+      description: 'Who awarded the grant.' },
+    { field: 'grantor_type', type: 'grantor_type', required: true,
+      synonyms: ['grantor type', 'type', 'source type', 'level', 'government level', 'funder type'],
+      description: 'federal / state / county / private.' },
+    { field: 'award_amount', type: 'money', required: true,
+      synonyms: ['award', 'award amount', 'total award', 'grant amount', 'awarded', 'obligated', 'obligated amount'],
+      description: 'The total award; coerced to integer cents.' },
+    { field: 'match_required_amount', type: 'money', required: false,
+      synonyms: ['match', 'match required', 'required match', 'local match', 'cost share', 'match amount'],
+      description: 'Required local match, if any; coerced to cents (defaults to 0).' },
+    { field: 'period_start', type: 'date', required: true,
+      synonyms: ['period start', 'start', 'start date', 'award date', 'begin', 'begin date', 'from'],
+      description: 'Period of performance start.' },
+    { field: 'period_end', type: 'date', required: true,
+      synonyms: ['period end', 'end', 'end date', 'expiration', 'expires', 'expiry', 'to', 'through'],
+      description: 'Period of performance end.' },
+    { field: 'status', type: 'grant_status', required: false,
+      synonyms: ['status', 'grant status', 'state', 'award status'],
+      description: 'active / closed (defaults to active).' },
+]);
+
 const FIELD_BY_NAME = new Map(CANONICAL_IMPORT_FIELDS.map((f) => [f.field, f]));
 
 // ── CSV parsing (RFC 4180) ──────────────────────────────────────────────────
@@ -248,6 +290,35 @@ export function coerceStatus(raw) {
     return mapped;
 }
 
+const GRANTOR_TYPE_MAP = new Map([
+    ['federal', 'federal'], ['fed', 'federal'], ['us', 'federal'], ['national', 'federal'],
+    ['state', 'state'],
+    ['county', 'county'], ['regional', 'county'], ['local', 'county'],
+    ['private', 'private'], ['foundation', 'private'], ['nonprofit', 'private'], ['corporate', 'private'],
+]);
+
+/** Map a raw grantor type to the schema's CHECK set, or throw rather than guess. */
+export function coerceGrantorType(raw) {
+    const s = String(raw).trim().toLowerCase();
+    const mapped = GRANTOR_TYPE_MAP.get(s);
+    if (!mapped) throw new ImportError(`unrecognised grantor type: "${raw}" (expected federal, state, county or private)`);
+    return mapped;
+}
+
+const GRANT_STATUS_MAP = new Map([
+    ['active', 'active'], ['open', 'active'], ['ongoing', 'active'], ['current', 'active'],
+    ['closed', 'closed'], ['complete', 'closed'], ['completed', 'closed'], ['ended', 'closed'], ['expired', 'closed'],
+]);
+
+/** Map a raw grant status to active/closed, or throw. Empty defaults to active. */
+export function coerceGrantStatus(raw) {
+    const s = String(raw).trim().toLowerCase();
+    if (s === '') return 'active';
+    const mapped = GRANT_STATUS_MAP.get(s);
+    if (!mapped) throw new ImportError(`unrecognised grant status: "${raw}" (expected active or closed)`);
+    return mapped;
+}
+
 // ── mapping proposal ────────────────────────────────────────────────────────
 
 const norm = (s) => String(s).toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
@@ -272,9 +343,10 @@ function looksLike(type, samples) {
  *
  * @param {string[]} headers
  * @param {string[][]} [sampleRows] data rows (arrays aligned to headers)
+ * @param {object[]} [specs] the field specs to map onto (defaults to the expenditure fields)
  * @returns {{ mapping: Record<string,string>, fields: object[], unmappedHeaders: string[], missingRequired: string[] }}
  */
-export function proposeMapping(headers, sampleRows = []) {
+export function proposeMapping(headers, sampleRows = [], specs = CANONICAL_IMPORT_FIELDS) {
     const column = (name) => {
         const idx = headers.indexOf(name);
         return sampleRows.map((r) => r[idx]).filter((v) => v !== undefined);
@@ -284,7 +356,7 @@ export function proposeMapping(headers, sampleRows = []) {
     const mapping = {};
     const fields = [];
 
-    for (const spec of CANONICAL_IMPORT_FIELDS) {
+    for (const spec of specs) {
         const wants = new Set([norm(spec.field), ...spec.synonyms.map(norm)]);
         let chosen = null;
         // Exact synonym match first, then substring, skipping already-used headers.
@@ -314,7 +386,7 @@ export function proposeMapping(headers, sampleRows = []) {
     }
 
     const unmappedHeaders = headers.filter((h) => !used.has(h));
-    const missingRequired = CANONICAL_IMPORT_FIELDS.filter((f) => f.required && !mapping[f.field]).map((f) => f.field);
+    const missingRequired = specs.filter((f) => f.required && !mapping[f.field]).map((f) => f.field);
     return { mapping, fields, unmappedHeaders, missingRequired };
 }
 
@@ -327,20 +399,22 @@ export function proposeMapping(headers, sampleRows = []) {
  *
  * @param {Record<string,string>} mapping canonical field -> CSV header
  * @param {string[]} headers
+ * @param {object[]} [specs] the field specs to validate against (defaults to the expenditure fields)
  * @throws {ImportError}
  */
-export function validateMapping(mapping, headers) {
+export function validateMapping(mapping, headers, specs = CANONICAL_IMPORT_FIELDS) {
     if (!mapping || typeof mapping !== 'object' || Array.isArray(mapping)) {
         throw new ImportError('The mapping must be an object of canonical-field -> CSV-column.');
     }
+    const fieldByName = specs === CANONICAL_IMPORT_FIELDS ? FIELD_BY_NAME : new Map(specs.map((f) => [f.field, f]));
     const headerSet = new Set(headers);
     for (const [field, header] of Object.entries(mapping)) {
-        if (!FIELD_BY_NAME.has(field)) {
-            throw new ImportError(`Unknown canonical field "${field}". Known: ${[...FIELD_BY_NAME.keys()].join(', ')}.`);
+        if (!fieldByName.has(field)) {
+            throw new ImportError(`Unknown canonical field "${field}". Known: ${[...fieldByName.keys()].join(', ')}.`);
         }
         if (!headerSet.has(header)) throw new ImportError(`Mapping sends "${field}" to column "${header}", which is not in the CSV.`);
     }
-    const missing = CANONICAL_IMPORT_FIELDS.filter((f) => f.required && !mapping[f.field]).map((f) => f.field);
+    const missing = specs.filter((f) => f.required && !mapping[f.field]).map((f) => f.field);
     if (missing.length) throw new ImportError(`The mapping is missing required field(s): ${missing.join(', ')}.`);
 }
 
@@ -548,4 +622,123 @@ export function buildLedgerFromCsv({ csvPath, mapping, dbPath, allowlistPath = n
     }
 
     return { dbPath, allowlistPath, sourceFileSha256, byteLength: bytes.length, counts, mapping: { ...mapping } };
+}
+
+/**
+ * Coerce the grant-register rows under a confirmed mapping. One row is one grant
+ * award. Coercion throws, naming the row and column, rather than writing a
+ * malformed grant.
+ *
+ * @returns {object[]}
+ */
+function coerceGrantRows(rows, headers, mapping) {
+    const idx = {};
+    for (const [field, header] of Object.entries(mapping)) idx[field] = headers.indexOf(header);
+    const cell = (row, field) => (idx[field] === undefined ? '' : (row[idx[field]] ?? ''));
+
+    return rows.map((row, r) => {
+        const lineNo = r + 2;
+        const at = (field, fn) => {
+            try { return fn(String(cell(row, field))); }
+            catch (error) { throw new ImportError(`Row ${lineNo}, column "${mapping[field]}": ${error.message}`); }
+        };
+        const grantId = String(cell(row, 'grant_id')).trim();
+        if (grantId === '') throw new ImportError(`Row ${lineNo}, column "${mapping.grant_id}": empty grant id`);
+        const grantName = String(cell(row, 'grant_name')).trim();
+        if (grantName === '') throw new ImportError(`Row ${lineNo}, column "${mapping.grant_name}": empty grant name`);
+        const grantor = String(cell(row, 'grantor')).trim();
+        if (grantor === '') throw new ImportError(`Row ${lineNo}, column "${mapping.grantor}": empty grantor`);
+
+        return {
+            lineNo,
+            grantId,
+            grantName,
+            grantor,
+            grantorType: at('grantor_type', coerceGrantorType),
+            awardCents: at('award_amount', coerceMoneyToCents),
+            matchCents: 'match_required_amount' in mapping && String(cell(row, 'match_required_amount')).trim() !== ''
+                ? at('match_required_amount', coerceMoneyToCents)
+                : 0,
+            periodStart: at('period_start', normalizeDate),
+            periodEnd: at('period_end', normalizeDate),
+            status: 'status' in mapping ? at('status', coerceGrantStatus) : 'active',
+        };
+    });
+}
+
+/**
+ * Apply a grant register onto an existing imported ledger, filling the `grants`
+ * table with real award amounts so municipal/grant-status is meaningful.
+ *
+ * It writes onto the ledger the expenditure import already built: a grant an
+ * expenditure referenced exists as an award-0 placeholder and is updated in
+ * place (its derived fund_id/dept_id kept so the foreign keys hold); a grant the
+ * register names that no expenditure referenced is inserted, taking an existing
+ * fund/dept. The whole register is applied in one transaction, so a malformed
+ * row aborts it and leaves the ledger untouched. grant_drawdowns are out of
+ * scope here (a separate register); with none, grant-status reports 0 drawn,
+ * which is honest.
+ *
+ * @param {object} params
+ * @param {string} params.csvPath absolute path to the grant-register CSV (confined by the caller)
+ * @param {Record<string,string>} params.mapping confirmed grant-field -> column
+ * @param {string} params.dbPath  the existing imported ledger to write onto
+ * @returns {{ sourceFileSha256: string, byteLength: number, counts: { grants: number, updated: number, inserted: number } }}
+ * @throws {ImportError}
+ */
+export function applyGrantRegisterToLedger({ csvPath, mapping, dbPath }) {
+    if (!existsSync(csvPath)) throw new ImportError(`grant register not found: ${csvPath}`);
+    if (!existsSync(dbPath)) throw new ImportError(`no imported ledger to apply the grant register to: ${dbPath}`);
+    const bytes = readFileSync(csvPath);
+    const sourceFileSha256 = createHash('sha256').update(bytes).digest('hex');
+    const { headers, rows } = parseCsv(bytes.toString('utf8'));
+    validateMapping(mapping, headers, CANONICAL_GRANT_FIELDS);
+    if (rows.length === 0) throw new ImportError('The grant register has a header but no data rows.');
+    const grants = coerceGrantRows(rows, headers, mapping);
+
+    const seen = new Set();
+    for (const g of grants) {
+        if (seen.has(g.grantId)) throw new ImportError(`The grant register lists grant "${g.grantId}" more than once.`);
+        seen.add(g.grantId);
+    }
+
+    const db = new DatabaseSync(dbPath);
+    try {
+        db.exec('PRAGMA foreign_keys = ON');
+        const fallbackFund = db.prepare('SELECT fund_id FROM funds ORDER BY fund_id LIMIT 1').get();
+        const fallbackDept = db.prepare('SELECT dept_id FROM departments ORDER BY dept_id LIMIT 1').get();
+        const exists = db.prepare('SELECT grant_id FROM grants WHERE grant_id = ?');
+        const update = db.prepare(
+            'UPDATE grants SET grant_name = ?, grantor = ?, grantor_type = ?, award_cents = ?, match_required_cents = ?, period_start = ?, period_end = ?, status = ? WHERE grant_id = ?',
+        );
+        const insert = db.prepare(
+            'INSERT INTO grants (grant_id, grant_name, grantor, grantor_type, fund_id, dept_id, award_cents, match_required_cents, period_start, period_end, status) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+        );
+
+        let updated = 0;
+        let inserted = 0;
+        db.exec('BEGIN');
+        try {
+            for (const g of grants) {
+                if (exists.get(g.grantId)) {
+                    update.run(g.grantName, g.grantor, g.grantorType, g.awardCents, g.matchCents, g.periodStart, g.periodEnd, g.status, g.grantId);
+                    updated += 1;
+                } else {
+                    if (!fallbackFund || !fallbackDept) {
+                        throw new ImportError(`grant "${g.grantId}" is new to the ledger, which has no fund/department to attach it to; import expenditures first.`);
+                    }
+                    insert.run(g.grantId, g.grantName, g.grantor, g.grantorType, fallbackFund.fund_id, fallbackDept.dept_id, g.awardCents, g.matchCents, g.periodStart, g.periodEnd, g.status);
+                    inserted += 1;
+                }
+            }
+            db.exec('COMMIT');
+        } catch (error) {
+            db.exec('ROLLBACK');
+            throw error;
+        }
+
+        return { sourceFileSha256, byteLength: bytes.length, counts: { grants: grants.length, updated, inserted } };
+    } finally {
+        db.close();
+    }
 }
