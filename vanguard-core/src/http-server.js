@@ -42,9 +42,13 @@ async function readJsonBody(req) {
  * @param {object} [options]
  * @param {string|null} [options.token]  required bearer token; when null, auth is off (dev only)
  * @param {string|null} [options.corsOrigin]  echo this Origin for browser access (dev/testing)
+ * @param {{dbPath?: string, logPath?: string}} [options.overrides]  trusted, server-chosen
+ *   warehouse/log the operator pins this server to. This is the same trusted
+ *   channel as callTool's ctx.overrides: it comes from server configuration, never
+ *   from the wire, so a request can still never redirect a query's db or audit log.
  * @returns {import('node:http').Server}
  */
-export function createApiServer({ token = process.env.ENGINE_SERVICE_TOKEN ?? null, corsOrigin = process.env.ENGINE_CORS_ORIGIN ?? null } = {}) {
+export function createApiServer({ token = process.env.ENGINE_SERVICE_TOKEN ?? null, corsOrigin = process.env.ENGINE_CORS_ORIGIN ?? null, overrides = {} } = {}) {
     const cors = corsOrigin
         ? {
               'access-control-allow-origin': corsOrigin,
@@ -82,7 +86,7 @@ export function createApiServer({ token = process.env.ENGINE_SERVICE_TOKEN ?? nu
             if (req.method === 'POST' && path.startsWith('/tools/')) {
                 const name = decodeURIComponent(path.slice('/tools/'.length));
                 const args = await readJsonBody(req);
-                const result = await callTool(name, args);
+                const result = await callTool(name, args, { overrides });
                 return send(res, 200, { result }, cors);
             }
 
@@ -102,9 +106,10 @@ export function createApiServer({ token = process.env.ENGINE_SERVICE_TOKEN ?? nu
  * @param {number} [options.port]
  * @param {string|null} [options.token]
  * @param {string|null} [options.corsOrigin]
+ * @param {{dbPath?: string, logPath?: string}} [options.overrides]
  * @returns {Promise<import('node:http').Server>}
  */
-export function startApiServer({ port = Number(process.env.PORT ?? 8787), token, corsOrigin } = {}) {
-    const server = createApiServer({ token, corsOrigin });
+export function startApiServer({ port = Number(process.env.PORT ?? 8787), token, corsOrigin, overrides } = {}) {
+    const server = createApiServer({ token, corsOrigin, overrides });
     return new Promise((resolve) => server.listen(port, () => resolve(server)));
 }

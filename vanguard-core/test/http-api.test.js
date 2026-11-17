@@ -56,13 +56,16 @@ test('protected routes require the bearer token', async () => {
 test('POST /tools/run_control runs a control and returns the result', async () => {
     const db = freshDb();
     seedEnron(db);
-    const server = createApiServer({ token: TOKEN });
+    // dbPath/logPath are a trusted, server-configured channel (callTool's
+    // ctx.overrides), never accepted from the wire. The operator pins the server
+    // to its warehouse here; the request body carries only the control id.
+    const server = createApiServer({ token: TOKEN, overrides: { dbPath: db, logPath: freshLog() } });
     const base = await listen(server);
     try {
         const res = await fetch(`${base}/tools/run_control`, {
             method: 'POST',
             headers: bearer,
-            body: JSON.stringify({ id: 'PI1.2-enron-debt-reconciliation', dbPath: db, logPath: freshLog() }),
+            body: JSON.stringify({ id: 'PI1.2-enron-debt-reconciliation' }),
         });
         assert.equal(res.status, 200);
         const { result } = await res.json();
