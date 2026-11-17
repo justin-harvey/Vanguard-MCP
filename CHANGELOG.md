@@ -5,6 +5,42 @@ The project follows [Semantic Versioning](https://semver.org/): MAJOR.MINOR.PATC
 
 ## [Unreleased]
 
+### Added — import the buyer's CSV (S8)
+- A buyer can now point the three named queries at **their own** exported
+  expenditure CSV, locally, with a tamper-evident record of exactly which file
+  was imported.
+  - **`cc-auditor import <file.csv>`.** Two steps, on purpose. With no `--map` it
+    reads the CSV's headers (and a sample of rows to confirm types) and *proposes*
+    a column mapping onto the canonical schema, writing nothing. With `--map
+    mapping.json` it builds the ledger, records the source hash, and runs the
+    three queries. Only a confirmed mapping is ever written.
+  - **Files by name, from a named folder — never pasted data.** `CIVIC_IMPORT_DIR`
+    names the folder CSVs are read from; a name that escapes it (a `..` traversal
+    or an absolute path) is refused before anything is opened
+    (`paths.js` `resolveImportPath`, new `ImportPathError`).
+  - **`src/import-csv.js`.** A zero-dependency RFC-4180 parser (a ragged row is an
+    error, not a silent drop), money coerced to **integer cents** (never a float;
+    accounting parentheses, `$`, thousands separators, ≤2 decimals), dates
+    normalised to ISO, status mapped to paid/pending/void, fiscal year derived
+    July–June. A malformed value **aborts** the import naming the row and column,
+    rather than coercing to 0/null. Builds **Canonical Municipal Schema v1** with
+    the derived dimension rows (vendors, departments, funds, budget lines, and any
+    referenced grants) the expenditures reference, atomically (temp file + rename).
+  - **Source provenance recorded.** The source file's SHA-256, byte length, row
+    count and the confirmed mapping are the first entry of the imported ledger's
+    own audit chain; the confirmed mapping is also saved beside the ledger
+    (`mapping.json`) so an import is reviewable and reproducible.
+  - **The gate.** After an import the engine runs `grant-status`,
+    `spending-by-vendor` and `budget-variance` and reports each one's integrity
+    and findings. A clean import answers all three with integrity `pass`.
+  - **MCP tools** `propose_csv_mapping` (read-only) and `import_csv` (confirmed
+    import), advertised only when `CIVIC_IMPORT_DIR` is set (so the static browser
+    demo never exposes them); the file name is confined to the import folder, and
+    the ledger/log/mapping paths are server-derived, never taken from the wire.
+  - New `test/import-csv.test.js` (18 tests) and an anonymized, fictional
+    expenditure fixture (`test/fixtures/riverton_expenditures.csv`) exercise the
+    gate, money/date exactness, malformed-row rejection and path confinement.
+
 ### Added — one-line install (S6)
 - The engine now publishes to npm as **`@civic-chain/auditor`** with a `bin`
   (`cc-auditor`, and `civic-chain-auditor`), a `files` whitelist, and npm

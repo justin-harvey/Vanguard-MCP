@@ -17,6 +17,7 @@
  */
 
 import { controlCatalog, getControl } from './controls.js';
+import { importDir } from './paths.js';
 import { verify, DEFAULT_LOG_PATH } from './audit.js';
 import { provenanceOf } from './audit-core.js';
 import { loadSigner } from './signing.js';
@@ -97,11 +98,53 @@ function freeTextWarehouses() {
         .map((d) => d.name);
 }
 
+/**
+ * The CSV-import tools, advertised only when an import folder is configured
+ * (CIVIC_IMPORT_DIR). They are local-only and write to the data directory; a
+ * static browser demo sets no such folder, so they never appear there. The file
+ * is named relative to the import folder; the import never accepts pasted data
+ * and never an absolute path (paths.js confines it).
+ */
+function importTools() {
+    if (!importDir()) return [];
+    return [
+        {
+            name: 'propose_csv_mapping',
+            description:
+                'Read the headers (and a sample of rows) of a CSV in the import folder and propose a column mapping ' +
+                'onto the canonical municipal schema. Reads only; writes nothing. The human confirms the mapping before import_csv.',
+            inputSchema: {
+                type: 'object',
+                properties: { file: { type: 'string', description: 'CSV file name within the import folder' } },
+                required: ['file'],
+                additionalProperties: false,
+            },
+        },
+        {
+            name: 'import_csv',
+            description:
+                'Import a CSV from the import folder with a confirmed column mapping: builds a canonical ledger, records the ' +
+                "source file's SHA-256 as an audit entry, and runs the three named queries. Local only. The file is read by name " +
+                'from the configured import folder; pasted data and absolute paths are refused.',
+            inputSchema: {
+                type: 'object',
+                properties: {
+                    file: { type: 'string', description: 'CSV file name within the import folder' },
+                    mapping: { type: 'object', description: 'confirmed mapping, canonical field -> CSV column (from propose_csv_mapping)' },
+                },
+                required: ['file', 'mapping'],
+                additionalProperties: false,
+            },
+        },
+    ];
+}
+
 /** The tool definitions advertised to a host AI. */
 export function listTools() {
     const freeText = freeTextWarehouses();
     const known = Object.keys(warehouseDescriptors());
     return [
+        ...importTools(),
         {
             name: 'list_controls',
             description: 'List the SOC 2 control catalog (id, criterion, warehouse, description).',
@@ -249,6 +292,36 @@ export async function callTool(name, args = {}, { client, overrides = {} } = {})
                 ? getWarehouse(args.warehouse).logPath
                 : (infra.logPath ?? DEFAULT_LOG_PATH);
             return { logPath, ...verify(logPath, { verifier: null }) };
+        }
+
+        case 'propose_csv_mapping': {
+            // Read-only: headers in, a proposed mapping out, nothing written. The
+            // file name is confined to the import folder inside runImport.
+            if (!importDir()) throw new Error('No import folder is configured (set CIVIC_IMPORT_DIR).');
+            const { runImport } = await import('./import.js');
+            const r = await runImport({ file: args.file, mapping: null });
+            return { file: r.file, mapping: r.mapping, fields: r.fields, unmappedHeaders: r.unmappedHeaders, missingRequired: r.missingRequired };
+        }
+
+        case 'import_csv': {
+            // Perform a confirmed import. The caller names a file within the
+            // import folder and supplies the confirmed mapping; the ledger, log
+            // and mapping paths are server-derived (data dir), never from the wire.
+            if (!importDir()) throw new Error('No import folder is configured (set CIVIC_IMPORT_DIR).');
+            const { runImport } = await import('./import.js');
+            const r = await runImport({ file: args.file, mapping: args.mapping, signer: loadSigner() });
+            return {
+                file: r.file,
+                counts: r.counts,
+                sourceFileSha256: r.sourceFileSha256,
+                byteLength: r.byteLength,
+                canonicalSchemaVersion: r.canonicalSchemaVersion,
+                mapping: r.mapping,
+                audit: r.audit,
+                gate: r.gate,
+                dbPath: r.paths.dbPath,
+                allowlistPath: r.paths.allowlistPath,
+            };
         }
 
         case 'execute_financial_query': {

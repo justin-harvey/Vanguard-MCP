@@ -1,0 +1,13 @@
+Payment Date,Vendor Name,Department,Fund,Account Code,Account Description,Line Budget,Amount,Payment Status,Check Number
+04/15/2026,Northline Engineering Group,Public Works,Highway & Streets Fund,5410,Road resurfacing,"$160,000.00","$8,450.00",paid,CK-26000
+05/20/2026,Riverton Asphalt & Paving,Public Works,Highway & Streets Fund,5410,Road resurfacing,"$160,000.00","$21,780.00",paid,CK-26007
+06/10/2026,Tri-County Aggregates,Public Works,Highway & Streets Fund,5410,Road resurfacing,"$160,000.00","6,325.00",paid,CK-26014
+06/24/2026,Riverton Asphalt & Paving,Public Works,Highway & Streets Fund,5410,"Road resurfacing, Cedar Lane","$160,000.00","$9,880.00",pending,CK-26063
+12/05/2025,Granite Ridge Salt Supply,Public Works,General Fund,5420,Winter road salt,"$18,000.00","$6,840.00",paid,CK-26084
+01/16/2026,Granite Ridge Salt Supply,Public Works,General Fund,5420,Winter road salt,"$18,000.00","$7,120.00",paid,CK-26091
+02/20/2026,Granite Ridge Salt Supply,Public Works,General Fund,5420,Winter road salt,"$18,000.00","$5,680.00",paid,CK-26098
+08/08/2025,Evergreen Landscape Services,Parks & Recreation,General Fund,5510,Parks maintenance,"$32,000.00","$4,200.00",paid,CK-26252
+10/10/2025,Evergreen Landscape Services,Parks & Recreation,General Fund,5510,Parks maintenance,"$32,000.00","$4,200.00",paid,CK-26259
+05/08/2026,Evergreen Landscape Services,Parks & Recreation,General Fund,5510,"Parks maintenance (duplicate, voided)","$32,000.00","$4,200.00",void,CK-26266
+08/19/2025,Brightpath Learning Materials,Library,Grants Fund,5610,Literacy programs,"$7,500.00","$2,180.00",paid,CK-26161
+10/28/2025,Brightpath Learning Materials,Library,Grants Fund,5610,Literacy programs,"$7,500.00","$1,945.00",paid,CK-26168

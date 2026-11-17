@@ -22,7 +22,7 @@
 
 import { mkdirSync } from 'node:fs';
 import { homedir } from 'node:os';
-import { dirname, join } from 'node:path';
+import { dirname, isAbsolute, join, relative, resolve, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const APP = 'civic-chain-auditor';
@@ -66,4 +66,86 @@ export function ensureDir(dir) {
 export function ensureParent(filePath) {
     ensureDir(dirname(filePath));
     return filePath;
+}
+
+// ── CSV import (S8) ─────────────────────────────────────────────────────────
+//
+// A buyer's CSV is read by name from a folder they name at startup, never from
+// an arbitrary path and never as pasted content. CIVIC_IMPORT_DIR is that
+// folder. resolveImportPath confines a caller-supplied name to it, so a name
+// like "../../etc/passwd" or an absolute path is refused before anything opens
+// the file. The imported warehouse (its SQLite db, allow-list copy, audit log
+// and the confirmed mapping) is engine output, so it lives under the writable
+// data directory in an `imported/` subtree, exactly like the municipal demo.
+
+export class ImportPathError extends Error {
+    constructor(message) {
+        super(message);
+        this.name = 'ImportPathError';
+    }
+}
+
+/** The folder the operator named for CSVs, or null when none is configured. */
+export function importDir({ env = process.env } = {}) {
+    return env.CIVIC_IMPORT_DIR || null;
+}
+
+/**
+ * Resolve a CSV file *name* to an absolute path inside the import folder,
+ * refusing anything that escapes it. The caller supplies only a name relative
+ * to the folder (never an absolute path, never a `..` escape); the folder comes
+ * from trusted configuration, not the wire.
+ *
+ * @param {string} name a file name relative to the import folder
+ * @param {object} [options]
+ * @param {NodeJS.ProcessEnv} [options.env]
+ * @returns {string} absolute path within the import folder
+ * @throws {ImportPathError}
+ */
+export function resolveImportPath(name, { env = process.env } = {}) {
+    const dir = importDir({ env });
+    if (!dir) {
+        throw new ImportPathError(
+            'No import folder is configured. Set CIVIC_IMPORT_DIR to the folder your CSV files live in.',
+        );
+    }
+    if (typeof name !== 'string' || name.trim() === '') {
+        throw new ImportPathError('An import needs a CSV file name within the import folder.');
+    }
+    if (isAbsolute(name)) {
+        throw new ImportPathError(`"${name}" is an absolute path; name the file by its name within the import folder only.`);
+    }
+    const base = resolve(dir);
+    const full = resolve(base, name);
+    const rel = relative(base, full);
+    if (rel === '' || rel === '..' || rel.startsWith(`..${sep}`) || isAbsolute(rel)) {
+        throw new ImportPathError(`"${name}" is outside the import folder (${base}); files are read by name from that folder only.`);
+    }
+    return full;
+}
+
+/**
+ * Where an imported ledger's artefacts live in the data directory. The label is
+ * sanitised to a safe slug so it cannot escape the `imported/` subtree.
+ *
+ * @param {string} label a human name for this import (e.g. the CSV file name)
+ * @param {object} [opts] passed to dataPath (env/platform)
+ * @returns {{ slug: string, dir: string, dbPath: string, allowlistPath: string, logPath: string, mappingPath: string }}
+ */
+export function importedLedgerPaths(label, opts) {
+    const slug = String(label)
+        .replace(/\.csv$/i, '')
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, '-')
+        .replace(/^-+|-+$/g, '')
+        .slice(0, 64) || 'import';
+    const dir = dataPath(join('imported', slug), opts);
+    return {
+        slug,
+        dir,
+        dbPath: join(dir, 'ledger.db'),
+        allowlistPath: join(dir, 'allowlist.json'),
+        logPath: join(dir, 'audit.jsonl'),
+        mappingPath: join(dir, 'mapping.json'),
+    };
 }

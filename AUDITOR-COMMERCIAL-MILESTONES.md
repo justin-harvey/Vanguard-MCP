@@ -63,12 +63,14 @@
 
 **Done when:** a new user goes from zero to a demo answer with one pasted config block.
 
-### S8 · Import the buyer's CSV · M
+### S8 · Import the buyer's CSV · M — SHIPPED
 - `import_csv` (local only): typed columns, money to integer cents, date normalisation, SHA-256 of the source file recorded as an audit entry.
 - Column mapping onto the canonical schema: the agent proposes, the user confirms, the mapping is saved and logged.
 - Never accepts pasted data; files are read by path from a folder the user names at startup.
 
 **Done when:** a real public municipal expenditure CSV imports and runs the three existing queries with clean integrity checks.
+
+**Shipped:** `cc-auditor import` (propose → confirm with `--map`) + `src/import-csv.js` (zero-dep RFC-4180 parser, money→integer cents, ISO dates, status mapping, Canonical Municipal Schema v1 with derived dimensions, atomic build) + `src/import.js` (orchestrator, source-SHA-256 audit entry, persisted mapping, three-query gate) + `CIVIC_IMPORT_DIR` path confinement in `paths.js` + MCP `propose_csv_mapping`/`import_csv` (gated on the import folder) + `test/import-csv.test.js` (18 tests) with the fictional `riverton_expenditures.csv` fixture. Full suite 255/255 on Node 22. **Open:** the imported schema's `grants`/`grant_drawdowns` are derived as placeholders (award 0) from an expenditure-only export, so `grant-status` is empty until a grant register is also imported — a natural S9+ follow-up.
 
 ### S9 · Rulesets as the product · L
 - Separate **access policy** (allow-list, the buyer's) from **rulesets** (queries + checks, Civic-Chain's).

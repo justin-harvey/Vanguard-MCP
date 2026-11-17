@@ -9,7 +9,7 @@
  *   cc-auditor explain "SELECT ..."        run the guard against SQL, no model call
  */
 
-import { writeFileSync } from 'node:fs';
+import { writeFileSync, readFileSync } from 'node:fs';
 import { seed, ensureSeeded } from '../src/db.js';
 import { guard, SqlRejected } from '../src/guard.js';
 import { ask } from '../src/ask.js';
@@ -809,6 +809,55 @@ async function main() {
             break;
         }
 
+        case 'import': {
+            // Import a buyer's expenditure CSV (local only). Without --map it
+            // proposes a column mapping and writes nothing; with --map it builds
+            // the ledger, records the source hash, and runs the three queries.
+            const { runImport, formatImport } = await import('../src/import.js');
+            const { ImportPathError } = await import('../src/paths.js');
+            const { ImportError } = await import('../src/import-csv.js');
+            // The first non-flag argument is the CSV file name within CIVIC_IMPORT_DIR.
+            const file = rest.find((a) => !a.startsWith('--'));
+            if (!file) {
+                console.error('Usage: cc-auditor import <file.csv> [--map mapping.json]');
+                console.error('  Set CIVIC_IMPORT_DIR to the folder your CSV lives in. Without --map, prints a proposed mapping.');
+                process.exitCode = 2;
+                return;
+            }
+            const mapIdx = rest.indexOf('--map');
+            let mapping = null;
+            if (mapIdx !== -1) {
+                const mapFile = rest[mapIdx + 1];
+                if (!mapFile) {
+                    console.error('--map needs a path to a mapping JSON file (field -> column).');
+                    process.exitCode = 2;
+                    return;
+                }
+                try {
+                    const doc = JSON.parse(readFileSync(mapFile, 'utf8'));
+                    // Accept either a bare mapping object or the saved {mapping:{…}} form.
+                    mapping = doc && typeof doc.mapping === 'object' ? doc.mapping : doc;
+                } catch (error) {
+                    console.error(`Could not read mapping ${mapFile}: ${error.message}`);
+                    process.exitCode = 2;
+                    return;
+                }
+            }
+            try {
+                const result = await runImport({ file, mapping, signer: loadSigner() });
+                console.log(formatImport(result));
+                if (result.stage === 'imported' && result.gate && !result.gate.ok) process.exitCode = 1;
+            } catch (error) {
+                if (error instanceof ImportPathError || error instanceof ImportError) {
+                    console.error(`cc-auditor import: ${error.message}`);
+                    process.exitCode = 1;
+                    return;
+                }
+                throw error;
+            }
+            break;
+        }
+
         case 'mcp': {
             // Validate a custom warehouse before the transport starts, so a bad
             // CIVIC_DB_PATH / CIVIC_ALLOWLIST_PATH fails here, on stderr,
@@ -862,6 +911,7 @@ async function main() {
             console.log('  cc-auditor lseg <sub>                LSEG fundamentals warehouse + ingest seam');
             console.log('  cc-auditor controls <sub>            run SOC 2 controls (PASS/EXCEPTION + evidence)');
             console.log('  cc-auditor doctor                    check the install, print the MCP client config');
+            console.log('  cc-auditor import <file.csv>         import a buyer CSV from CIVIC_IMPORT_DIR (--map to confirm)');
             console.log('  cc-auditor mcp                       serve the engine over MCP (stdio)');
             console.log('  cc-auditor serve [--port N]          serve the engine over HTTP (needs ENGINE_SERVICE_TOKEN)');
             process.exitCode = command ? 2 : 0;
