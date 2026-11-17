@@ -116,7 +116,9 @@ Each entry can be signed with an Ed25519 private key. Forging a rewritten chain 
 
 ### External anchoring
 
-Periodically publish the latest entry hash (a checkpoint) somewhere **outside your control**. A rewritten history no longer matches the published checkpoint.
+Periodically publish a **checkpoint** somewhere **outside your control**. A rewritten history no longer matches the published checkpoint.
+
+The checkpoint is an RFC 9162 (Certificate Transparency 2.0) Merkle checkpoint: the tree size plus the Merkle root over every entry, not just the latest entry hash. Because it commits to the count, it closes the one gap a plain hash chain leaves open: dropping the newest entries (or re-chaining a truncated prefix) still produces a valid shorter chain, but it no longer matches a trusted checkpoint. Verifying the current log against an earlier checkpoint is a consistency proof: it confirms the log is a pure append-only extension of the checkpoint, with no earlier entry altered or removed. `exportPackage` embeds the checkpoint, and `verify(path, { checkpoint })` performs the check.
 
 The anchor does **not** have to be a blockchain:
 

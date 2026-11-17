@@ -21,7 +21,7 @@
 import { appendFileSync, readFileSync, existsSync, mkdirSync } from 'node:fs';
 import { dirname } from 'node:path';
 import { signHash, verifyHash } from './signing.js';
-import { GENESIS, hashEntry, appendEntry, verifyEntries } from './audit-core.js';
+import { GENESIS, hashEntry, appendEntry, verifyEntries, checkpointOf } from './audit-core.js';
 import { dataPath } from './paths.js';
 
 // The audit log is runtime output; it lives in the writable per-user data
@@ -31,8 +31,9 @@ export const DEFAULT_LOG_PATH = dataPath('audit.jsonl');
 // The chaining logic lives in audit-core.js so it can run in the browser with
 // no node: imports. This module is the file-backed, optionally-signed wrapper
 // around it. GENESIS and hashEntry are re-exported so existing importers of
-// audit.js are unaffected.
-export { GENESIS, hashEntry };
+// audit.js are unaffected; checkpointOf lets a caller capture the value to
+// anchor (see exportPackage) for later truncation detection.
+export { GENESIS, hashEntry, checkpointOf };
 
 /**
  * Read every entry in the log.
@@ -84,17 +85,22 @@ export function append(lineage, { path = DEFAULT_LOG_PATH, complianceTags = [], 
  * change: the result object is exactly the same four fields whether or not a
  * verifier is passed, so an unsigned log still verifies clean.
  *
+ * A trusted `checkpoint` (previously taken, e.g. read back from an external
+ * anchor) turns on truncation detection: the log must be an append-only
+ * extension of it, so dropped or re-chained-away entries are caught.
+ *
  * @param {string} [path]
  * @param {object} [options]
  * @param {{ publicKey: import('node:crypto').KeyObject }|null} [options.verifier]
+ * @param {{ treeSize: number, rootHash: string }|null} [options.checkpoint]
  * @returns {{ ok: boolean, entries: number, brokenAt: number|null, reason: string|null }}
  */
-export function verify(path = DEFAULT_LOG_PATH, { verifier = null } = {}) {
+export function verify(path = DEFAULT_LOG_PATH, { verifier = null, checkpoint = null } = {}) {
     const entries = readLog(path);
     const verifySignature = verifier
         ? (entry) => verifyHash(entry.hash, entry.signature, verifier.publicKey)
         : null;
-    return verifyEntries(entries, { verifySignature });
+    return verifyEntries(entries, { verifySignature, checkpoint });
 }
 
 /**
@@ -134,6 +140,10 @@ export function exportPackage(path = DEFAULT_LOG_PATH, { verifier = null, anchor
         generatedAt: new Date().toISOString(),
         entryCount: entries.length,
         integrity,
+        // RFC 9162 Merkle checkpoint: tree size + root. Unlike the bare head
+        // hash it commits to the entry count, so a later truncated copy of this
+        // log fails a consistency check against this (ideally anchored) value.
+        checkpoint: checkpointOf(entries),
         // Stated explicitly so a reader does not have to infer it from the
         // absence of write operations.
         guarantees: {
