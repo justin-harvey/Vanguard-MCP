@@ -5,6 +5,61 @@ The project follows [Semantic Versioning](https://semver.org/): MAJOR.MINOR.PATC
 
 ## [Unreleased]
 
+### Added — Construction Contracts ruleset pack (eighth signed pack)
+- An eighth domain pack beside the municipal, insurance, IOLTA, excise,
+  property/HOA, nonprofit and schools ones, on the same signed-ruleset +
+  custom-warehouse seam (no engine change, no new dependency, no server, no new
+  credential). Six controls for a construction contractor's work-in-progress
+  (WIP) schedule, each a named query with automatic checks, encoding ASC 606
+  over-time (cost-to-cost) revenue recognition and the WIP schedule a surety or
+  lender scrutinizes:
+  - **`construction/wip-schedule`** (`as_of`, label only) — the per-job
+    cost-to-cost WIP schedule (contract value, cost to date, percent complete in
+    bps, earned revenue, billings, over/underbilling); a `total_matches`
+    integrity tie of earned revenue to general-ledger revenue, with a `unique`
+    integrity check per job.
+  - **`construction/billings-tie-out`** — total over- and underbillings against
+    the balance-sheet contract liability and contract asset; two `compare` (`=`)
+    findings on a single summary row.
+  - **`construction/loss-jobs`** (`as_of`, label only) — a job whose estimated
+    cost at completion exceeds its contract value; an `empty` finding with a
+    `unique` integrity check.
+  - **`construction/margin-fade`** (`fade_bps`, default 300) — a job whose
+    estimated gross margin fell more than `fade_bps` basis points since its last
+    WIP snapshot; an `empty` finding (FLAG) with a `unique` integrity check.
+  - **`construction/retainage-reconciles`** — a job whose carried retainage
+    receivable does not equal withheld less released; a `compare` (`=`) finding
+    with a `unique` integrity check.
+  - **`construction/payments-without-lien-waiver`** — a subcontractor payment
+    released with no lien waiver on file; an `empty` finding with a `unique`
+    integrity check.
+- **The tolerance is the firm's, not the engine's:** percent complete and margin
+  are carried in integer basis points from the `jobs` figures, and the
+  margin-fade tolerance (`fade_bps`) is a parameter with a documented default of
+  300 (a 3 percentage-point fall), so a surety's or lender's own threshold is
+  data, never new SQL.
+- **Demo warehouse** (`assets/construction/`, mirrored into the skill): a
+  synthetic Granite State Builders ledger (clean, so all six controls read PASS),
+  a pure access-policy allow-list, a prior-period `wip_snapshots` table for
+  margin fade, and a deliberately **non-allow-listed `payroll_pii` table**
+  (employee names, SSNs, pay rates and certified-payroll classifications) so the
+  guard visibly refuses employee pay data; the controls carry job, subcontractor
+  and balance codes only.
+- **Signed** `construction-v1` ruleset (`scripts/build-construction-ruleset.js`),
+  signed offline with the same Civic-Chain key `acb80e87885da931`; ships in both
+  asset copies with its detached signature.
+- **Tests** (`test/construction-warehouse.test.js`,
+  `test/construction-ruleset.test.js`, `test/construction-fixture.js`): clean PASS
+  for all six controls, a targeted mutation (or fade-window parameter) tripping
+  each, the GL-tie and balance-sheet-tie integrity cases, the latest-snapshot
+  selection, signature status, and the `payroll_pii` refusal.
+  `test/skill-drift.test.js` extended to resolve `construction/*` query names from
+  the shipped ruleset. Full suite green on Node 22 (436 tests).
+- **Skill routing and docs** (`SKILL.md`, `references/setup.md`,
+  `references/refusals.md`, `examples/11-construction-loss-job.md`, and the skill,
+  top-level and core READMEs): PASS/EXCEPTION/FLAG presentation per control, the
+  margin-fade parameter, and the payroll refusal.
+
 ### Added — School Districts ruleset pack (seventh signed pack)
 - A seventh domain pack beside the municipal, insurance, IOLTA, excise,
   property/HOA and nonprofit ones, on the same signed-ruleset + custom-warehouse

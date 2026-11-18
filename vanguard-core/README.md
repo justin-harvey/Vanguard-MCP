@@ -314,8 +314,20 @@ See `src/custom.js` for the format. Three worked examples ship in `assets/`:
   guard refuses it; the controls carry activity-account, program and budget codes
   only. The ruleset is rebuilt and signed offline with
   `node scripts/build-schools-ruleset.js [--sign <key.pem>]`.
+- `assets/construction/`: the Construction Contracts pack, a synthetic Granite
+  State Builders ledger with the signed `construction-v1` ruleset
+  (`construction/wip-schedule` and `construction/loss-jobs` with an optional
+  `as_of` label, `construction/billings-tie-out`,
+  `construction/retainage-reconciles` and `construction/payments-without-lien-waiver`,
+  and `construction/margin-fade` with an optional `fade_bps` default of 300). It
+  encodes ASC 606 over-time (cost-to-cost) revenue recognition and the
+  work-in-progress schedule. Its allow-list deliberately omits a `payroll_pii`
+  table of employee names, SSNs, pay rates and certified-payroll classifications,
+  so the guard refuses it; the controls carry job, subcontractor and balance codes
+  only. The ruleset is rebuilt and signed offline with
+  `node scripts/build-construction-ruleset.js [--sign <key.pem>]`.
 
-All seven are mirrored into `../skills/civic-chain-auditor/assets/`, where the
+All eight are mirrored into `../skills/civic-chain-auditor/assets/`, where the
 agent skill documents how to serve them.
 
 ## What is real here, and what is not

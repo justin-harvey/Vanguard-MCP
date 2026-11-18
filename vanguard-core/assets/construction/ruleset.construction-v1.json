@@ -1,0 +1,151 @@
+{
+  "name": "construction",
+  "version": "construction-v1",
+  "changelog": [
+    "construction-v1: initial Civic-Chain Construction Contracts ruleset — wip-schedule (the cost-to-cost work-in-progress schedule per job, with earned revenue tied to the general ledger), billings-tie-out (total over- and underbillings against the contract liability and contract asset on the balance sheet), loss-jobs (a job whose estimated cost at completion exceeds its contract value), margin-fade (a job whose estimated gross margin fell more than fade_bps basis points since the last work-in-progress snapshot), retainage-reconciles (a job whose carried retainage receivable does not equal withheld less released) and payments-without-lien-waiver (a subcontractor payment released with no lien waiver on file), with integrity (unique, total_matches) and finding (compare, empty) checks. These controls encode a reasonable interpretation of ASC 606 over-time revenue recognition measured cost-to-cost (the work-in-progress schedule computing overbillings, a contract liability, and underbillings, a contract asset), the requirement that earned revenue tie to the income statement and the over- and underbillings tie to the balance sheet, and the immediate recognition of an estimated loss on a loss job. Percent complete and estimated margin are carried in integer basis points, so the SQL never needs floating point. The margin-fade tolerance is a parameter (fade_bps, default 300, a 3 percentage-point fall), so a surety's or lender's own threshold is data, not new SQL. They produce evidence for a licensed professional, a construction-industry CPA or a surety underwriter to confirm against the contracts and the standards that apply; they are not a financial-statement audit, and not a compliance certification. No employee pay or certified-payroll detail is read: that data is never allow-listed.",
+    "construction-v1 billings-tie-out is a single-row aggregate (total overbillings and underbillings against the balance-sheet contract-liability and contract-asset balances) with two compare (=) checks and no key, the same shape as the nonprofit pack's restricted-cash-coverage control; margin-fade reads the latest prior work-in-progress snapshot per job via a correlated MAX(snapshot_date)."
+  ],
+  "queries": {
+    "wip-schedule": {
+      "description": "The cost-to-cost work-in-progress (WIP) schedule, one row per job: contract value, estimated cost at completion, cost to date, percent complete in basis points, earned revenue (contract value times cost to date over estimated cost), billings to date, and the resulting overbilling (a contract liability) or underbilling (a contract asset). Use for 'show the WIP schedule', 'how much revenue have we earned on each job' and over/underbilling questions. ASC 606 recognizes revenue over time by cost-to-cost; the earned-revenue total must tie to the general ledger.",
+      "params": {
+        "as_of": {
+          "type": "string",
+          "description": "Label only; the schedule is built from the current job figures. Accepted for symmetry with the other controls and recorded in the audit trail. Omit to run against the current figures."
+        }
+      },
+      "sql": "SELECT j.job_id, j.job_name, j.status, j.contract_value_cents, j.estimated_cost_cents, j.cost_to_date_cents, (j.cost_to_date_cents * 10000 / j.estimated_cost_cents) AS percent_complete_bps, (j.contract_value_cents * j.cost_to_date_cents / j.estimated_cost_cents) AS earned_revenue_cents, j.billed_to_date_cents, CASE WHEN j.billed_to_date_cents > (j.contract_value_cents * j.cost_to_date_cents / j.estimated_cost_cents) THEN j.billed_to_date_cents - (j.contract_value_cents * j.cost_to_date_cents / j.estimated_cost_cents) ELSE 0 END AS overbilling_cents, CASE WHEN (j.contract_value_cents * j.cost_to_date_cents / j.estimated_cost_cents) > j.billed_to_date_cents THEN (j.contract_value_cents * j.cost_to_date_cents / j.estimated_cost_cents) - j.billed_to_date_cents ELSE 0 END AS underbilling_cents FROM jobs j ORDER BY j.job_id",
+      "checks": [
+        {
+          "id": "one-row-per-job",
+          "type": "unique",
+          "columns": [
+            "job_id"
+          ]
+        },
+        {
+          "id": "earned-ties-gl",
+          "type": "total_matches",
+          "column": "earned_revenue_cents",
+          "sql": "SELECT COALESCE(SUM(amount_cents), 0) AS total FROM gl_revenue"
+        }
+      ]
+    },
+    "billings-tie-out": {
+      "description": "The total overbillings (billings in excess of costs and estimated earnings) and underbillings (costs and estimated earnings in excess of billings) across every job, against the contract liability and contract asset carried on the balance sheet. Use for 'do our over- and underbillings tie to the balance sheet' questions. The summed overbillings should equal the contract liability, and the summed underbillings the contract asset; a difference is a balance-sheet misstatement.",
+      "params": {},
+      "sql": "SELECT (SELECT COALESCE(SUM(CASE WHEN j.billed_to_date_cents > (j.contract_value_cents * j.cost_to_date_cents / j.estimated_cost_cents) THEN j.billed_to_date_cents - (j.contract_value_cents * j.cost_to_date_cents / j.estimated_cost_cents) ELSE 0 END), 0) FROM jobs j) AS overbillings_cents, (SELECT COALESCE(SUM(CASE WHEN (j.contract_value_cents * j.cost_to_date_cents / j.estimated_cost_cents) > j.billed_to_date_cents THEN (j.contract_value_cents * j.cost_to_date_cents / j.estimated_cost_cents) - j.billed_to_date_cents ELSE 0 END), 0) FROM jobs j) AS underbillings_cents, (SELECT COALESCE(SUM(b.balance_cents), 0) FROM balance_sheet_balances b WHERE b.account = 'CONTRACT_LIABILITY') AS contract_liability_cents, (SELECT COALESCE(SUM(b.balance_cents), 0) FROM balance_sheet_balances b WHERE b.account = 'CONTRACT_ASSET') AS contract_asset_cents",
+      "checks": [
+        {
+          "id": "overbillings-tie-liability",
+          "type": "compare",
+          "left": "overbillings_cents",
+          "op": "=",
+          "right": "contract_liability_cents",
+          "message": "Total overbillings across the jobs do not equal the contract liability (billings in excess of costs and estimated earnings) carried on the balance sheet. Confirm the WIP schedule and the balance-sheet balance before relying on either; a difference is a balance-sheet misstatement to reconcile."
+        },
+        {
+          "id": "underbillings-tie-asset",
+          "type": "compare",
+          "left": "underbillings_cents",
+          "op": "=",
+          "right": "contract_asset_cents",
+          "message": "Total underbillings across the jobs do not equal the contract asset (costs and estimated earnings in excess of billings) carried on the balance sheet. Confirm the WIP schedule and the balance-sheet balance before relying on either; a difference is a balance-sheet misstatement to reconcile."
+        }
+      ]
+    },
+    "loss-jobs": {
+      "description": "Every job whose estimated cost at completion exceeds its contract value: a loss job. Use for 'is any job headed for a loss' and 'do we have any underwater contracts' questions. Under ASC 606 the full estimated loss on a contract is recognized as soon as it is known, not spread over the job. An empty result means every job's estimated cost is within its contract value.",
+      "params": {
+        "as_of": {
+          "type": "string",
+          "description": "Label only; loss jobs are read from the current job figures. Accepted for symmetry and recorded in the audit trail. Omit to run against the current figures."
+        }
+      },
+      "sql": "SELECT j.job_id, j.job_name, j.status, j.contract_value_cents, j.estimated_cost_cents, j.estimated_cost_cents - j.contract_value_cents AS estimated_loss_cents FROM jobs j WHERE j.estimated_cost_cents > j.contract_value_cents ORDER BY j.job_id",
+      "checks": [
+        {
+          "id": "one-row-per-loss-job",
+          "type": "unique",
+          "columns": [
+            "job_id"
+          ]
+        },
+        {
+          "id": "no-loss-jobs",
+          "type": "empty",
+          "key": "job_id",
+          "message": "A job's estimated cost at completion exceeds its contract value, so the job is headed for a loss. Under ASC 606 the full estimated loss is recognized as soon as it is known; confirm the cost estimate and the contract value, because the loss should already be on the books."
+        }
+      ]
+    },
+    "margin-fade": {
+      "description": "Every job whose estimated gross margin has fallen more than fade_bps basis points since its last work-in-progress snapshot: the prior margin (from the latest snapshot) less the current margin, both in basis points of the contract value. Use for 'which jobs are fading', 'has any job's margin slipped since last quarter' and margin-erosion questions. Margin fade is the signal sureties and lenders watch for on a WIP schedule. A flag here is an investigative finding: the estimate has deteriorated, not that anything is misstated.",
+      "params": {
+        "fade_bps": {
+          "type": "integer",
+          "description": "The allowed fall in estimated gross margin, in basis points (100 bps = 1 percentage point). Omit for the default of 300 (a 3 percentage-point fall). Pass a tighter or looser value to match a surety's or lender's own tolerance."
+        }
+      },
+      "sql": "SELECT j.job_id, j.job_name, ((j.contract_value_cents - j.estimated_cost_cents) * 10000 / j.contract_value_cents) AS current_margin_bps, ((s.contract_value_cents - s.estimated_cost_cents) * 10000 / s.contract_value_cents) AS prior_margin_bps, s.snapshot_date AS prior_snapshot_date, (((s.contract_value_cents - s.estimated_cost_cents) * 10000 / s.contract_value_cents) - ((j.contract_value_cents - j.estimated_cost_cents) * 10000 / j.contract_value_cents)) AS fade_bps FROM jobs j JOIN wip_snapshots s ON s.job_id = j.job_id WHERE s.snapshot_date = (SELECT MAX(s2.snapshot_date) FROM wip_snapshots s2 WHERE s2.job_id = j.job_id) AND (((s.contract_value_cents - s.estimated_cost_cents) * 10000 / s.contract_value_cents) - ((j.contract_value_cents - j.estimated_cost_cents) * 10000 / j.contract_value_cents)) > COALESCE(:fade_bps, 300) ORDER BY j.job_id",
+      "checks": [
+        {
+          "id": "one-row-per-faded-job",
+          "type": "unique",
+          "columns": [
+            "job_id"
+          ]
+        },
+        {
+          "id": "margin-holds",
+          "type": "empty",
+          "key": "job_id",
+          "message": "A job's estimated gross margin has fallen more than the tolerance since its last work-in-progress snapshot. Margin fade is the signal sureties and lenders watch for; confirm the cost estimate and the prior snapshot before relying on the figure. This is a deterioration flag, not proof of a misstatement."
+        }
+      ]
+    },
+    "retainage-reconciles": {
+      "description": "Per job: retainage withheld to date, retainage released to date, the expected receivable (withheld less released) and the retainage receivable actually carried. Use for 'does our retainage receivable reconcile' and retainage questions. Retainage is earned and billed but held back, so the carried receivable should equal withheld less released; a difference means retainage is lost or double counted. A flag names the jobs whose carried receivable does not tie.",
+      "params": {},
+      "sql": "SELECT r.job_id, r.withheld_cents, r.released_cents, r.withheld_cents - r.released_cents AS expected_receivable_cents, r.receivable_cents FROM retainage r ORDER BY r.job_id",
+      "checks": [
+        {
+          "id": "one-row-per-job",
+          "type": "unique",
+          "columns": [
+            "job_id"
+          ]
+        },
+        {
+          "id": "receivable-ties",
+          "type": "compare",
+          "left": "receivable_cents",
+          "op": "=",
+          "right": "expected_receivable_cents",
+          "key": "job_id",
+          "message": "A job's carried retainage receivable does not equal retainage withheld less retainage released. Confirm the retainage ledger and the receivable before relying on the figure; retainage that does not reconcile is lost or double counted."
+        }
+      ]
+    },
+    "payments-without-lien-waiver": {
+      "description": "Every subcontractor payment released with no lien waiver on file. Use for 'did we pay a sub without a lien waiver' and lien-exposure questions. Releasing a progress or final payment without the matching waiver leaves the owner and the contractor exposed to a mechanic's lien. An empty result means every subcontractor payment carries a waiver.",
+      "params": {},
+      "sql": "SELECT p.payment_id, p.job_id, p.subcontractor_id, p.amount_cents, p.payment_date FROM sub_payments p WHERE p.lien_waiver_received = 0 ORDER BY p.payment_id",
+      "checks": [
+        {
+          "id": "one-row-per-payment",
+          "type": "unique",
+          "columns": [
+            "payment_id"
+          ]
+        },
+        {
+          "id": "waivers-on-file",
+          "type": "empty",
+          "key": "payment_id",
+          "message": "A subcontractor payment was released with no lien waiver on file. Confirm the waiver before relying on the payment; a payment released without its waiver leaves the owner and the contractor exposed to a mechanic's lien."
+        }
+      ]
+    }
+  }
+}

@@ -98,8 +98,9 @@ test('every canonical/named query the skill names is served', () => {
         ...packNames('hoa', 'hoa-v1'),
         ...packNames('nonprofit', 'nonprofit-v1'),
         ...packNames('schools', 'schools-v1'),
+        ...packNames('construction', 'construction-v1'),
     ]);
-    const re = /\b(?:enron|markets|saas|municipal|insurance|iolta|excise|property|hoa|nonprofit|schools)\/[a-z][a-z-]*/g;
+    const re = /\b(?:enron|markets|saas|municipal|insurance|iolta|excise|property|hoa|nonprofit|schools|construction)\/[a-z][a-z-]*/g;
     for (const { rel, text } of skillDocs()) {
         for (const name of matches(text, re)) {
             assert.ok(real.has(name), `${rel} names query "${name}", which run_canonical does not serve`);

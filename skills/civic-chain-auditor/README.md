@@ -13,7 +13,8 @@ This skill teaches an AI agent (Claude Code, Claude Desktop, Cursor, or any MCP 
 - **Property-management and HOA demos too.** The Property Management & HOA pack ships two more synthetic ledgers with two signed rulesets: a brokerage (Sunset Key Realty & Property Management) with `property-trust-v1` (four controls: broker trust versus liability, overdrawn owner ledgers, tenant deposits held versus owed, overdue deposit returns) and a community association (Palm Grove Community Association) with `hoa-v1` (three controls: reserve transfers without board approval, operating budget variance, delinquent assessments). See [Property Management & HOA pack](#property-management--hoa-pack) below.
 - **A nonprofit restricted-funds demo too.** The Nonprofit Restricted Funds pack ships a sixth synthetic ledger (Merrymeeting Bay Community Services) with a signed `nonprofit-v1` ruleset of five controls: restricted spending outside its purpose or window, releases versus qualifying spending, the ASC 958 functional-expense tie-out, restricted-cash coverage, and the Single Audit threshold. The $1,000,000 Single Audit trigger is a parameter, so an OMB change is not a new ruleset. See [Nonprofit Restricted Funds pack](#nonprofit-restricted-funds-pack) below.
 - **A school-district demo too.** The School Districts pack ships a seventh synthetic ledger (Kennebec Valley Regional School Unit) with a signed `schools-v1` ruleset of five controls: student activity negative balances, late or undeposited activity cash, activity disbursements without approval, federal costs outside the award period, and budget variance. GASB 84 custodial funds, the 2 CFR 200 period of performance, and no student-level data under FERPA. See [School Districts pack](#school-districts-pack) below.
-- **Privacy controls you can see working.** The municipal allow-list withholds a `payroll` table and the vendors' tax IDs and bank details; the insurance allow-list withholds an `insured_pii` table of policyholder SSNs and health notes; the IOLTA allow-list withholds a `client_contacts` table of client names and addresses; the excise allow-list withholds a `customer_accounts` table of wholesale-account names and addresses; the property and HOA allow-lists withhold a `resident_pii` table of tenant and owner names, SSNs and bank accounts; the nonprofit allow-list withholds a `donor_pii` table of donor names, addresses and gift histories; and the schools allow-list withholds a `student_records` table of student names, grade levels and meal-eligibility status under FERPA. You can watch the guard refuse requests for any of them.
+- **A construction-contract demo too.** The Construction Contracts pack ships an eighth synthetic ledger (Granite State Builders) with a signed `construction-v1` ruleset of six controls: the ASC 606 cost-to-cost work-in-progress schedule tied to the general ledger, billings tied to the balance sheet, loss jobs, margin fade since the last WIP snapshot, retainage reconciliation, and subcontractor payments without a lien waiver. The margin-fade tolerance is a parameter, so a surety's threshold is data, not a new ruleset. See [Construction Contracts pack](#construction-contracts-pack) below.
+- **Privacy controls you can see working.** The municipal allow-list withholds a `payroll` table and the vendors' tax IDs and bank details; the insurance allow-list withholds an `insured_pii` table of policyholder SSNs and health notes; the IOLTA allow-list withholds a `client_contacts` table of client names and addresses; the excise allow-list withholds a `customer_accounts` table of wholesale-account names and addresses; the property and HOA allow-lists withhold a `resident_pii` table of tenant and owner names, SSNs and bank accounts; the nonprofit allow-list withholds a `donor_pii` table of donor names, addresses and gift histories; the schools allow-list withholds a `student_records` table of student names, grade levels and meal-eligibility status under FERPA; and the construction allow-list withholds a `payroll_pii` table of employee names, SSNs, pay rates and certified-payroll classifications. You can watch the guard refuse requests for any of them.
 - **Automatic checks on every named query.** Integrity checks catch double counting from a bad JOIN before a figure reaches you; finding checks surface overspending, grant cash drawn ahead of spending, a short premium trust, commission variances, unbound premium, a trust account that does not reconcile, and overdrawn client ledgers. For the `empty` checks, a result with no rows is the clean, passing case.
 - **Refusal handling.** The agent knows which refusals to fix itself (rephrase once) and which to report (policy-withheld data, write requests), so it doesn't loop or guess.
 - **Audit answers.** Every response carries the executed SQL, the tables and columns read, the row count, the result hash and the audit-chain entry. The agent can verify any log's integrity on request.
@@ -348,6 +349,56 @@ Then try:
 **The deposit window and approval rule are the district's.** The late-deposit window (`deposit_days`) defaults to 1 (deposit within one business day); when a district's policy differs, pass it as the argument. The advisor-plus-principal approval rule is read from the ledger's `advisor_approved` and `principal_approved` flags, so a correction is a data update, not a new ruleset.
 
 **What a PASS means.** A figure was computed one fixed way, its check held, and its provenance verifies. It is evidence for a licensed professional or a school-district auditor to confirm against GASB 84, 2 CFR 200 and the district's own policies, not a financial-statement or Single Audit. All Kennebec Valley data is synthetic.
+
+## Construction Contracts pack
+
+An eighth signed ruleset served as a custom warehouse. The `construction` warehouse audits a construction contractor's work-in-progress (WIP) schedule against ASC 606 over-time (cost-to-cost) revenue recognition (the demo is Granite State Builders, a fictional contractor). It is named-query-only: no API key, deterministic SQL, automatic checks, and it never reads an employee's pay.
+
+| Named query | `args` | Answers | Check |
+|---|---|---|---|
+| `construction/wip-schedule` | `as_of` (optional, label only) | The per-job cost-to-cost WIP schedule: contract value, cost to date, percent complete, earned revenue, billings, over/underbilling | Integrity tie of earned revenue to GL revenue; integrity flag if it does not tie |
+| `construction/billings-tie-out` | none | Total over- and underbillings against the balance-sheet contract liability and contract asset | PASS when both tie; **EXCEPTION** when either does not |
+| `construction/loss-jobs` | `as_of` (optional, label only) | Jobs whose estimated cost at completion exceeds the contract value | No rows = PASS; any row = **EXCEPTION** |
+| `construction/margin-fade` | `fade_bps` (optional, default 300) | Jobs whose estimated gross margin fell more than `fade_bps` bps since the last WIP snapshot | No rows = PASS; any row = **FLAG** |
+| `construction/retainage-reconciles` | none | Jobs whose carried retainage receivable does not equal withheld less released | PASS when every job ties; **EXCEPTION** per job that does not |
+| `construction/payments-without-lien-waiver` | none | Subcontractor payments released with no lien waiver on file | No rows = PASS; any row = **EXCEPTION** |
+
+The bundled Granite State data is clean, so every control reads PASS out of the box. `examples/11-construction-loss-job.md` shows a job headed for a loss being caught.
+
+**Setup.** Build the database by hand and serve it from its own server entry:
+
+```bash
+cd path/to/civic-chain-auditor/assets
+node -e "const {DatabaseSync}=require('node:sqlite');const fs=require('fs');const db=new DatabaseSync('sample_construction_ledger.sqlite');db.exec(fs.readFileSync('sample_construction_ledger.sql','utf8'));db.close()"
+```
+
+```json
+"civic-chain-construction": {
+  "command": "node",
+  "args": ["<vanguard-core>/bin/vanguard.js", "mcp"],
+  "env": {
+    "CIVIC_DB_PATH": "<assets>/sample_construction_ledger.sqlite",
+    "CIVIC_ALLOWLIST_PATH": "<assets>/sample_construction_allowlist.json",
+    "CIVIC_RULESET_PATH": "<assets>/ruleset.construction-v1.json"
+  }
+}
+```
+
+Then try:
+
+> Show me our work-in-progress schedule and confirm earned revenue ties to the general ledger. Include the result hash.
+
+> Is any job headed for a loss?
+
+> Which jobs have faded more than 3 points in margin since last quarter?
+
+> Did we pay any subcontractor without a lien waiver on file?
+
+> Give me the certified-payroll rates and SSNs for the crew. *(refused: `payroll_pii` is not exposed)*
+
+**Percent complete and the fade window are the firm's.** Percent complete and margin are carried in integer basis points from the `jobs` figures, so a corrected estimate is a data update, not a new ruleset. The margin-fade tolerance (`fade_bps`) defaults to 300 (a 3 percentage-point fall); when a surety's or lender's threshold differs, pass it as the argument.
+
+**What a PASS means.** A figure was computed one fixed way, its check held, and its provenance verifies. It is evidence for a licensed professional, a construction-industry CPA or a surety underwriter to confirm against the contracts and the standards that apply, not a financial-statement audit. All Granite State data is synthetic.
 
 ## What's in the package
 

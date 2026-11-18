@@ -65,6 +65,10 @@ export const NONPROFIT_ALLOWLIST_PATH = assetPath('nonprofit', 'sample_nonprofit
 export const SCHOOLS_SQL_PATH = assetPath('schools', 'sample_schools_ledger.sql');
 export const SCHOOLS_ALLOWLIST_PATH = assetPath('schools', 'sample_schools_allowlist.json');
 
+/** The bundled construction demo (the Construction Contracts pack's seed and allow-list). */
+export const CONSTRUCTION_SQL_PATH = assetPath('construction', 'sample_construction_ledger.sql');
+export const CONSTRUCTION_ALLOWLIST_PATH = assetPath('construction', 'sample_construction_allowlist.json');
+
 /** The per-user directory the engine writes seeded warehouses and logs into. */
 export function dataDir({ env = process.env, platform = process.platform } = {}) {
     if (env.CIVIC_DATA_DIR) return env.CIVIC_DATA_DIR;

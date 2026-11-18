@@ -68,6 +68,7 @@ In the host, tool names carry the server key as a prefix (for example `mcp__civi
 | `hoa` (when configured) | yes | Fictional Palm Grove Community Association: reserve transfers, operating budget lines, operating expenses, owner assessments. Synthetic; owners by unit ID only. Served with the signed `hoa-v1` ruleset. |
 | `nonprofit` (when configured) | yes | Fictional Merrymeeting Bay Community Services: restricted and unrestricted funds, expenses by program and functional class, restriction releases, balance-sheet snapshot, net assets by restriction class, federal awards. Synthetic; funds and programs by code only. Served with the signed `nonprofit-v1` ruleset. |
 | `schools` (when configured) | yes | Fictional Kennebec Valley Regional School Unit: student activity accounts (GASB 84 custodial funds), activity collections and disbursements, federal programs and costs, budget lines and expenditures. Synthetic; accounts, programs and budget lines by code only, no student records. Served with the signed `schools-v1` ruleset. |
+| `construction` (when configured) | yes | Fictional Granite State Builders: jobs with contract value, estimated cost, cost to date and billings, general-ledger revenue, balance-sheet contract balances, prior WIP snapshots, retainage, and subcontractor payments with lien-waiver status. Synthetic; jobs, subcontractors and balances by code only, no employee payroll. Served with the signed `construction-v1` ruleset. |
 | *(any custom name)* | yes | The user's own ledger, loaded from `CIVIC_DB_PATH` / `CIVIC_ALLOWLIST_PATH` |
 | `saas` | yes | MRR, retention, LTV:CAC, cohorts. Synthetic. |
 | `enron` | no | FY2000 reporting gap: synthetic rows anchored to real 10-K aggregates |
@@ -173,6 +174,19 @@ Served by the signed `schools-v1` ruleset. Presentation rules (PASS / EXCEPTION 
 | `schools/federal-outside-period` | `fiscal_year` (optional) | Federal program costs charged outside the award's period of performance |
 | `schools/budget-variance` | `fiscal_year` (optional) | Paid spending against the amended budget per line; finding when a line is over budget |
 
+### Named queries on the construction demo (`run_canonical`, no credential)
+
+Served by the signed `construction-v1` ruleset. Presentation rules (PASS / EXCEPTION / FLAG, the margin-fade parameter and the payroll refusal) are in SKILL.md under "Construction Contracts pack".
+
+| `name` | `args` | What it answers |
+|---|---|---|
+| `construction/wip-schedule` | `as_of` (optional, label only) | The per-job cost-to-cost WIP schedule; integrity tie of earned revenue to general-ledger revenue |
+| `construction/billings-tie-out` | none | Total over- and underbillings against the contract liability and contract asset on the balance sheet |
+| `construction/loss-jobs` | `as_of` (optional, label only) | Jobs whose estimated cost at completion exceeds the contract value |
+| `construction/margin-fade` | `fade_bps` (optional, default 300) | Jobs whose estimated gross margin fell more than `fade_bps` basis points since the last WIP snapshot |
+| `construction/retainage-reconciles` | none | Jobs whose carried retainage receivable does not equal withheld less released |
+| `construction/payments-without-lien-waiver` | none | Subcontractor payments released with no lien waiver on file |
+
 Only pass the business arguments shown. Never pass `dbPath`, `logPath`, `signer` or `warehouse` inside `args`: the server refuses them, because they would otherwise redirect the query or its audit trail.
 
 ## Audit logs and verification
@@ -186,7 +200,7 @@ Pass `verify_audit` a `warehouse` and it checks that warehouse's log. The result
 | `db/enron-audit.jsonl` | enron queries and controls | `{ "warehouse": "enron" }` |
 | `db/markets-audit.jsonl` | markets queries and controls | `{ "warehouse": "markets" }` |
 | `db/lseg-audit.jsonl` | lseg controls | `{ "warehouse": "lseg" }` |
-| `<name>-audit.jsonl` beside the db | custom warehouse, e.g. `municipal`, `insurance`, `iolta`, `excise`, `property`, `hoa`, `nonprofit` or `schools` | `{ "warehouse": "municipal" }` / `{ "warehouse": "insurance" }` / `{ "warehouse": "iolta" }` / `{ "warehouse": "excise" }` / `{ "warehouse": "property" }` / `{ "warehouse": "hoa" }` / `{ "warehouse": "nonprofit" }` / `{ "warehouse": "schools" }` |
+| `<name>-audit.jsonl` beside the db | custom warehouse, e.g. `municipal`, `insurance`, `iolta`, `excise`, `property`, `hoa`, `nonprofit`, `schools` or `construction` | `{ "warehouse": "municipal" }` / `{ "warehouse": "insurance" }` / `{ "warehouse": "iolta" }` / `{ "warehouse": "excise" }` / `{ "warehouse": "property" }` / `{ "warehouse": "hoa" }` / `{ "warehouse": "nonprofit" }` / `{ "warehouse": "schools" }` / `{ "warehouse": "construction" }` |
 
 If the user asks about "the audit log" in general, verify every log that applies. Report:
 - `ok: true` → **INTACT**, with the entry count.

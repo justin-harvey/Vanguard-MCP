@@ -1,0 +1,58 @@
+{
+  "name": "construction",
+  "description": "Granite State Builders (fictional) construction-contract ledger: the jobs under contract with their current contract value, estimated cost at completion, cost to date and billings; the revenue recognized in the general ledger; the contract-liability and contract-asset balances on the balance sheet; the prior work-in-progress snapshots used to measure margin fade; the retainage withheld, released and carried per job; and the subcontractor payments with their lien-waiver status. Synthetic demo data; all money in integer cents, percent complete and margin in integer basis points. No employee pay or certified-payroll detail is exposed; the controls reconcile jobs, billings, retainage and subcontractor payments by code only.",
+  "domain": "construction contracts: the ASC 606 cost-to-cost work-in-progress schedule, billings tie-out, loss jobs, margin fade, retainage and subcontractor lien waivers",
+  "tables": {
+    "jobs": [
+      "job_id",
+      "job_name",
+      "status",
+      "contract_value_cents",
+      "estimated_cost_cents",
+      "cost_to_date_cents",
+      "billed_to_date_cents"
+    ],
+    "gl_revenue": [
+      "entry_id",
+      "job_id",
+      "amount_cents",
+      "posted_date"
+    ],
+    "balance_sheet_balances": [
+      "account",
+      "balance_cents",
+      "as_of"
+    ],
+    "wip_snapshots": [
+      "snapshot_id",
+      "job_id",
+      "snapshot_date",
+      "contract_value_cents",
+      "estimated_cost_cents"
+    ],
+    "retainage": [
+      "job_id",
+      "withheld_cents",
+      "released_cents",
+      "receivable_cents"
+    ],
+    "sub_payments": [
+      "payment_id",
+      "job_id",
+      "subcontractor_id",
+      "amount_cents",
+      "payment_date",
+      "lien_waiver_received"
+    ]
+  },
+  "notes": [
+    "All money is INTEGER CENTS. Percent complete and estimated margin are INTEGER BASIS POINTS (10000 bps = 100 percent), so the SQL never needs floating point.",
+    "Revenue is recognized over time by the cost-to-cost method (ASC 606). A job's percent complete is cost_to_date_cents / estimated_cost_cents, and its earned revenue is contract_value_cents * cost_to_date_cents / estimated_cost_cents. wip-schedule reports earned revenue per job and ties the total to the general ledger (gl_revenue).",
+    "A job's overbilling is billed_to_date_cents less earned revenue when billings run ahead of earnings (a contract liability); its underbilling is earned revenue less billed_to_date_cents when earnings run ahead of billings (a contract asset). billings-tie-out sums these across the jobs and ties them to the CONTRACT_LIABILITY and CONTRACT_ASSET balances in balance_sheet_balances.",
+    "A loss job is one whose estimated_cost_cents exceeds its contract_value_cents; under ASC 606 the full estimated loss is recognized as soon as it is known. loss-jobs flags any such job.",
+    "margin-fade compares a job's current estimated gross margin against the margin in its latest wip_snapshots row (selected by MAX(snapshot_date) per job) and flags a fall greater than fade_bps basis points; fade_bps is a parameter defaulting to 300 (a 3 percentage-point fall).",
+    "Retainage is earned and billed but held back. retainage-reconciles checks that each job's carried receivable_cents equals withheld_cents less released_cents.",
+    "A subcontractor payment carries lien_waiver_received = 1 when the waiver is on file, 0 when it is missing. payments-without-lien-waiver flags any payment released without its waiver. Subcontractors are identified by subcontractor_id only.",
+    "The payroll_pii table (employee names, Social Security numbers, hourly pay rates and certified-payroll classifications) is intentionally omitted: this engine never reads employee pay or certified-payroll detail. The controls identify jobs, subcontractors and balances by code only."
+  ]
+}
