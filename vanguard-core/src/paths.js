@@ -45,6 +45,10 @@ export const INSURANCE_ALLOWLIST_PATH = assetPath('insurance', 'sample_insurance
 export const IOLTA_SQL_PATH = assetPath('iolta', 'sample_iolta_trust.sql');
 export const IOLTA_ALLOWLIST_PATH = assetPath('iolta', 'sample_iolta_allowlist.json');
 
+/** The bundled excise demo (the Excise Tax pack's seed and allow-list). */
+export const EXCISE_SQL_PATH = assetPath('excise', 'sample_excise_filings.sql');
+export const EXCISE_ALLOWLIST_PATH = assetPath('excise', 'sample_excise_allowlist.json');
+
 /** The per-user directory the engine writes seeded warehouses and logs into. */
 export function dataDir({ env = process.env, platform = process.platform } = {}) {
     if (env.CIVIC_DATA_DIR) return env.CIVIC_DATA_DIR;

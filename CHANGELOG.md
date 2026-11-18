@@ -5,6 +5,54 @@ The project follows [Semantic Versioning](https://semver.org/): MAJOR.MINOR.PATC
 
 ## [Unreleased]
 
+### Added — Excise Tax ruleset pack (fourth signed pack)
+- A fourth domain pack beside the municipal, insurance and IOLTA ones, on the
+  same signed-ruleset + custom-warehouse seam (no engine change, no new
+  dependency, no server, no new credential). Five controls for an excise
+  licensee's filings (the demo is a beer brewery), each a named query with
+  automatic checks, encoding TTB practice (27 CFR part 25, operations reports
+  under 27 CFR 25.297) and common state excise reconciliation:
+  - **`excise/liability-vs-remitted`** (`period`) — per period: taxable barrels
+    removed, the per-barrel rate in force, the expected tax and the tax paid; a
+    `compare` (`>=`) finding that the tax paid covers the liability, plus a
+    `total_matches` integrity recompute of the removals volume.
+  - **`excise/inventory-rollforward`** (`period`) — per period: opening +
+    produced − removed − losses against the reported closing barrels; a
+    `compare` (`=`) finding with a `unique` integrity check.
+  - **`excise/report-vs-return`** (`period`) — per period: barrels removed on the
+    operations report against barrels reported on the return; a `compare` (`=`)
+    finding with a `unique` integrity check.
+  - **`excise/missing-or-late-filings`** — periods with activity but no return,
+    or a return filed after its due date; an `empty` finding with a `unique`
+    integrity check.
+  - **`excise/loss-variance`** (`max_loss_bps`, default 300) — periods whose
+    losses, in basis points of production, exceed the tolerance (a diversion
+    signal); an `empty` finding with a `unique` integrity check.
+- **Rates are data, not code:** the per-barrel rate lives in a `tax_rates` table
+  with an effective date, and a control reads the rate in force for the period,
+  so a rate change is a new row, never a new signed ruleset. The demo ships the
+  old full rate and the current reduced small-brewer rate to prove the
+  effective-date selection.
+- **Demo warehouse** (`assets/excise/`, mirrored into the skill): a synthetic
+  Penobscot Bay Brewing Co. seed (clean, so all five controls read PASS), a
+  pure access-policy allow-list, and a deliberately **non-allow-listed
+  `customer_accounts` table** (wholesale-account names, addresses, license
+  numbers; patient-registry IDs in a cannabis build) so the guard visibly
+  refuses customer data; the filings carry product class and period only.
+- **Signed** `excise-v1` ruleset (`scripts/build-excise-ruleset.js`), signed
+  offline with the same Civic-Chain key `acb80e87885da931`; ships in both asset
+  copies with its detached signature.
+- **Tests** (`test/excise-warehouse.test.js`, `test/excise-ruleset.test.js`,
+  `test/excise-fixture.js`): clean PASS for all five controls, a targeted
+  mutation (or threshold parameter) tripping each, the rate-in-force selection,
+  signature status, and the `customer_accounts` refusal. `test/skill-drift.test.js`
+  extended to resolve `excise/*` query names from the shipped ruleset. Full
+  suite green on Node 22 (363 tests).
+- **Skill routing and docs** (`SKILL.md`, `references/setup.md`,
+  `references/refusals.md`, `examples/06-excise-underpaid-return.md`, and the
+  skill, top-level and core READMEs): PASS/EXCEPTION/FLAG presentation per
+  control, the rate-as-data rule, and the customer-data refusal.
+
 ### Added — Law Firm Trust (IOLTA) ruleset pack (third signed pack)
 - A third domain pack beside the municipal and insurance ones, on the same
   signed-ruleset + custom-warehouse seam (no engine change, no new dependency,

@@ -9,7 +9,8 @@ This skill teaches an AI agent (Claude Code, Claude Desktop, Cursor, or any MCP 
 - **A working demo in about two minutes.** A fictional town's ledger (the Town of Sampleton) with grants, vendors, budget lines, expenditures and grant drawdowns: 108 rows across 8 tables. It has realistic findings built in for the agent to surface: a grant drawn down ahead of its spending, a grant carrying unreimbursed costs, an overspent budget line, and a voided duplicate invoice.
 - **An insurance agency demo too.** The Insurance & Fiduciary pack ships a second synthetic ledger (the Harborline Insurance Agency) with a signed `insurance-v1` ruleset of three controls: premium-trust solvency, carrier commission variance, and errors-and-omissions exposure on unbound policies. See [Insurance & Fiduciary pack](#insurance--fiduciary-pack) below.
 - **A law-firm trust-account demo too.** The Law Firm Trust (IOLTA) pack ships a third synthetic ledger (the Northfield Law Group) with a signed `iolta-v1` ruleset of five controls: three-way reconciliation, overdrawn client ledgers, unsupported fee transfers, firm money commingled in trust, and dormant balances. See [Law Firm Trust (IOLTA) pack](#law-firm-trust-iolta-pack) below.
-- **Privacy controls you can see working.** The municipal allow-list withholds a `payroll` table and the vendors' tax IDs and bank details; the insurance allow-list withholds an `insured_pii` table of policyholder SSNs and health notes; the IOLTA allow-list withholds a `client_contacts` table of client names and addresses. You can watch the guard refuse requests for any of them.
+- **An excise-tax demo too.** The Excise Tax pack ships a fourth synthetic ledger (Penobscot Bay Brewing Co., a beer brewery) with a signed `excise-v1` ruleset of five controls: liability versus tax remitted, the operations-report rollforward, report-versus-return tie-out, missing or late filings, and loss variance. The excise rate lives in a `tax_rates` table so a rate change is data, not a new ruleset. See [Excise Tax pack](#excise-tax-pack) below.
+- **Privacy controls you can see working.** The municipal allow-list withholds a `payroll` table and the vendors' tax IDs and bank details; the insurance allow-list withholds an `insured_pii` table of policyholder SSNs and health notes; the IOLTA allow-list withholds a `client_contacts` table of client names and addresses; the excise allow-list withholds a `customer_accounts` table of wholesale-account names and addresses. You can watch the guard refuse requests for any of them.
 - **Automatic checks on every named query.** Integrity checks catch double counting from a bad JOIN before a figure reaches you; finding checks surface overspending, grant cash drawn ahead of spending, a short premium trust, commission variances, unbound premium, a trust account that does not reconcile, and overdrawn client ledgers. For the `empty` checks, a result with no rows is the clean, passing case.
 - **Refusal handling.** The agent knows which refusals to fix itself (rephrase once) and which to report (policy-withheld data, write requests), so it doesn't loop or guess.
 - **Audit answers.** Every response carries the executed SQL, the tables and columns read, the row count, the result hash and the audit-chain entry. The agent can verify any log's integrity on request.
@@ -130,6 +131,55 @@ Then try:
 
 **What a PASS means.** A figure was computed one fixed way, its check held, and its provenance verifies. It is evidence for a licensed professional to confirm against the firm's own obligations and its state's trust-account rules, not a bar trust-account audit or a compliance certification. All Northfield data is synthetic.
 
+## Excise Tax pack
+
+A fourth signed domain pack, served as a custom warehouse named `excise`. It reconciles an excise licensee's filings (the demo is a beer brewery) against federal practice (TTB 27 CFR part 25, operations reports under 27 CFR 25.297) and common state excise rules. The buyer is the licensee checking its own returns or a revenue regulator checking a licensee. All five controls are named queries: no API key, deterministic SQL, and automatic checks. The filings identify product by class and period only.
+
+| Query | Args | Reports | Result |
+|---|---|---|---|
+| `excise/liability-vs-remitted` | `period` (optional, YYYY-MM) | Per period: taxable barrels, the per-barrel rate in force, the expected tax, and the tax paid | PASS when the tax paid covers the liability; **EXCEPTION** (underpaid return) when it does not |
+| `excise/inventory-rollforward` | `period` (optional) | Per period: opening + produced − removed − losses against the reported closing barrels | PASS when they tie; **FLAG** (rollforward break) when they do not |
+| `excise/report-vs-return` | `period` (optional) | Per period: barrels removed on the operations report against barrels reported on the return | PASS when they agree; **FLAG** when they disagree |
+| `excise/missing-or-late-filings` | none | Periods with activity but no return, or a return filed after its due date | No rows = PASS; any row = **FLAG** (missing or late) |
+| `excise/loss-variance` | `max_loss_bps` (optional, default 300) | Periods whose losses, in basis points of production, exceed the tolerance | No rows = PASS; any row = **FLAG** (diversion signal) |
+
+The bundled Penobscot Bay data is clean, so all five controls read PASS out of the box. `examples/06-excise-underpaid-return.md` shows an underpaid return being caught.
+
+**Setup.** As with the insurance and IOLTA packs, build the database by hand and serve it from its own server entry (one custom warehouse per server):
+
+```bash
+cd path/to/civic-chain-auditor/assets
+node -e "const {DatabaseSync}=require('node:sqlite');const fs=require('fs');const db=new DatabaseSync('sample_excise_filings.sqlite');db.exec(fs.readFileSync('sample_excise_filings.sql','utf8'));db.close()"
+```
+
+```json
+"civic-chain-excise": {
+  "command": "node",
+  "args": ["<vanguard-core>/bin/vanguard.js", "mcp"],
+  "env": {
+    "CIVIC_DB_PATH": "<assets>/sample_excise_filings.sqlite",
+    "CIVIC_ALLOWLIST_PATH": "<assets>/sample_excise_allowlist.json",
+    "CIVIC_RULESET_PATH": "<assets>/ruleset.excise-v1.json"
+  }
+}
+```
+
+Then try:
+
+> Was our January beer excise return short of what the removals times the rate come to? Include the result hash.
+
+> Do the operations reports balance (opening plus produced, less removed and losses, equals closing)?
+
+> Did we miss any excise returns or file any late?
+
+> Which periods had losses over 2 percent of production?
+
+> List the wholesale customers and their addresses from the excise ledger. *(refused: `customer_accounts` is not exposed)*
+
+**Rates and tolerances are data or parameters.** The excise rate lives in the ledger's `tax_rates` table with an effective date; a control reads the rate in force for the period, so a rate change is a new row, not a new signed ruleset, and the agent never supplies or guesses a rate. Filing due dates and the loss tolerance (`max_loss_bps`) vary by jurisdiction and are arguments with documented defaults.
+
+**What a PASS means.** A figure was computed one fixed way, its check held, and its provenance verifies. It is evidence for a licensed professional or revenue auditor to confirm against the law that applies, not a TTB or state excise audit. All Penobscot Bay data is synthetic.
+
 ## What's in the package
 
 ```
@@ -146,9 +196,12 @@ civic-chain-auditor/
 │   ├── sample_iolta_trust.sql           IOLTA seed script (Northfield Law, synthetic)
 │   ├── sample_iolta_allowlist.json      IOLTA permitted tables and columns (no client_contacts)
 │   ├── ruleset.iolta-v1.json(.sig)      signed IOLTA ruleset and its detached signature
+│   ├── sample_excise_filings.sql        excise seed script (Penobscot Bay Brewing, synthetic)
+│   ├── sample_excise_allowlist.json     excise permitted tables and columns (no customer_accounts)
+│   ├── ruleset.excise-v1.json(.sig)     signed excise ruleset and its detached signature
 │   └── civic-chain-ruleset-pub.pem      public key the ruleset signatures verify against
 ├── references/                          setup, controls and refusal reference for the agent
-├── examples/                            worked transcripts (01-03 municipal, 04 insurance, 05 IOLTA)
+├── examples/                            worked transcripts (01-03 municipal, 04 insurance, 05 IOLTA, 06 excise)
 └── scripts/
     └── verify-setup.js                  local setup check and config generator (municipal demo)
 ```
@@ -172,8 +225,8 @@ Anything left out of the allow-list is refused by the engine's guard, which pars
 
 - Open-ended (free-text) questions need an Anthropic API key, and each costs one planning call and up to two narration calls. Named queries need neither.
 - Custom warehouses support free-text questions; pre-built controls exist only for the bundled demo warehouses.
-- One custom warehouse per server: to run the municipal, insurance and IOLTA demos together, add a server entry for each.
-- `verify-setup.js` builds and checks only the municipal demo database; the insurance and IOLTA databases are built with the one-liners above.
+- One custom warehouse per server: to run the municipal, insurance, IOLTA and excise demos together, add a server entry for each.
+- `verify-setup.js` builds and checks only the municipal demo database; the insurance, IOLTA and excise databases are built with the one-liners above.
 - Over MCP, `verify_audit` checks the hash chain but not signatures; the `cc-auditor audit` CLI checks both.
 
 ## Enterprise & custom deployments

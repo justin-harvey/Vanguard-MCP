@@ -1,0 +1,141 @@
+{
+  "name": "excise",
+  "version": "excise-v1",
+  "changelog": [
+    "excise-v1: initial Civic-Chain Excise Tax ruleset (beer, one jurisdiction) — liability-vs-remitted (tax paid against taxable removals times the per-barrel rate), inventory-rollforward (opening + produced - removed - losses = closing), report-vs-return (barrels removed on the operations report = barrels reported on the return), missing-or-late-filings (a period with activity and no return, or a return after its due date) and loss-variance (losses above a basis-point tolerance), with integrity (unique, total_matches) and finding (compare, empty) checks. The rate is read from a tax_rates table by effective date, never hard-coded, so a rate change is a data update, not a new signed version. These controls encode a reasonable interpretation of federal alcohol-excise practice (TTB 27 CFR part 25 for beer, operations reports under 27 CFR 25.297) and common state excise reconciliation; filing frequency, due dates, rates and the loss tolerance vary by jurisdiction and are data or parameters. They produce evidence for a licensed professional or revenue auditor to confirm against the law that applies; they are not a TTB or state audit or a compliance certification."
+  ],
+  "queries": {
+    "liability-vs-remitted": {
+      "description": "Per filing period: the taxable barrels removed from bond, the per-barrel excise rate in force for that period, the resulting expected tax, and the tax actually paid on the return. Use for 'is the excise return short', underpaid-return and remittance questions. The rate is read from tax_rates by effective date, so a rate change needs no new ruleset. The tax paid must be at least the expected tax for every period.",
+      "params": {
+        "period": {
+          "type": "string",
+          "description": "Reconcile only this filing period (YYYY-MM). Omit to report every period."
+        }
+      },
+      "sql": "SELECT r.period AS period, SUM(r.barrels) AS taxable_barrels, (SELECT tr.rate_cents_per_barrel FROM tax_rates tr WHERE tr.product_class = r.product_class AND tr.effective_date <= (r.period || '-01') ORDER BY tr.effective_date DESC LIMIT 1) AS rate_cents_per_barrel, SUM(r.barrels) * (SELECT tr.rate_cents_per_barrel FROM tax_rates tr WHERE tr.product_class = r.product_class AND tr.effective_date <= (r.period || '-01') ORDER BY tr.effective_date DESC LIMIT 1) AS expected_tax_cents, (SELECT COALESCE(SUM(ret.tax_paid_cents), 0) FROM tax_returns ret WHERE ret.period = r.period AND ret.product_class = r.product_class) AS tax_paid_cents FROM removals r WHERE r.period = COALESCE(:period, r.period) GROUP BY r.period, r.product_class",
+      "checks": [
+        {
+          "id": "removals-recompute",
+          "type": "total_matches",
+          "column": "taxable_barrels",
+          "sql": "SELECT COALESCE(SUM(barrels), 0) AS total FROM removals WHERE period = COALESCE(:period, period)"
+        },
+        {
+          "id": "tax-paid-covers-liability",
+          "type": "compare",
+          "left": "tax_paid_cents",
+          "op": ">=",
+          "right": "expected_tax_cents",
+          "key": "period",
+          "message": "Underpaid excise return: the tax paid for this period is less than the taxable removals times the rate in force. Confirm the removals, the rate and the return before relying on the figure."
+        }
+      ]
+    },
+    "inventory-rollforward": {
+      "description": "Per filing period, the operations-report rollforward: opening barrels plus produced, less removed and less losses, against the reported closing barrels. Use for 'does the production report balance' and 'did product leave without being reported' questions. The computed closing must equal the reported closing for every period; a break means product is unaccounted for.",
+      "params": {
+        "period": {
+          "type": "string",
+          "description": "Check only this filing period (YYYY-MM). Omit to check every period."
+        }
+      },
+      "sql": "SELECT period, product_class, opening_barrels, produced_barrels, removed_barrels, loss_barrels, closing_barrels, (opening_barrels + produced_barrels - removed_barrels - loss_barrels) AS computed_closing_barrels FROM operations_reports WHERE period = COALESCE(:period, period)",
+      "checks": [
+        {
+          "id": "one-row-per-period",
+          "type": "unique",
+          "columns": [
+            "period",
+            "product_class"
+          ]
+        },
+        {
+          "id": "rollforward-balances",
+          "type": "compare",
+          "left": "closing_barrels",
+          "op": "=",
+          "right": "computed_closing_barrels",
+          "key": "period",
+          "message": "Inventory rollforward break: opening plus produced, less removed and losses, does not equal the reported closing barrels for this period. Product may have left without being reported."
+        }
+      ]
+    },
+    "report-vs-return": {
+      "description": "Per filing period, the barrels removed on the operations report against the barrels reported on the excise return. Use for 'do the report and the return agree' questions. The two must match for every period; a disagreement means one of the two filings is wrong.",
+      "params": {
+        "period": {
+          "type": "string",
+          "description": "Check only this filing period (YYYY-MM). Omit to check every period."
+        }
+      },
+      "sql": "SELECT o.period AS period, o.product_class AS product_class, o.removed_barrels AS reported_removed_barrels, COALESCE(ret.barrels_reported, 0) AS return_barrels FROM operations_reports o LEFT JOIN tax_returns ret ON ret.period = o.period AND ret.product_class = o.product_class WHERE o.period = COALESCE(:period, o.period)",
+      "checks": [
+        {
+          "id": "one-row-per-period",
+          "type": "unique",
+          "columns": [
+            "period",
+            "product_class"
+          ]
+        },
+        {
+          "id": "report-ties-return",
+          "type": "compare",
+          "left": "reported_removed_barrels",
+          "op": "=",
+          "right": "return_barrels",
+          "key": "period",
+          "message": "The barrels removed on the operations report do not equal the barrels reported on the excise return for this period. Reconcile the two filings before relying on either."
+        }
+      ]
+    },
+    "missing-or-late-filings": {
+      "description": "Every period that had activity (an operations report) but either has no excise return on file, or whose return was filed after its due date. Use for 'did we miss or file a return late' questions. An empty result means every period with activity has a return filed on or before its due date.",
+      "params": {},
+      "sql": "SELECT o.period AS period, o.product_class AS product_class, ret.return_id AS return_id, ret.filed_date AS filed_date, ret.due_date AS due_date, CASE WHEN ret.return_id IS NULL THEN 'MISSING' ELSE 'LATE' END AS issue FROM operations_reports o LEFT JOIN tax_returns ret ON ret.period = o.period AND ret.product_class = o.product_class WHERE ret.return_id IS NULL OR ret.filed_date > ret.due_date",
+      "checks": [
+        {
+          "id": "one-row-per-period",
+          "type": "unique",
+          "columns": [
+            "period",
+            "product_class"
+          ]
+        },
+        {
+          "id": "no-missing-or-late",
+          "type": "empty",
+          "key": "period",
+          "message": "A period with activity is missing its excise return, or the return was filed after its due date. File the missing return, or document the late filing and any penalty."
+        }
+      ]
+    },
+    "loss-variance": {
+      "description": "Periods whose reported losses (destruction, spillage, shrinkage) exceed a tolerance, measured in integer basis points of production (loss barrels times 10000, divided by produced barrels). Use for 'are our losses above tolerance' and diversion-signal questions. A flag here is an investigative finding, not an error. An empty result means no period's loss rate exceeds the tolerance.",
+      "params": {
+        "max_loss_bps": {
+          "type": "integer",
+          "description": "Loss tolerance in basis points of production; a period is reported only if its loss rate exceeds this. Omit for the default of 300 (three percent). Tolerances vary by jurisdiction and product."
+        }
+      },
+      "sql": "SELECT period, product_class, produced_barrels, loss_barrels, (loss_barrels * 10000) / produced_barrels AS loss_bps FROM operations_reports WHERE produced_barrels > 0 AND (loss_barrels * 10000) / produced_barrels > COALESCE(:max_loss_bps, 300)",
+      "checks": [
+        {
+          "id": "one-row-per-period",
+          "type": "unique",
+          "columns": [
+            "period",
+            "product_class"
+          ]
+        },
+        {
+          "id": "losses-within-tolerance",
+          "type": "empty",
+          "key": "period",
+          "message": "A period's reported losses exceed the tolerance as a fraction of production. Investigate the cause; losses above tolerance can be a diversion signal."
+        }
+      ]
+    }
+  }
+}

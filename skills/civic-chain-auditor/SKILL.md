@@ -1,6 +1,6 @@
 ---
 name: civic-chain-auditor
-description: Use when the user asks to audit grant spending, check a municipal or public budget, track grant drawdowns against expenditures, find budget overruns or overspent line items, break spending down by vendor, reconcile an insurance agency's premium trust account, audit carrier commission variances or errors-and-omissions exposure on unbound policies, reconcile a law firm's client trust (IOLTA) account three ways, find overdrawn client ledgers or unsupported fee transfers, verify an audit log, or get financial figures they can trust and reproduce. Answers through the Civic-Chain Auditor MCP server (required): every number comes from a read-only SQL query checked against the source rows, with a result hash and a tamper-evident audit trail. Also covers SOC 2 evidence controls and ledger reconciliation. Includes a demo town budget ledger, a demo insurance premium-trust ledger and a demo law-firm client-trust ledger.
+description: Use when the user asks to audit grant spending, check a municipal or public budget, track grant drawdowns against expenditures, find budget overruns or overspent line items, break spending down by vendor, reconcile an insurance agency's premium trust account, audit carrier commission variances or errors-and-omissions exposure on unbound policies, reconcile a law firm's client trust (IOLTA) account three ways, find overdrawn client ledgers or unsupported fee transfers, reconcile an excise licensee's filings (a brewery's or other alcohol, tobacco or cannabis business's), check an excise return against taxable removals, tie an operations report to a tax return, find missing or late excise filings or losses over tolerance, verify an audit log, or get financial figures they can trust and reproduce. Answers through the Civic-Chain Auditor MCP server (required): every number comes from a read-only SQL query checked against the source rows, with a result hash and a tamper-evident audit trail. Also covers SOC 2 evidence controls and ledger reconciliation. Includes a demo town budget ledger, a demo insurance premium-trust ledger, a demo law-firm client-trust ledger and a demo beer-excise filings ledger.
 ---
 
 # Civic-Chain Grant & Budget Auditor
@@ -33,7 +33,7 @@ Needs Node 22+. Full environment variables, custom-ledger setup, and the complet
 | `list_controls` / `run_control` | `id` (for run) | none | SOC 2 reconciliations with PASS / EXCEPTION and provenance |
 | `verify_audit` | `warehouse` | none | Hash-chain integrity check on one audit log (named by warehouse, never by file path) |
 
-Read the resource `civic-chain://warehouses` once per session to see which warehouses are connected, which accept free text, and (for custom warehouses) what named queries they expose with their parameters. The municipal demo exposes `municipal/grant-status`, `municipal/spending-by-vendor` and `municipal/budget-variance`. The insurance demo exposes `insurance/trust-account-solvency`, `insurance/commission-variance-audit` and `insurance/eo-unbound-exposure`. The IOLTA demo exposes `iolta/three-way-reconciliation`, `iolta/negative-client-balances`, `iolta/unsupported-fee-transfers`, `iolta/firm-funds-in-trust` and `iolta/dormant-balances`. Built-in canonical queries and the full catalog are in `references/setup.md`.
+Read the resource `civic-chain://warehouses` once per session to see which warehouses are connected, which accept free text, and (for custom warehouses) what named queries they expose with their parameters. The municipal demo exposes `municipal/grant-status`, `municipal/spending-by-vendor` and `municipal/budget-variance`. The insurance demo exposes `insurance/trust-account-solvency`, `insurance/commission-variance-audit` and `insurance/eo-unbound-exposure`. The IOLTA demo exposes `iolta/three-way-reconciliation`, `iolta/negative-client-balances`, `iolta/unsupported-fee-transfers`, `iolta/firm-funds-in-trust` and `iolta/dormant-balances`. The excise demo exposes `excise/liability-vs-remitted`, `excise/inventory-rollforward`, `excise/report-vs-return`, `excise/missing-or-late-filings` and `excise/loss-variance`. Built-in canonical queries and the full catalog are in `references/setup.md`.
 
 Only pass the business arguments a query documents. Never pass `dbPath`, `logPath`, `signer` or `warehouse` inside `args`: the server refuses them, because they would redirect the query or its audit trail.
 
@@ -136,6 +136,34 @@ For the `empty` checks, remember an empty result means the control **passed**; i
 
 **Claim discipline.** A PASS means a figure was computed one blessed way, its assertion held, and its provenance verifies, never that the firm is "compliant" or "in good standing". These controls produce evidence for a licensed professional to confirm against the firm's own obligations and its state's rules; they are not a bar trust-account audit or a compliance certification. The demo data is synthetic.
 
+## Excise Tax pack
+
+When the `excise` warehouse is configured, five named queries reconcile an excise licensee's filings (the demo is a beer brewery) against federal practice (TTB 27 CFR part 25, operations reports under 27 CFR 25.297) and common state excise rules. The buyer is either the licensee checking its own returns or a revenue regulator checking a licensee. Call each with `run_canonical`; all are no-credential and carry automatic checks, so route through them exactly as the municipal named queries, reading `integrity` first, then the findings.
+
+| Query | Args | Reports |
+|---|---|---|
+| `excise/liability-vs-remitted` | `period` (optional, YYYY-MM) | Per period: taxable barrels removed, the per-barrel rate in force, the expected tax, and the tax paid. Finding when the tax paid is less than the expected tax. |
+| `excise/inventory-rollforward` | `period` (optional) | Per period: opening + produced − removed − losses against the reported closing barrels. Finding when they do not tie. |
+| `excise/report-vs-return` | `period` (optional) | Per period: barrels removed on the operations report against barrels reported on the return. Finding when they disagree. |
+| `excise/missing-or-late-filings` | none | Periods with activity but no return, or a return filed after its due date. |
+| `excise/loss-variance` | `max_loss_bps` (optional, default 300) | Periods whose losses, in basis points of production, exceed the tolerance. |
+
+How to present each result:
+
+- **`liability-vs-remitted`** carries the integrity check `removals-recompute` (a `total_matches` on the barrels) and the finding check `tax-paid-covers-liability` (a `compare`: `tax_paid_cents >= expected_tax_cents`, per period). When the finding check is `pass`, every period's return covers its liability: present the figures from the rows. If it is `flag`, the periods it names in `detail.rows` are **underpaid returns**: report each with its `taxable_barrels`, `rate_cents_per_barrel`, `expected_tax_cents` and `tax_paid_cents`, and do not retry. If `removals-recompute` is `flag` or `error`, say the figures are not trustworthy. The rate comes from the ledger's `tax_rates` table by effective date, so do not supply or infer a rate yourself.
+- **`inventory-rollforward`** carries the finding check `rollforward-balances` (a `compare` with `=`: `closing_barrels = computed_closing_barrels`, per period) and the integrity check `one-row-per-period`. A `pass` means every period's production report balances. A `flag` is a **rollforward break** for the periods in `detail.rows`: report the `closing_barrels` and `computed_closing_barrels` and say product may have left without being reported.
+- **`report-vs-return`** carries the finding check `report-ties-return` (a `compare` with `=`: `reported_removed_barrels = return_barrels`, per period). A `pass` means the operations report and the return agree every period. A `flag` is a disagreement for the periods in `detail.rows`: report both barrel figures and say to reconcile the two filings.
+- **`missing-or-late-filings`** carries the finding check `no-missing-or-late` (an `empty` check). An **empty result is the clean, passing case**: every period with activity has a return filed on time. Any returned row is a **FLAG**: report the `period` and its `issue` (`MISSING` or `LATE`, with the `filed_date` and `due_date` for a late one), and say to file the missing return or document the late one.
+- **`loss-variance`** carries the finding check `losses-within-tolerance` (an `empty` check). An **empty result is the clean, passing case**. Any returned row is a **FLAG** (an investigative finding, not an error): report the `period`, `produced_barrels`, `loss_barrels` and `loss_bps`, and say losses above tolerance can be a diversion signal worth investigating.
+
+For the `empty` checks, remember an empty result means the control **passed**; it is not "no data". Only present a FLAG when a row is actually returned.
+
+**Customer data is never readable.** Wholesale-account names, addresses and license numbers (and patient-registry IDs in a cannabis build) live in a `customer_accounts` table that is not on the allow-list, so any question that would read it is refused (`table_not_allowed`). The filings identify product by class and period only. Say the engine does not expose customer data, and do not try to reach it another way. These controls need none of it.
+
+**Rates and tolerances are data or parameters, not assertions.** The excise rate lives in the ledger's `tax_rates` table with an effective date; a control reads the rate in force for the period, so a rate change is a data update, never a new ruleset, and you must never hard-code or guess a rate. Filing due dates and the loss tolerance (`max_loss_bps`) also vary by jurisdiction and product; when a user names their rule, pass it as the argument rather than treating the default as law.
+
+**Claim discipline.** A PASS means a figure was computed one blessed way, its assertion held, and its provenance verifies, never that the licensee is "compliant" or "certified". These controls produce evidence for a licensed professional or revenue auditor to confirm against the law that applies; they are not a TTB or state excise audit. The demo data is synthetic.
+
 ## Example prompts
 
 - "How much of the paving grant (G-402) has been spent, broken down by vendor? Include the result hash." → `municipal/spending-by-vendor { "grant_id": "G-402" }`
@@ -152,6 +180,12 @@ For the `empty` checks, remember an empty result means the control **passed**; i
 - "Are we holding more than $250 of firm money in the trust account?" → `iolta/firm-funds-in-trust`; the $250 default is `max_firm_cents: 25000`
 - "Which client balances have sat untouched for over 90 days?" → `iolta/dormant-balances { "dormant_days": 90 }`
 - "Give me the client names and addresses in the trust ledger." → refused by policy (`table_not_allowed`, `client_contacts` is not exposed); say so.
+- "Was our January beer excise return short of what the removals times the rate come to? Include the result hash." → `excise/liability-vs-remitted { "period": "2026-01" }`, report the `tax-paid-covers-liability` check first
+- "Do the operations reports balance (opening plus produced, less removed and losses, equals closing)?" → `excise/inventory-rollforward`; report any period in the `rollforward-balances` flag
+- "Do the barrels on our operations reports match what we reported on the excise returns?" → `excise/report-vs-return`; an empty flag means they tie
+- "Did we miss any excise returns or file any late?" → `excise/missing-or-late-filings`; an empty result means none
+- "Which periods had losses over 2 percent of production?" → `excise/loss-variance { "max_loss_bps": 200 }`
+- "List the wholesale customers and their addresses from the excise ledger." → refused by policy (`table_not_allowed`, `customer_accounts` is not exposed); say so.
 - "Verify every Civic-Chain Auditor audit log and tell me whether any chain is broken."
 
 Worked transcripts with real figures and hashes are in `examples/`.

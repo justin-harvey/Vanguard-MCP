@@ -1,0 +1,51 @@
+{
+  "name": "excise",
+  "description": "Penobscot Bay Brewing Co. (fictional) beer excise filings: the excise rate schedule, taxable removals from bond, the period operations reports (production rollforward) and the excise returns. Synthetic demo data; all money in integer cents and all volume in integer barrels. No wholesale-customer data is exposed; the controls reconcile volumes and money by period only.",
+  "domain": "beer excise tax: rate schedule, taxable removals, operations reports and excise returns",
+  "tables": {
+    "tax_rates": [
+      "rate_id",
+      "product_class",
+      "jurisdiction",
+      "rate_cents_per_barrel",
+      "effective_date"
+    ],
+    "removals": [
+      "removal_id",
+      "period",
+      "product_class",
+      "barrels",
+      "removal_date"
+    ],
+    "operations_reports": [
+      "report_id",
+      "period",
+      "product_class",
+      "opening_barrels",
+      "produced_barrels",
+      "removed_barrels",
+      "loss_barrels",
+      "closing_barrels",
+      "filed_date",
+      "due_date"
+    ],
+    "tax_returns": [
+      "return_id",
+      "period",
+      "product_class",
+      "barrels_reported",
+      "tax_paid_cents",
+      "filed_date",
+      "due_date"
+    ]
+  },
+  "notes": [
+    "All money is INTEGER CENTS; all volume is INTEGER BARRELS (a US beer barrel is 31 gallons, the federal excise unit).",
+    "The excise rate is DATA, not code: tax_rates carries rate_cents_per_barrel with an effective_date. A control reads the row whose effective_date is the latest on or before the period it reconciles, so a rate change is a new row, not a new signed ruleset.",
+    "A period is the YYYY-MM filing period. Taxable liability for a period is SUM(removals.barrels) for that period times the applicable per-barrel rate.",
+    "The operations report rollforward must tie: opening_barrels + produced_barrels - removed_barrels - loss_barrels = closing_barrels. Its removed_barrels must also equal the tax return's barrels_reported for the same period.",
+    "due_date is the 15th of the month after the period (27 CFR 25.297 for beer). A return whose filed_date is after its due_date is a late filing; a period with activity and no return is a missing filing.",
+    "loss_barrels is destruction, spillage and shrinkage. Loss as a fraction of produced_barrels, in integer basis points, above tolerance is a diversion signal.",
+    "The customer_accounts table (wholesale-account names, addresses and license numbers; patient-registry IDs in a cannabis build) is intentionally omitted: this engine never reads customer data. The filings identify product by class and period only."
+  ]
+}

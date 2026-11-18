@@ -63,6 +63,7 @@ In the host, tool names carry the server key as a prefix (for example `mcp__civi
 | `municipal` (when configured) | yes | Fictional Town of Sampleton: grants, drawdowns, budget lines, expenditures, vendors. Synthetic. |
 | `insurance` (when configured) | yes | Fictional Harborline Insurance Agency: premium trust ledger, policies, commission receipts, carrier binders, bank snapshots. Synthetic. Served with the signed `insurance-v1` ruleset. |
 | `iolta` (when configured) | yes | Fictional Northfield Law Group: client trust (IOLTA) journal, bank reconciliations, fee invoices. Synthetic; clients and matters by ID only. Served with the signed `iolta-v1` ruleset. |
+| `excise` (when configured) | yes | Fictional Penobscot Bay Brewing Co.: beer excise rate schedule, taxable removals, operations reports, excise returns. Synthetic; volumes and money by period only. Served with the signed `excise-v1` ruleset. |
 | *(any custom name)* | yes | The user's own ledger, loaded from `CIVIC_DB_PATH` / `CIVIC_ALLOWLIST_PATH` |
 | `saas` | yes | MRR, retention, LTV:CAC, cohorts. Synthetic. |
 | `enron` | no | FY2000 reporting gap: synthetic rows anchored to real 10-K aggregates |
@@ -111,6 +112,18 @@ Served by the signed `iolta-v1` ruleset. Presentation rules (PASS / EXCEPTION / 
 | `iolta/firm-funds-in-trust` | `max_firm_cents` (optional, default 25000) | Firm money held in trust above the bank-charge allowance (commingling) |
 | `iolta/dormant-balances` | `dormant_days` (optional, default 365) | Positive client balances idle past the threshold |
 
+### Named queries on the excise demo (`run_canonical`, no credential)
+
+Served by the signed `excise-v1` ruleset. Presentation rules (PASS / FLAG, the rate-as-data rule and the customer-data refusal) are in SKILL.md under "Excise Tax pack".
+
+| `name` | `args` | What it answers |
+|---|---|---|
+| `excise/liability-vs-remitted` | `period` (optional, YYYY-MM) | Per period: taxable barrels, the per-barrel rate in force, the expected tax and the tax paid; finding when the tax paid is less than the expected tax |
+| `excise/inventory-rollforward` | `period` (optional) | Per period: opening + produced − removed − losses against the reported closing barrels; finding when they do not tie |
+| `excise/report-vs-return` | `period` (optional) | Per period: barrels removed on the operations report against barrels reported on the return; finding when they disagree |
+| `excise/missing-or-late-filings` | none | Periods with activity but no return, or a return filed after its due date |
+| `excise/loss-variance` | `max_loss_bps` (optional, default 300) | Periods whose losses, in basis points of production, exceed the tolerance |
+
 Only pass the business arguments shown. Never pass `dbPath`, `logPath`, `signer` or `warehouse` inside `args`: the server refuses them, because they would otherwise redirect the query or its audit trail.
 
 ## Audit logs and verification
@@ -124,7 +137,7 @@ Pass `verify_audit` a `warehouse` and it checks that warehouse's log. The result
 | `db/enron-audit.jsonl` | enron queries and controls | `{ "warehouse": "enron" }` |
 | `db/markets-audit.jsonl` | markets queries and controls | `{ "warehouse": "markets" }` |
 | `db/lseg-audit.jsonl` | lseg controls | `{ "warehouse": "lseg" }` |
-| `<name>-audit.jsonl` beside the db | custom warehouse, e.g. `municipal`, `insurance` or `iolta` | `{ "warehouse": "municipal" }` / `{ "warehouse": "insurance" }` / `{ "warehouse": "iolta" }` |
+| `<name>-audit.jsonl` beside the db | custom warehouse, e.g. `municipal`, `insurance`, `iolta` or `excise` | `{ "warehouse": "municipal" }` / `{ "warehouse": "insurance" }` / `{ "warehouse": "iolta" }` / `{ "warehouse": "excise" }` |
 
 If the user asks about "the audit log" in general, verify every log that applies. Report:
 - `ok: true` → **INTACT**, with the entry count.
