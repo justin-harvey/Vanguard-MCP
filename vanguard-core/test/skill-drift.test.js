@@ -84,10 +84,12 @@ test('every canonical/named query the skill names is served', () => {
     // ruleset rather than a configured warehouse, so resolve them from the
     // ruleset directly: a skill reference to an insurance query must match a
     // query the shipped ruleset actually defines.
-    const insuranceRuleset = loadRuleset(join(here, '..', 'assets', 'insurance', 'ruleset.insurance-v1.json'));
-    const insuranceNames = Object.keys(insuranceRuleset.queries).map((q) => `insurance/${q}`);
-    const real = new Set([...canonicalNames(), ...insuranceNames]);
-    const re = /\b(?:enron|markets|saas|municipal|insurance)\/[a-z][a-z-]*/g;
+    // The insurance and IOLTA packs' queries ship in their signed rulesets, so
+    // resolve each pack's names from its shipped ruleset directly.
+    const packNames = (pack, version) =>
+        Object.keys(loadRuleset(join(here, '..', 'assets', pack, `ruleset.${version}.json`)).queries).map((q) => `${pack}/${q}`);
+    const real = new Set([...canonicalNames(), ...packNames('insurance', 'insurance-v1'), ...packNames('iolta', 'iolta-v1')]);
+    const re = /\b(?:enron|markets|saas|municipal|insurance|iolta)\/[a-z][a-z-]*/g;
     for (const { rel, text } of skillDocs()) {
         for (const name of matches(text, re)) {
             assert.ok(real.has(name), `${rel} names query "${name}", which run_canonical does not serve`);

@@ -7,7 +7,7 @@ Never switch warehouses to get an answer the right warehouse refused, and never 
 | `reason` | Likely cause | What to do |
 |---|---|---|
 | `column_not_allowed` | The planner reached for a withheld column | If the user didn't ask for that column, **retry** and name the permitted columns from `civic-chain://schema/{name}`. If they did ask for it (such as a vendor tax ID), **stop**: tell them the field is withheld by policy, and don't try to infer it another way. |
-| `table_not_allowed` | The query read or JOINed a table outside the allow-list | Same rule as above. JOINs between allow-listed tables are fine; only the non-listed table is the problem. If the user asked about that table (`payroll` in the municipal demo, or `insured_pii` with policyholder SSNs and health data in the insurance demo), **stop** and say it isn't exposed. |
+| `table_not_allowed` | The query read or JOINed a table outside the allow-list | Same rule as above. JOINs between allow-listed tables are fine; only the non-listed table is the problem. If the user asked about that table (`payroll` in the municipal demo, `insured_pii` with policyholder SSNs and health data in the insurance demo, or `client_contacts` with client names and addresses in the IOLTA demo), **stop** and say it isn't exposed. |
 | `wildcard_not_allowed` | `SELECT *` under a column allow-list | **Retry**, naming the specific fields you need. |
 | `unparseable` | The planner produced SQL that won't parse | **Retry** with a more concrete question that names the table, the measure and the filter. |
 | `empty` | The planner produced no SQL | **Retry** with a more concrete question. |

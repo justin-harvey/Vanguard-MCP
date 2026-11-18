@@ -4,7 +4,7 @@ From [civic-chain.com](https://civic-chain.com). Live demo: https://vanguard-mcp
 
 **Public money, verified.** Ask a plain-English question about a budget, a grant, or a line of spending and get an answer in which *every figure* has been checked against the source records before you see it, or an explicit refusal. Never an unverified number presented as fact.
 
-[![Core tests](https://img.shields.io/badge/core-329%20tests%2C%20offline-blue.svg)](vanguard-core/)
+[![Core tests](https://img.shields.io/badge/core-347%20tests%2C%20offline-blue.svg)](vanguard-core/)
 [![Licence: Civic-Chain Commercial, source-available](https://img.shields.io/badge/licence-source--available-informational.svg)](LICENSE)
 
 The issue is that AI is excellent at turning a question into SQL, and terrible at being trusted with the math. So we took the AI out of the equation. The LLM (AI) writes a query, a read-only database returns the rows, and a verifier checks that every number in the prose actually came from those rows. What you get back is either a grounded answer with a full provenance trail, or an explicit refusal. Never an unverified paragraph presented as fact.
@@ -56,7 +56,7 @@ The external anchor **does not have to be a blockchain**, publishing each checkp
 
 | Path | What it is |
 |------|-----------|
-| [`vanguard-core/`](vanguard-core/) | **The working engine.** A Node.js CLI and library implementing the full pipeline above: guard, read-only warehouse, grounding verifier, lineage capture, a tamper-evident audit chain, a CSV importer that builds a guarded warehouse from a buyer's own ledger, signed domain rulesets, and a one-command shareable audit report. 329 tests, no API credential required to run them. |
+| [`vanguard-core/`](vanguard-core/) | **The working engine.** A Node.js CLI and library implementing the full pipeline above: guard, read-only warehouse, grounding verifier, lineage capture, a tamper-evident audit chain, a CSV importer that builds a guarded warehouse from a buyer's own ledger, signed domain rulesets, and a one-command shareable audit report. 347 tests, no API credential required to run them. |
 | [`site/`](site/) | **The web demo.** A static site: the thesis, the reporting-gap case study, and the evidence panel. |
 | [`site/enron.html`](site/enron.html) | **The reporting-gap case study**, reported figures set against what the underlying rows support, each grounded and hash-chained. |
 | [`site/controls.html`](site/controls.html) | **The evidence panel**, one-click controls that return PASS/EXCEPTION with a verifiable evidence trail. |
@@ -139,10 +139,11 @@ Because the engine is schema-agnostic, a domain pack is just a signed ruleset (n
 |---|---|---|
 | **Municipal & Grant** | grant status and drawdowns vs expenditures, spending by vendor, budget variance | Grant cash drawn ahead of spending, overspent lines, vendor concentration |
 | **Insurance & Fiduciary** | premium-trust solvency, carrier commission variance, errors-and-omissions exposure on unbound policies | Commingled or short premium-trust funds, under-paid or charged-back commissions, client premium held against unbound coverage |
+| **Law Firm Trust (IOLTA)** | three-way reconciliation, overdrawn client ledgers, unsupported fee transfers, firm funds in trust, dormant balances | A trust account that does not reconcile, one client's money funding another's, fees drawn before billing, commingled firm money, idle balances needing escheat |
 
-Each pack ships a synthetic demo ledger so the controls run out of the box, and the packs reach none of a ledger's sensitive fields: the municipal demo withholds `payroll` and vendor tax IDs, the insurance demo withholds an `insured_pii` table of SSNs and health notes, and the guard refuses any query that reaches them. A PASS is evidence a licensed professional can recompute and confirm against the entity's own obligations, not a certification or an audit opinion.
+Each pack ships a synthetic demo ledger so the controls run out of the box, and the packs reach none of a ledger's sensitive fields: the municipal demo withholds `payroll` and vendor tax IDs, the insurance demo withholds an `insured_pii` table of SSNs and health notes, the IOLTA demo withholds a `client_contacts` table of client names and addresses, and the guard refuses any query that reaches them. A PASS is evidence a licensed professional can recompute and confirm against the entity's own obligations, not a certification or an audit opinion.
 
-To run the insurance pack, serve `vanguard-core/assets/insurance/` as a custom warehouse with `CIVIC_RULESET_PATH` pointing at its signed ruleset; the agent skill's [README](skills/civic-chain-auditor/README.md#insurance--fiduciary-pack) has the steps.
+To run the insurance or IOLTA pack, serve `vanguard-core/assets/insurance/` or `vanguard-core/assets/iolta/` as a custom warehouse with `CIVIC_RULESET_PATH` pointing at its signed ruleset; the agent skill's READMEs for the [Insurance & Fiduciary](skills/civic-chain-auditor/README.md#insurance--fiduciary-pack) and [Law Firm Trust (IOLTA)](skills/civic-chain-auditor/README.md#law-firm-trust-iolta-pack) packs have the steps.
 
 ## Why this matters: Big-Four assurance on a municipal budget
 
@@ -167,7 +168,7 @@ None of the underlying parts are new, guarded text-to-SQL, verification of AI-ge
 cd vanguard-core
 npm install
 npm run seed            # build the demo warehouse
-npm test                # 329 tests, no credential required
+npm test                # 347 tests, no credential required
 
 # Reporting-gap case study (no credential, real 10-K anchors, synthetic rows)
 node bin/vanguard.js enron seed
@@ -181,9 +182,10 @@ node bin/vanguard.js controls run PI1.2-enron-debt-reconciliation
 # Verify the tamper-evident audit chain end to end
 node bin/vanguard.js audit
 
-# Signed domain rulesets (the query packs: municipal, insurance)
+# Signed domain rulesets (the query packs: municipal, insurance, iolta)
 node bin/vanguard.js ruleset list                  # the bundled municipal ruleset
 node bin/vanguard.js ruleset show assets/insurance/ruleset.insurance-v1.json   # signature status + content hash
+node bin/vanguard.js ruleset show assets/iolta/ruleset.iolta-v1.json           # the IOLTA pack
 
 # Build a guarded warehouse from your own ledger (local only, no credential)
 node bin/vanguard.js import spending.csv                      # propose a column mapping, writes nothing
@@ -201,7 +203,7 @@ The guard, the warehouse, the lineage record, and the audit chain all run with n
 
 In keeping with the project's own discipline about claims:
 
-- **Real:** the guard (table and column allow-lists, a query budget, a row-level scope hook driven by an authenticated principal), read-only enforcement behind a warehouse-connector interface, unit-aware grounding, lineage capture and hashing, the hash-chained audit log with Ed25519 signing, an RFC 9162 Merkle checkpoint and a pluggable external-anchoring hook, a first-class metric registry, the CSV importer (buyer's ledger to a guarded warehouse, each source file recorded by SHA-256), the signed domain rulesets (municipal and insurance) with their automatic integrity and finding checks, the shareable audit report, the CLI, and the offline test suite (329 tests, no credential).
+- **Real:** the guard (table and column allow-lists, a query budget, a row-level scope hook driven by an authenticated principal), read-only enforcement behind a warehouse-connector interface, unit-aware grounding, lineage capture and hashing, the hash-chained audit log with Ed25519 signing, an RFC 9162 Merkle checkpoint and a pluggable external-anchoring hook, a first-class metric registry, the CSV importer (buyer's ledger to a guarded warehouse, each source file recorded by SHA-256), the signed domain rulesets (municipal, insurance and IOLTA) with their automatic integrity and finding checks, the shareable audit report, the CLI, and the offline test suite (347 tests, no credential).
 - **Synthetic:** the demo warehouse **values**, generated deterministically so the same question always produces the same result hash. The reporting-gap study's *aggregates* reconcile to real, cited FY2000 10-K figures; its transaction rows and off-balance-sheet amounts are synthetic and labelled. For a tool about traceable figures, fabricated data clearly labelled as fabricated is fine; fabricated data presented as real is the exact failure this project exists to prevent.
 - **Not a compliance claim:** audit entries carry tags like `processing-integrity` because the query path is read-only over a schema with no personal data, a true statement about this configuration, not a certification. What this produces is *evidence*: a query, its provenance, a reproducible hash of its result, and a chain showing the record has not been edited since.
 

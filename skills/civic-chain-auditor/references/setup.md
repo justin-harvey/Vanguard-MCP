@@ -62,6 +62,7 @@ In the host, tool names carry the server key as a prefix (for example `mcp__civi
 |---|---|---|
 | `municipal` (when configured) | yes | Fictional Town of Sampleton: grants, drawdowns, budget lines, expenditures, vendors. Synthetic. |
 | `insurance` (when configured) | yes | Fictional Harborline Insurance Agency: premium trust ledger, policies, commission receipts, carrier binders, bank snapshots. Synthetic. Served with the signed `insurance-v1` ruleset. |
+| `iolta` (when configured) | yes | Fictional Northfield Law Group: client trust (IOLTA) journal, bank reconciliations, fee invoices. Synthetic; clients and matters by ID only. Served with the signed `iolta-v1` ruleset. |
 | *(any custom name)* | yes | The user's own ledger, loaded from `CIVIC_DB_PATH` / `CIVIC_ALLOWLIST_PATH` |
 | `saas` | yes | MRR, retention, LTV:CAC, cohorts. Synthetic. |
 | `enron` | no | FY2000 reporting gap: synthetic rows anchored to real 10-K aggregates |
@@ -98,6 +99,18 @@ Served by the signed `insurance-v1` ruleset. Presentation rules (PASS / EXCEPTIO
 | `insurance/commission-variance-audit` | `min_variance_cents` (optional, default 100) | Active or bound policies whose received commission varies materially from the contracted rate |
 | `insurance/eo-unbound-exposure` | none | Policies holding client premium with no carrier-confirmed binder |
 
+### Named queries on the IOLTA demo (`run_canonical`, no credential)
+
+Served by the signed `iolta-v1` ruleset. Presentation rules (PASS / EXCEPTION / FLAG, and the client-PII refusal) are in SKILL.md under "Law Firm Trust (IOLTA) pack".
+
+| `name` | `args` | What it answers |
+|---|---|---|
+| `iolta/three-way-reconciliation` | `as_of` (optional) | Adjusted bank balance, trust journal balance and the sum of client ledgers; findings when the three do not tie |
+| `iolta/negative-client-balances` | `as_of` (optional) | Client ledgers overdrawn below zero (one client's money funding another's) |
+| `iolta/unsupported-fee-transfers` | none | Earned-fee transfers out of trust with no invoice, or larger than the invoice |
+| `iolta/firm-funds-in-trust` | `max_firm_cents` (optional, default 25000) | Firm money held in trust above the bank-charge allowance (commingling) |
+| `iolta/dormant-balances` | `dormant_days` (optional, default 365) | Positive client balances idle past the threshold |
+
 Only pass the business arguments shown. Never pass `dbPath`, `logPath`, `signer` or `warehouse` inside `args`: the server refuses them, because they would otherwise redirect the query or its audit trail.
 
 ## Audit logs and verification
@@ -111,7 +124,7 @@ Pass `verify_audit` a `warehouse` and it checks that warehouse's log. The result
 | `db/enron-audit.jsonl` | enron queries and controls | `{ "warehouse": "enron" }` |
 | `db/markets-audit.jsonl` | markets queries and controls | `{ "warehouse": "markets" }` |
 | `db/lseg-audit.jsonl` | lseg controls | `{ "warehouse": "lseg" }` |
-| `<name>-audit.jsonl` beside the db | custom warehouse, e.g. `municipal` or `insurance` | `{ "warehouse": "municipal" }` / `{ "warehouse": "insurance" }` |
+| `<name>-audit.jsonl` beside the db | custom warehouse, e.g. `municipal`, `insurance` or `iolta` | `{ "warehouse": "municipal" }` / `{ "warehouse": "insurance" }` / `{ "warehouse": "iolta" }` |
 
 If the user asks about "the audit log" in general, verify every log that applies. Report:
 - `ok: true` → **INTACT**, with the entry count.

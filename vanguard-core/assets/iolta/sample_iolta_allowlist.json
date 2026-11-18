@@ -1,0 +1,40 @@
+{
+  "name": "iolta",
+  "description": "Northfield Law Group (fictional) client trust account (IOLTA) ledger: the trust journal of client-money movements, point-in-time bank reconciliations, and the fee invoices behind earned-fee transfers. Synthetic demo data; all money in integer cents. Client-level data is identified only by client and matter IDs.",
+  "domain": "law firm client trust account (IOLTA): trust journal, bank reconciliations and fee invoices",
+  "tables": {
+    "trust_journal": [
+      "entry_id",
+      "client_id",
+      "matter_id",
+      "entry_type",
+      "amount_cents",
+      "invoice_id",
+      "cleared_status",
+      "entry_date"
+    ],
+    "trust_bank_snapshots": [
+      "snapshot_id",
+      "snapshot_date",
+      "bank_statement_balance_cents",
+      "deposits_in_transit_cents",
+      "outstanding_checks_cents"
+    ],
+    "fee_invoices": [
+      "invoice_id",
+      "client_id",
+      "matter_id",
+      "invoice_amount_cents",
+      "invoice_date"
+    ]
+  },
+  "notes": [
+    "All money is INTEGER CENTS.",
+    "The trust journal balance is the signed total of trust_journal: CLIENT_DEPOSIT and FIRM_BUFFER_IN add, CLIENT_DISBURSEMENT and EARNED_FEE_TRANSFER subtract.",
+    "Each client's ledger balance is that same signed total filtered to one client_id. The sum of all client ledgers must equal the journal balance; a trust_journal row with client_id NULL is an unidentified deposit that breaks the tie.",
+    "client_id 'FIRM-BUFFER' is the firm's own ledger card for the small balance a bank allows in trust to cover service charges; any larger firm balance is commingling.",
+    "The adjusted bank balance is bank_statement_balance_cents + deposits_in_transit_cents - outstanding_checks_cents, read from the most recent snapshot.",
+    "An EARNED_FEE_TRANSFER is supported only when its invoice_id names a fee_invoices row and the transfer does not exceed that invoice.",
+    "The client_contacts table (names, emails, phones, addresses) is intentionally omitted: this engine never reads client PII. The ledger identifies clients and matters by ID only."
+  ]
+}

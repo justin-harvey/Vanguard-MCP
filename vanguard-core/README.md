@@ -243,7 +243,7 @@ query and check SQL is compiled against the database at load and guarded at
 server start; check results are written into the audit entry. See
 `src/named-queries.js`.
 
-See `src/custom.js` for the format. Two worked examples ship in `assets/`:
+See `src/custom.js` for the format. Three worked examples ship in `assets/`:
 
 - `assets/municipal/`: the Town of Sampleton grant and budget ledger with the
   signed `municipal-v1` ruleset.
@@ -255,9 +255,18 @@ See `src/custom.js` for the format. Two worked examples ship in `assets/`:
   `insured_pii` table of SSNs and health notes, so the guard refuses it. The
   ruleset is rebuilt and signed offline with
   `node scripts/build-insurance-ruleset.js [--sign <key.pem>]`.
+- `assets/iolta/`: the Law Firm Trust (IOLTA) pack, a synthetic Northfield Law
+  Group client-trust ledger with the signed `iolta-v1` ruleset
+  (`iolta/three-way-reconciliation`, `iolta/negative-client-balances`,
+  `iolta/unsupported-fee-transfers`, `iolta/firm-funds-in-trust` with an
+  optional `max_firm_cents` allowance, and `iolta/dormant-balances` with an
+  optional `dormant_days` threshold). Its allow-list deliberately omits a
+  `client_contacts` table of client names and addresses, so the guard refuses
+  it; the ledger carries client and matter IDs only. The ruleset is rebuilt and
+  signed offline with `node scripts/build-iolta-ruleset.js [--sign <key.pem>]`.
 
-Both are mirrored into `../skills/civic-chain-auditor/assets/`, where the agent
-skill documents how to serve them.
+All three are mirrored into `../skills/civic-chain-auditor/assets/`, where the
+agent skill documents how to serve them.
 
 ## What is real here, and what is not
 
@@ -276,7 +285,7 @@ control catalog whose entries assert PASS/EXCEPTION and emit that packet
 reproducibility, and audit-chain integrity), an MCP server that exposes the
 controls, canonical queries and audit verification as tools and each warehouse's
 live schema as a resource (`vanguard mcp`, stdio) plus a token-guarded HTTP API for a
-web proxy (`vanguard serve`), the CLI, and 329 tests that run offline.
+web proxy (`vanguard serve`), the CLI, and 347 tests that run offline.
 
 **Synthetic:** the data. 416 customers over six months, generated
 deterministically from a fixed seed so that the same question always produces
@@ -346,7 +355,7 @@ src/mcp-server.js      the stdio MCP transport (the only file that imports the S
 src/http-server.js     HTTP JSON API over the same handlers (what the web proxy calls)
 src/ask.js             the pipeline
 bin/vanguard.js          CLI
-test/                  329 tests, none requiring a credential
+test/                  347 tests, none requiring a credential
 ```
 
 Requires Node 22+ (`node:sqlite` is built in, so there is no native database

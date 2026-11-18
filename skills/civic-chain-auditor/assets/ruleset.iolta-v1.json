@@ -1,0 +1,138 @@
+{
+  "name": "iolta",
+  "version": "iolta-v1",
+  "changelog": [
+    "iolta-v1: initial Civic-Chain Law Firm Trust (IOLTA) ruleset — three-way-reconciliation (adjusted bank = trust journal = sum of client ledgers), negative-client-balances (one client's money funding another's disbursement), unsupported-fee-transfers (trust-to-operating transfers with no invoice or larger than the invoice), firm-funds-in-trust (firm money in trust above the bank-charge allowance, i.e. commingling) and dormant-balances (idle client funds that may need contact or escheat), with integrity (unique, total_matches) and finding (compare, empty) checks. These controls encode a reasonable interpretation of ABA Model Rule 1.15 and common client-trust-account reconciliation practice; reconciliation frequency and the dormancy and firm-buffer thresholds vary by state and are parameters. They produce evidence for a licensed professional to confirm against the firm's own obligations; they are not a bar trust-account audit or a compliance certification."
+  ],
+  "queries": {
+    "three-way-reconciliation": {
+      "description": "The monthly three-way trust reconciliation ABA Model Rule 1.15 requires: the adjusted bank balance (latest statement plus deposits in transit, less outstanding checks), the trust journal balance (the firm's own book), and the sum of every client ledger, as of a date. Use for 'does the trust account reconcile', 'is the trust account short' and commingling questions. All three figures must tie.",
+      "params": {
+        "as_of": {
+          "type": "string",
+          "description": "Reconcile as of this date (YYYY-MM-DD); entries and snapshots after it are excluded. Omit for the latest."
+        }
+      },
+      "sql": "SELECT (SELECT bank_statement_balance_cents + deposits_in_transit_cents - outstanding_checks_cents FROM trust_bank_snapshots WHERE snapshot_date <= COALESCE(:as_of, '9999-12-31') ORDER BY snapshot_date DESC LIMIT 1) AS adjusted_bank_cents, SUM(CASE WHEN entry_type IN ('CLIENT_DEPOSIT', 'FIRM_BUFFER_IN') THEN amount_cents ELSE -amount_cents END) AS journal_balance_cents, SUM(CASE WHEN client_id IS NOT NULL THEN (CASE WHEN entry_type IN ('CLIENT_DEPOSIT', 'FIRM_BUFFER_IN') THEN amount_cents ELSE -amount_cents END) ELSE 0 END) AS client_ledger_sum_cents FROM trust_journal WHERE entry_date <= COALESCE(:as_of, '9999-12-31')",
+      "checks": [
+        {
+          "id": "client-ledgers-recompute",
+          "type": "total_matches",
+          "column": "client_ledger_sum_cents",
+          "sql": "SELECT COALESCE(SUM(CASE WHEN entry_type IN ('CLIENT_DEPOSIT', 'FIRM_BUFFER_IN') THEN amount_cents ELSE -amount_cents END), 0) AS total FROM trust_journal WHERE client_id IS NOT NULL AND entry_date <= COALESCE(:as_of, '9999-12-31')"
+        },
+        {
+          "id": "bank-ties-journal",
+          "type": "compare",
+          "left": "adjusted_bank_cents",
+          "op": "=",
+          "right": "journal_balance_cents",
+          "message": "Three-way reconciliation break: the adjusted bank balance does not equal the trust journal balance. Investigate before relying on either figure."
+        },
+        {
+          "id": "journal-ties-clients",
+          "type": "compare",
+          "left": "journal_balance_cents",
+          "op": "=",
+          "right": "client_ledger_sum_cents",
+          "message": "Three-way reconciliation break: the trust journal balance does not equal the sum of the client ledgers, so some trust money is not assigned to a client (an unidentified deposit, or a client ledger that does not tie)."
+        }
+      ]
+    },
+    "negative-client-balances": {
+      "description": "Every client ledger whose balance is below zero as of a date: that client has had more money disbursed or transferred out than was ever deposited for them, which means another client's money is covering the shortfall. The single most serious trust-accounting error. An empty result means no client ledger is overdrawn.",
+      "params": {
+        "as_of": {
+          "type": "string",
+          "description": "Compute balances as of this date (YYYY-MM-DD); later entries are excluded. Omit for the latest."
+        }
+      },
+      "sql": "SELECT client_id, SUM(CASE WHEN entry_type IN ('CLIENT_DEPOSIT', 'FIRM_BUFFER_IN') THEN amount_cents ELSE -amount_cents END) AS balance_cents FROM trust_journal WHERE client_id IS NOT NULL AND entry_date <= COALESCE(:as_of, '9999-12-31') GROUP BY client_id HAVING SUM(CASE WHEN entry_type IN ('CLIENT_DEPOSIT', 'FIRM_BUFFER_IN') THEN amount_cents ELSE -amount_cents END) < 0",
+      "checks": [
+        {
+          "id": "one-row-per-client",
+          "type": "unique",
+          "columns": [
+            "client_id"
+          ]
+        },
+        {
+          "id": "no-negative-balances",
+          "type": "empty",
+          "key": "client_id",
+          "message": "An overdrawn client ledger: this client's trust balance is negative, so another client's money is funding its disbursements. Correct the posting or restore the funds immediately."
+        }
+      ]
+    },
+    "unsupported-fee-transfers": {
+      "description": "Every earned-fee transfer out of the trust account that is not backed by a fee invoice, or is larger than the invoice it cites. A fee may be withdrawn from trust only once it is earned and billed, and only up to the billed amount. An empty result means every fee transfer is supported by an invoice no smaller than the transfer.",
+      "params": {},
+      "sql": "SELECT j.entry_id, j.client_id, j.matter_id, j.amount_cents AS transfer_cents, j.invoice_id, COALESCE(i.invoice_amount_cents, 0) AS invoice_amount_cents FROM trust_journal j LEFT JOIN fee_invoices i ON j.invoice_id = i.invoice_id WHERE j.entry_type = 'EARNED_FEE_TRANSFER' AND (j.invoice_id IS NULL OR i.invoice_id IS NULL OR j.amount_cents > i.invoice_amount_cents)",
+      "checks": [
+        {
+          "id": "one-row-per-transfer",
+          "type": "unique",
+          "columns": [
+            "entry_id"
+          ]
+        },
+        {
+          "id": "no-unsupported-transfers",
+          "type": "empty",
+          "key": "entry_id",
+          "message": "A fee was transferred out of trust with no supporting invoice, or for more than the invoice. Withdraw earned fees only up to the billed amount, after billing."
+        }
+      ]
+    },
+    "firm-funds-in-trust": {
+      "description": "The firm's own balance held in the trust account (the FIRM-BUFFER ledger), reported only when it exceeds the allowance a bank may require to cover trust-account service charges. Firm money in trust above that allowance is commingling, which Rule 1.15 prohibits. An empty result means the firm holds no more than the allowance in trust.",
+      "params": {
+        "max_firm_cents": {
+          "type": "integer",
+          "description": "The permitted firm balance in trust, in cents (a bank's service-charge buffer). A result is returned only if the firm balance exceeds this. Omit for the default of 25000 (two hundred and fifty dollars)."
+        }
+      },
+      "sql": "SELECT client_id, SUM(CASE WHEN entry_type IN ('CLIENT_DEPOSIT', 'FIRM_BUFFER_IN') THEN amount_cents ELSE -amount_cents END) AS firm_balance_cents FROM trust_journal WHERE client_id = 'FIRM-BUFFER' GROUP BY client_id HAVING SUM(CASE WHEN entry_type IN ('CLIENT_DEPOSIT', 'FIRM_BUFFER_IN') THEN amount_cents ELSE -amount_cents END) > COALESCE(:max_firm_cents, 25000)",
+      "checks": [
+        {
+          "id": "one-row-per-ledger",
+          "type": "unique",
+          "columns": [
+            "client_id"
+          ]
+        },
+        {
+          "id": "no-excess-firm-funds",
+          "type": "empty",
+          "key": "client_id",
+          "message": "The firm is holding more of its own money in the trust account than the bank-charge allowance, which is commingling. Move the excess to the operating account."
+        }
+      ]
+    },
+    "dormant-balances": {
+      "description": "Client ledgers that still hold a positive balance but have had no activity for longer than the dormancy threshold, measured against the most recent entry in the ledger. Idle trust balances may need client contact and, past a state's limit, unclaimed-property (escheat) handling. A flag here is a housekeeping finding, not an error. An empty result means no positive balance is idle beyond the threshold.",
+      "params": {
+        "dormant_days": {
+          "type": "integer",
+          "description": "Days of inactivity after which a positive balance is reported. Omit for the default of 365. States set their own dormancy and escheat periods."
+        }
+      },
+      "sql": "SELECT client_id, SUM(CASE WHEN entry_type IN ('CLIENT_DEPOSIT', 'FIRM_BUFFER_IN') THEN amount_cents ELSE -amount_cents END) AS balance_cents, MAX(entry_date) AS last_activity_date, CAST(julianday((SELECT MAX(entry_date) FROM trust_journal)) - julianday(MAX(entry_date)) AS INTEGER) AS idle_days FROM trust_journal WHERE client_id IS NOT NULL AND client_id <> 'FIRM-BUFFER' GROUP BY client_id HAVING SUM(CASE WHEN entry_type IN ('CLIENT_DEPOSIT', 'FIRM_BUFFER_IN') THEN amount_cents ELSE -amount_cents END) > 0 AND CAST(julianday((SELECT MAX(entry_date) FROM trust_journal)) - julianday(MAX(entry_date)) AS INTEGER) > COALESCE(:dormant_days, 365)",
+      "checks": [
+        {
+          "id": "one-row-per-client",
+          "type": "unique",
+          "columns": [
+            "client_id"
+          ]
+        },
+        {
+          "id": "no-dormant-balances",
+          "type": "empty",
+          "key": "client_id",
+          "message": "A client trust balance has been idle past the dormancy threshold. Contact the client; past the state's limit the funds may be subject to unclaimed-property reporting."
+        }
+      ]
+    }
+  }
+}

@@ -5,6 +5,48 @@ The project follows [Semantic Versioning](https://semver.org/): MAJOR.MINOR.PATC
 
 ## [Unreleased]
 
+### Added — Law Firm Trust (IOLTA) ruleset pack (third signed pack)
+- A third domain pack beside the municipal and insurance ones, on the same
+  signed-ruleset + custom-warehouse seam (no engine change, no new dependency,
+  no server, no new credential). Five controls for a law firm's client trust
+  (IOLTA) account, each a named query with automatic checks, encoding ABA Model
+  Rule 1.15 and common reconciliation practice:
+  - **`iolta/three-way-reconciliation`** (`as_of`) — adjusted bank balance,
+    trust journal balance and the sum of the client ledgers; two `compare` (`=`)
+    findings that the three tie, plus a `total_matches` integrity recompute of
+    the client-ledger sum.
+  - **`iolta/negative-client-balances`** (`as_of`) — overdrawn client ledgers
+    (one client's money funding another's); an `empty` finding with a `unique`
+    integrity check.
+  - **`iolta/unsupported-fee-transfers`** — earned-fee transfers out of trust
+    with no invoice or larger than the invoice; an `empty` finding.
+  - **`iolta/firm-funds-in-trust`** (`max_firm_cents`, default 25000) — firm
+    money held in trust above the bank-charge allowance (commingling); an
+    `empty` finding.
+  - **`iolta/dormant-balances`** (`dormant_days`, default 365) — positive client
+    balances idle past the threshold; an `empty` finding (housekeeping/escheat).
+- **Demo warehouse** (`assets/iolta/`, mirrored into the skill): a synthetic
+  Northfield Law Group seed (clean, so all five controls read PASS), a
+  pure access-policy allow-list, and a deliberately **non-allow-listed
+  `client_contacts` table** (client names, addresses) so the guard visibly
+  refuses client PII; the ledger carries client and matter IDs only.
+- **Signed** `iolta-v1` ruleset (`scripts/build-iolta-ruleset.js`), signed
+  offline with the same Civic-Chain key `acb80e87885da931`; ships in both asset
+  copies with its detached signature.
+- **State rules as parameters, not assertions:** reconciliation frequency, the
+  dormancy period and the firm buffer are arguments with documented defaults, so
+  a firm passes its own state's rule rather than a hardcoded one.
+- **Tests** (`test/iolta-warehouse.test.js`, `test/iolta-ruleset.test.js`,
+  `test/iolta-fixture.js`): clean PASS for all five controls, a targeted
+  mutation (or threshold parameter) tripping each, the materiality/allowance
+  parameters, signature status, and the `client_contacts` PII refusal.
+  `test/skill-drift.test.js` extended to resolve `iolta/*` query names from the
+  shipped ruleset. Full suite green on Node 22 (347 tests).
+- **Skill routing and docs** (`SKILL.md`, `references/setup.md`,
+  `references/refusals.md`, `examples/05-iolta-overdrawn-client-ledger.md`, and
+  the skill, top-level and core READMEs): PASS/EXCEPTION/FLAG presentation per
+  control, the client-PII refusal, and the one-custom-warehouse-per-server setup.
+
 ### Added — Insurance & Fiduciary ruleset pack (second signed pack)
 - A second domain pack beside the municipal one, built on the existing signed
   ruleset + custom-warehouse seam (no change to the municipal CSV-import path, no

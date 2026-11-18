@@ -8,8 +8,9 @@ This skill teaches an AI agent (Claude Code, Claude Desktop, Cursor, or any MCP 
 
 - **A working demo in about two minutes.** A fictional town's ledger (the Town of Sampleton) with grants, vendors, budget lines, expenditures and grant drawdowns: 108 rows across 8 tables. It has realistic findings built in for the agent to surface: a grant drawn down ahead of its spending, a grant carrying unreimbursed costs, an overspent budget line, and a voided duplicate invoice.
 - **An insurance agency demo too.** The Insurance & Fiduciary pack ships a second synthetic ledger (the Harborline Insurance Agency) with a signed `insurance-v1` ruleset of three controls: premium-trust solvency, carrier commission variance, and errors-and-omissions exposure on unbound policies. See [Insurance & Fiduciary pack](#insurance--fiduciary-pack) below.
-- **Privacy controls you can see working.** The municipal allow-list withholds a `payroll` table and the vendors' tax IDs and bank details; the insurance allow-list withholds an `insured_pii` table of policyholder SSNs and health notes. You can watch the guard refuse requests for any of them.
-- **Automatic checks on every named query.** Integrity checks catch double counting from a bad JOIN before a figure reaches you; finding checks surface overspending, grant cash drawn ahead of spending, a short premium trust, commission variances and unbound premium. For the insurance pack's `empty` checks, a result with no rows is the clean, passing case.
+- **A law-firm trust-account demo too.** The Law Firm Trust (IOLTA) pack ships a third synthetic ledger (the Northfield Law Group) with a signed `iolta-v1` ruleset of five controls: three-way reconciliation, overdrawn client ledgers, unsupported fee transfers, firm money commingled in trust, and dormant balances. See [Law Firm Trust (IOLTA) pack](#law-firm-trust-iolta-pack) below.
+- **Privacy controls you can see working.** The municipal allow-list withholds a `payroll` table and the vendors' tax IDs and bank details; the insurance allow-list withholds an `insured_pii` table of policyholder SSNs and health notes; the IOLTA allow-list withholds a `client_contacts` table of client names and addresses. You can watch the guard refuse requests for any of them.
+- **Automatic checks on every named query.** Integrity checks catch double counting from a bad JOIN before a figure reaches you; finding checks surface overspending, grant cash drawn ahead of spending, a short premium trust, commission variances, unbound premium, a trust account that does not reconcile, and overdrawn client ledgers. For the `empty` checks, a result with no rows is the clean, passing case.
 - **Refusal handling.** The agent knows which refusals to fix itself (rephrase once) and which to report (policy-withheld data, write requests), so it doesn't loop or guess.
 - **Audit answers.** Every response carries the executed SQL, the tables and columns read, the row count, the result hash and the audit-chain entry. The agent can verify any log's integrity on request.
 - **Bring your own ledger.** Point two environment variables at your own SQLite file and allow-list, with no code changes.
@@ -80,6 +81,55 @@ node -e "const {DatabaseSync}=require('node:sqlite');const fs=require('fs');cons
 
 **What a PASS means.** A figure was computed one fixed way, its check held, and its provenance verifies. It is evidence for a licensed professional to confirm against the agency's own obligations, not a department-of-insurance audit, a compliance certification or an E&O coverage opinion. All Harborline data is synthetic.
 
+## Law Firm Trust (IOLTA) pack
+
+A third signed domain pack, served as a custom warehouse named `iolta`. It encodes ABA Model Rule 1.15 and common client-trust reconciliation practice. All five controls are named queries: no API key, deterministic SQL, and automatic checks. The ledger identifies clients and matters by ID only.
+
+| Query | Args | Reports | Result |
+|---|---|---|---|
+| `iolta/three-way-reconciliation` | `as_of` (optional) | Adjusted bank balance, trust journal balance, and the sum of the client ledgers | PASS when all three tie; **reconciliation break** when they do not |
+| `iolta/negative-client-balances` | `as_of` (optional) | Client ledgers overdrawn below zero | No rows = PASS; any row = **EXCEPTION** (one client's money funding another's) |
+| `iolta/unsupported-fee-transfers` | none | Fee transfers out of trust with no invoice, or larger than the invoice | No rows = PASS; any row = **FLAG** |
+| `iolta/firm-funds-in-trust` | `max_firm_cents` (optional, default 25000) | Firm money in trust above the bank-charge allowance | No rows = PASS; any row = **EXCEPTION** (commingling) |
+| `iolta/dormant-balances` | `dormant_days` (optional, default 365) | Positive client balances idle past the threshold | No rows = PASS; any row = **FLAG** |
+
+The bundled Northfield data is clean, so all five controls read PASS out of the box. `examples/05-iolta-overdrawn-client-ledger.md` shows an overdrawn ledger being caught.
+
+**Setup.** As with the insurance pack, build the database by hand and serve it from its own server entry (one custom warehouse per server):
+
+```bash
+cd path/to/civic-chain-auditor/assets
+node -e "const {DatabaseSync}=require('node:sqlite');const fs=require('fs');const db=new DatabaseSync('sample_iolta_trust.sqlite');db.exec(fs.readFileSync('sample_iolta_trust.sql','utf8'));db.close()"
+```
+
+```json
+"civic-chain-iolta": {
+  "command": "node",
+  "args": ["<vanguard-core>/bin/vanguard.js", "mcp"],
+  "env": {
+    "CIVIC_DB_PATH": "<assets>/sample_iolta_trust.sqlite",
+    "CIVIC_ALLOWLIST_PATH": "<assets>/sample_iolta_allowlist.json",
+    "CIVIC_RULESET_PATH": "<assets>/ruleset.iolta-v1.json"
+  }
+}
+```
+
+Then try:
+
+> Does our client trust account reconcile three ways as of June 30? Include the result hash.
+
+> Is any client's trust ledger overdrawn?
+
+> Did we move any fees out of trust without a matching invoice?
+
+> Which client balances have sat untouched for over 90 days?
+
+> Give me the client names and addresses in the trust ledger. *(refused: `client_contacts` is not exposed)*
+
+**State rules are parameters.** Reconciliation frequency, the dormancy period and the permitted firm buffer vary by state; they are arguments (`as_of`, `dormant_days`, `max_firm_cents`) with documented defaults, not fixed assertions.
+
+**What a PASS means.** A figure was computed one fixed way, its check held, and its provenance verifies. It is evidence for a licensed professional to confirm against the firm's own obligations and its state's trust-account rules, not a bar trust-account audit or a compliance certification. All Northfield data is synthetic.
+
 ## What's in the package
 
 ```
@@ -93,9 +143,12 @@ civic-chain-auditor/
 │   ├── sample_insurance_trust.sql       insurance seed script (Harborline, synthetic)
 │   ├── sample_insurance_allowlist.json  insurance permitted tables and columns (no insured_pii)
 │   ├── ruleset.insurance-v1.json(.sig)  signed insurance ruleset and its detached signature
+│   ├── sample_iolta_trust.sql           IOLTA seed script (Northfield Law, synthetic)
+│   ├── sample_iolta_allowlist.json      IOLTA permitted tables and columns (no client_contacts)
+│   ├── ruleset.iolta-v1.json(.sig)      signed IOLTA ruleset and its detached signature
 │   └── civic-chain-ruleset-pub.pem      public key the ruleset signatures verify against
 ├── references/                          setup, controls and refusal reference for the agent
-├── examples/                            worked transcripts (01-03 municipal, 04 insurance)
+├── examples/                            worked transcripts (01-03 municipal, 04 insurance, 05 IOLTA)
 └── scripts/
     └── verify-setup.js                  local setup check and config generator (municipal demo)
 ```
@@ -119,8 +172,8 @@ Anything left out of the allow-list is refused by the engine's guard, which pars
 
 - Open-ended (free-text) questions need an Anthropic API key, and each costs one planning call and up to two narration calls. Named queries need neither.
 - Custom warehouses support free-text questions; pre-built controls exist only for the bundled demo warehouses.
-- One custom warehouse per server: to run the municipal and insurance demos together, add two server entries.
-- `verify-setup.js` builds and checks only the municipal demo database; the insurance database is built with the one-liner above.
+- One custom warehouse per server: to run the municipal, insurance and IOLTA demos together, add a server entry for each.
+- `verify-setup.js` builds and checks only the municipal demo database; the insurance and IOLTA databases are built with the one-liners above.
 - Over MCP, `verify_audit` checks the hash chain but not signatures; the `cc-auditor audit` CLI checks both.
 
 ## Enterprise & custom deployments

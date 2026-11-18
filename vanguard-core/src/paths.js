@@ -41,6 +41,10 @@ export const MUNICIPAL_ALLOWLIST_PATH = assetPath('municipal', 'sample_allowlist
 export const INSURANCE_SQL_PATH = assetPath('insurance', 'sample_insurance_trust.sql');
 export const INSURANCE_ALLOWLIST_PATH = assetPath('insurance', 'sample_insurance_allowlist.json');
 
+/** The bundled IOLTA demo (the Law Firm Trust pack's seed and allow-list). */
+export const IOLTA_SQL_PATH = assetPath('iolta', 'sample_iolta_trust.sql');
+export const IOLTA_ALLOWLIST_PATH = assetPath('iolta', 'sample_iolta_allowlist.json');
+
 /** The per-user directory the engine writes seeded warehouses and logs into. */
 export function dataDir({ env = process.env, platform = process.platform } = {}) {
     if (env.CIVIC_DATA_DIR) return env.CIVIC_DATA_DIR;
