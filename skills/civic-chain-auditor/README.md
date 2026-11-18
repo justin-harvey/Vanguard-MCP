@@ -433,7 +433,7 @@ civic-chain-auditor/
 │   ├── ruleset.schools-v1.json(.sig)    signed schools ruleset and its detached signature
 │   └── civic-chain-ruleset-pub.pem      public key the ruleset signatures verify against
 ├── references/                          setup, controls and refusal reference for the agent
-├── examples/                            worked transcripts (01-03 municipal, 04 insurance, 05 IOLTA, 06 excise, 07 property, 08 HOA, 09 nonprofit, 10 schools)
+├── examples/                            worked transcripts (01-03 municipal, 04 insurance, 05 IOLTA, 06 excise, 07 property, 08 HOA, 09 nonprofit, 10 schools, 11 construction)
 └── scripts/
     └── verify-setup.js                  local setup check and config generator (municipal demo)
 ```
@@ -457,8 +457,8 @@ Anything left out of the allow-list is refused by the engine's guard, which pars
 
 - Open-ended (free-text) questions need an Anthropic API key, and each costs one planning call and up to two narration calls. Named queries need neither.
 - Custom warehouses support free-text questions; pre-built controls exist only for the bundled demo warehouses.
-- One custom warehouse per server: to run the municipal, insurance, IOLTA, excise, property and HOA demos together, add a server entry for each.
-- `verify-setup.js` builds and checks only the municipal demo database; the insurance, IOLTA, excise, property and HOA databases are built with the one-liners above.
+- One custom warehouse per server: to run the municipal, insurance, IOLTA, excise, property, HOA, nonprofit, schools and construction demos together, add a server entry for each.
+- `verify-setup.js` builds and checks only the municipal demo database; the insurance, IOLTA, excise, property, HOA, nonprofit, schools and construction databases are built with the one-liners above.
 - Over MCP, `verify_audit` checks the hash chain but not signatures; the `cc-auditor audit` CLI checks both.
 
 ## Enterprise & custom deployments
