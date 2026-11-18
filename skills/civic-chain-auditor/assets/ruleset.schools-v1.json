@@ -1,0 +1,139 @@
+{
+  "name": "schools",
+  "version": "schools-v1",
+  "changelog": [
+    "schools-v1: initial Civic-Chain School Districts ruleset — activity-negative-balances (a student activity account whose collections do not cover its disbursements), activity-deposits-late (cash collected but not deposited within deposit_days, the classic activity-fund loss point), activity-unapproved-disbursements (a payment missing the advisor or principal approval), federal-outside-period (a federal cost charged outside its program's period of performance) and budget-variance (a budget line whose paid spending exceeds its amended budget), with integrity (unique, total_matches) and finding (empty, compare) checks. These controls encode a reasonable interpretation of GASB Statement No. 84 (student activity money a district holds in a custodial capacity is a fiduciary fund of the district), the 2 CFR 200 period-of-performance requirement (2 CFR 200.403, 200.309) and ordinary budget-versus-actual review. The deposit window is a parameter (deposit_days, default 1, since student-activity manuals commonly require a deposit within one business day of collection) and the advisor-plus-principal approval rule is read from the ledger, so a district's own policy is data, not new SQL. They produce evidence for a licensed professional or a school-district auditor to confirm against the standards and policies that apply; they are not a financial-statement or Single Audit, and not a compliance certification. No student-level data is read: student records are protected under FERPA and are never allow-listed.",
+    "schools-v1 budget-variance reuses the municipal pack's budget-versus-actual pattern (paid spending against the amended budget per line) against the district's Maine DOE Fund / Function / Object chart of accounts."
+  ],
+  "queries": {
+    "activity-negative-balances": {
+      "description": "Every student activity account (a GASB 84 custodial fund the district holds for a student group) whose collections to date do not cover its disbursements to date, as of a cut-off. Use for 'is any club or class account overdrawn' and 'did an activity fund spend money it did not have' questions. An empty result means every activity account has a non-negative balance.",
+      "params": {
+        "as_of": {
+          "type": "string",
+          "description": "Evaluate balances as of this date (YYYY-MM-DD); later collections and disbursements are excluded. Omit to include everything."
+        }
+      },
+      "sql": "SELECT a.account_id, a.account_name, a.activity_type, COALESCE((SELECT SUM(c.amount_cents) FROM activity_collections c WHERE c.account_id = a.account_id AND c.collected_date <= COALESCE(:as_of, '9999-12-31')), 0) AS collected_cents, COALESCE((SELECT SUM(d.amount_cents) FROM activity_disbursements d WHERE d.account_id = a.account_id AND d.disbursement_date <= COALESCE(:as_of, '9999-12-31')), 0) AS disbursed_cents, COALESCE((SELECT SUM(c.amount_cents) FROM activity_collections c WHERE c.account_id = a.account_id AND c.collected_date <= COALESCE(:as_of, '9999-12-31')), 0) - COALESCE((SELECT SUM(d.amount_cents) FROM activity_disbursements d WHERE d.account_id = a.account_id AND d.disbursement_date <= COALESCE(:as_of, '9999-12-31')), 0) AS balance_cents FROM activity_accounts a WHERE COALESCE((SELECT SUM(c.amount_cents) FROM activity_collections c WHERE c.account_id = a.account_id AND c.collected_date <= COALESCE(:as_of, '9999-12-31')), 0) - COALESCE((SELECT SUM(d.amount_cents) FROM activity_disbursements d WHERE d.account_id = a.account_id AND d.disbursement_date <= COALESCE(:as_of, '9999-12-31')), 0) < 0 ORDER BY a.account_id",
+      "checks": [
+        {
+          "id": "one-row-per-account",
+          "type": "unique",
+          "columns": [
+            "account_id"
+          ]
+        },
+        {
+          "id": "no-negative-activity-balance",
+          "type": "empty",
+          "key": "account_id",
+          "message": "A student activity account's collections do not cover its disbursements, so the account is overdrawn. Under GASB 84 the district holds this money for the student group; confirm the collections and disbursements before relying on the figure, because a custodial fund should not spend money it has not collected."
+        }
+      ]
+    },
+    "activity-deposits-late": {
+      "description": "Student activity cash collected but not deposited promptly: a collection deposited more than deposit_days days after it was collected, or not deposited at all. Use for 'was any activity cash held too long before deposit' questions. Undeposited or slowly deposited cash is the classic loss point in student activity funds. A flag here is an investigative finding: it means cash sat outside the bank longer than the policy window, not that money is missing.",
+      "params": {
+        "deposit_days": {
+          "type": "integer",
+          "description": "The allowed number of days between collection and deposit. Omit for the default of 1 (deposit within one business day). Pass a different value if the district's policy differs."
+        }
+      },
+      "sql": "SELECT c.collection_id, c.account_id, c.fiscal_year, c.amount_cents, c.collected_date, c.deposited_date, CASE WHEN c.deposited_date IS NULL THEN 'UNDEPOSITED' ELSE 'LATE' END AS reason, CASE WHEN c.deposited_date IS NULL THEN NULL ELSE CAST(julianday(c.deposited_date) - julianday(c.collected_date) AS INTEGER) END AS days_to_deposit FROM activity_collections c WHERE c.deposited_date IS NULL OR (julianday(c.deposited_date) - julianday(c.collected_date)) > COALESCE(:deposit_days, 1) ORDER BY c.collection_id",
+      "checks": [
+        {
+          "id": "one-row-per-collection",
+          "type": "unique",
+          "columns": [
+            "collection_id"
+          ]
+        },
+        {
+          "id": "deposits-prompt",
+          "type": "empty",
+          "key": "collection_id",
+          "message": "Student activity cash was deposited later than the policy window (or not deposited at all). Undeposited or slowly deposited cash is the classic activity-fund loss point; confirm the collection reached the bank. This is a timeliness flag, not proof of a loss."
+        }
+      ]
+    },
+    "activity-unapproved-disbursements": {
+      "description": "Every student activity disbursement missing a required approval: a payment that does not carry both the advisor and the principal sign-off. Use for 'were any activity payments made without the required approvals' questions. An empty result means every disbursement was approved by both.",
+      "params": {},
+      "sql": "SELECT d.disbursement_id, d.account_id, d.fiscal_year, d.amount_cents, d.disbursement_date, d.advisor_approved, d.principal_approved, CASE WHEN d.advisor_approved = 0 AND d.principal_approved = 0 THEN 'MISSING_BOTH' WHEN d.advisor_approved = 0 THEN 'MISSING_ADVISOR' ELSE 'MISSING_PRINCIPAL' END AS reason FROM activity_disbursements d WHERE d.advisor_approved = 0 OR d.principal_approved = 0 ORDER BY d.disbursement_id",
+      "checks": [
+        {
+          "id": "one-row-per-disbursement",
+          "type": "unique",
+          "columns": [
+            "disbursement_id"
+          ]
+        },
+        {
+          "id": "disbursements-approved",
+          "type": "empty",
+          "key": "disbursement_id",
+          "message": "A student activity disbursement is missing the advisor or the principal approval. Activity-fund payments require both sign-offs; confirm the approvals before relying on the payment, because a disbursement without them has no documented authorization."
+        }
+      ]
+    },
+    "federal-outside-period": {
+      "description": "Every federal program cost charged outside its award's period of performance: a cost dated before the program's period_start or after its period_end. Use for 'were any federal costs charged outside the award period' questions. 2 CFR 200.403 and 200.309 limit allowable costs to the period of performance. An empty result means every federal cost is inside its program's period.",
+      "params": {
+        "fiscal_year": {
+          "type": "integer",
+          "description": "Examine only this fiscal year, e.g. 2026. Omit to examine every year."
+        }
+      },
+      "sql": "SELECT fc.cost_id, fc.fiscal_year, fc.program_id, p.program_name, p.cfda_number, fc.charge_date, p.period_start, p.period_end, fc.amount_cents, CASE WHEN fc.charge_date < p.period_start THEN 'BEFORE_PERIOD' ELSE 'AFTER_PERIOD' END AS reason FROM federal_costs fc JOIN federal_programs p ON p.program_id = fc.program_id WHERE (fc.charge_date < p.period_start OR fc.charge_date > p.period_end) AND (:fiscal_year IS NULL OR fc.fiscal_year = :fiscal_year) ORDER BY fc.cost_id",
+      "checks": [
+        {
+          "id": "one-row-per-cost",
+          "type": "unique",
+          "columns": [
+            "cost_id"
+          ]
+        },
+        {
+          "id": "costs-within-period",
+          "type": "empty",
+          "key": "cost_id",
+          "message": "A federal program cost is charged outside its award's period of performance (2 CFR 200.403, 200.309). Confirm the charge date and the award period before relying on the figure; a cost outside the period may be unallowable and need to be moved or refunded."
+        }
+      ]
+    },
+    "budget-variance": {
+      "description": "Per budget line: adopted and amended budget, paid and pending spending, remaining budget and percent used. Use for overspending, budget-versus-actual and remaining-budget questions. Reuses the municipal pack's pattern against the district's Fund / Function / Object chart of accounts.",
+      "params": {
+        "fiscal_year": {
+          "type": "integer",
+          "description": "Fiscal year, e.g. 2026. Omit for every year."
+        }
+      },
+      "sql": "SELECT b.line_id, b.fiscal_year, b.fund_code, b.function_code, b.object_code, b.line_description, b.adopted_cents, b.amended_cents, COALESCE((SELECT SUM(e.amount_cents) FROM expenditures e WHERE e.line_id = b.line_id AND e.status = 'paid'), 0) AS paid_cents, COALESCE((SELECT SUM(e.amount_cents) FROM expenditures e WHERE e.line_id = b.line_id AND e.status = 'pending'), 0) AS pending_cents, b.amended_cents - COALESCE((SELECT SUM(e.amount_cents) FROM expenditures e WHERE e.line_id = b.line_id AND e.status = 'paid'), 0) AS remaining_cents, ROUND(100.0 * COALESCE((SELECT SUM(e.amount_cents) FROM expenditures e WHERE e.line_id = b.line_id AND e.status = 'paid'), 0) / b.amended_cents, 1) AS pct_used FROM budget_lines b WHERE (:fiscal_year IS NULL OR b.fiscal_year = :fiscal_year) ORDER BY b.fiscal_year, b.line_id",
+      "checks": [
+        {
+          "id": "one-row-per-line",
+          "type": "unique",
+          "columns": [
+            "line_id"
+          ]
+        },
+        {
+          "id": "paid-total-reconciles",
+          "type": "total_matches",
+          "column": "paid_cents",
+          "sql": "SELECT COALESCE(SUM(e.amount_cents), 0) AS total FROM expenditures e WHERE e.status = 'paid' AND e.line_id IN (SELECT b.line_id FROM budget_lines b WHERE (:fiscal_year IS NULL OR b.fiscal_year = :fiscal_year))"
+        },
+        {
+          "id": "within-amended-budget",
+          "type": "compare",
+          "left": "paid_cents",
+          "op": "<=",
+          "right": "amended_cents",
+          "key": "line_id",
+          "message": "This budget line has spent more than its amended budget."
+        }
+      ]
+    }
+  }
+}

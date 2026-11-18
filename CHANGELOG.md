@@ -5,6 +5,56 @@ The project follows [Semantic Versioning](https://semver.org/): MAJOR.MINOR.PATC
 
 ## [Unreleased]
 
+### Added — School Districts ruleset pack (seventh signed pack)
+- A seventh domain pack beside the municipal, insurance, IOLTA, excise,
+  property/HOA and nonprofit ones, on the same signed-ruleset + custom-warehouse
+  seam (no engine change, no new dependency, no server, no new credential). Five
+  controls for a school district's student activity funds, federal program costs
+  and budget, each a named query with automatic checks, encoding GASB Statement
+  No. 84 (student activity money the district holds in a custodial capacity is a
+  fiduciary fund), the 2 CFR 200 period-of-performance requirement (2 CFR 200.403,
+  200.309) and ordinary budget-versus-actual review:
+  - **`schools/activity-negative-balances`** (`as_of`) — a student activity
+    account whose collections do not cover its disbursements (an overdrawn
+    custodial fund); an `empty` finding with a `unique` integrity check.
+  - **`schools/activity-deposits-late`** (`deposit_days`, default 1) — activity
+    cash deposited more than `deposit_days` days after collection, or not
+    deposited at all; an `empty` finding (FLAG) with a `unique` integrity check.
+  - **`schools/activity-unapproved-disbursements`** — an activity disbursement
+    missing the advisor or the principal approval; an `empty` finding with a
+    `unique` integrity check.
+  - **`schools/federal-outside-period`** (`fiscal_year`) — a federal program cost
+    charged before or after its award's period of performance; an `empty` finding
+    with a `unique` integrity check.
+  - **`schools/budget-variance`** (`fiscal_year`) — a budget line whose paid
+    spending exceeds its amended budget (reuses the municipal pattern); a
+    `compare` (`<=`) finding with `unique` and `total_matches` integrity checks.
+- **The policy is the district's, not the engine's:** the late-deposit window
+  (`deposit_days`) is a parameter with a documented default of 1, and the
+  advisor-plus-principal approval rule is read from the ledger's
+  `advisor_approved` / `principal_approved` flags, so a district's own policy is
+  data, never new SQL.
+- **Demo warehouse** (`assets/schools/`, mirrored into the skill): a synthetic
+  Kennebec Valley Regional School Unit ledger (clean, so all five controls read
+  PASS), a pure access-policy allow-list, and a deliberately **non-allow-listed
+  `student_records` table** (student names, grade levels and meal-eligibility
+  status, withheld under FERPA) so the guard visibly refuses student data; the
+  controls carry activity-account, program and budget codes only.
+- **Signed** `schools-v1` ruleset (`scripts/build-schools-ruleset.js`), signed
+  offline with the same Civic-Chain key `acb80e87885da931`; ships in both asset
+  copies with its detached signature.
+- **Tests** (`test/schools-warehouse.test.js`, `test/schools-ruleset.test.js`,
+  `test/schools-fixture.js`): clean PASS for all five controls, a targeted
+  mutation (or deposit-window parameter) tripping each, the overspent-line-with-
+  tying-total case, signature status, and the `student_records` refusal.
+  `test/skill-drift.test.js` extended to resolve `schools/*` query names from the
+  shipped ruleset. Full suite green on Node 22 (421 tests).
+- **Skill routing and docs** (`SKILL.md`, `references/setup.md`,
+  `references/refusals.md`,
+  `examples/10-schools-activity-unapproved-disbursement.md`, and the skill,
+  top-level and core READMEs): PASS/EXCEPTION/FLAG presentation per control, the
+  deposit-window parameter, and the student-records refusal.
+
 ### Added — Nonprofit Restricted Funds ruleset pack (sixth signed pack)
 - A sixth domain pack beside the municipal, insurance, IOLTA, excise and
   property/HOA ones, on the same signed-ruleset + custom-warehouse seam (no

@@ -61,6 +61,10 @@ export const HOA_ALLOWLIST_PATH = assetPath('hoa', 'sample_hoa_allowlist.json');
 export const NONPROFIT_SQL_PATH = assetPath('nonprofit', 'sample_nonprofit_funds.sql');
 export const NONPROFIT_ALLOWLIST_PATH = assetPath('nonprofit', 'sample_nonprofit_allowlist.json');
 
+/** The bundled schools demo (the School Districts pack's seed and allow-list). */
+export const SCHOOLS_SQL_PATH = assetPath('schools', 'sample_schools_ledger.sql');
+export const SCHOOLS_ALLOWLIST_PATH = assetPath('schools', 'sample_schools_allowlist.json');
+
 /** The per-user directory the engine writes seeded warehouses and logs into. */
 export function dataDir({ env = process.env, platform = process.platform } = {}) {
     if (env.CIVIC_DATA_DIR) return env.CIVIC_DATA_DIR;

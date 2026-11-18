@@ -303,8 +303,19 @@ See `src/custom.js` for the format. Three worked examples ship in `assets/`:
   gift histories, so the guard refuses it; the controls carry fund, line and
   program codes only. The ruleset is rebuilt and signed offline with
   `node scripts/build-nonprofit-ruleset.js [--sign <key.pem>]`.
+- `assets/schools/`: the School Districts pack, a synthetic Kennebec Valley
+  Regional School Unit ledger with the signed `schools-v1` ruleset
+  (`schools/activity-negative-balances` with an optional `as_of`,
+  `schools/activity-deposits-late` with an optional `deposit_days` default of 1,
+  `schools/activity-unapproved-disbursements`, `schools/federal-outside-period`
+  with an optional `fiscal_year`, and `schools/budget-variance` with an optional
+  `fiscal_year`). Its allow-list deliberately omits a `student_records` table of
+  student names, grade levels and meal-eligibility status under FERPA, so the
+  guard refuses it; the controls carry activity-account, program and budget codes
+  only. The ruleset is rebuilt and signed offline with
+  `node scripts/build-schools-ruleset.js [--sign <key.pem>]`.
 
-All six are mirrored into `../skills/civic-chain-auditor/assets/`, where the
+All seven are mirrored into `../skills/civic-chain-auditor/assets/`, where the
 agent skill documents how to serve them.
 
 ## What is real here, and what is not
@@ -324,7 +335,7 @@ control catalog whose entries assert PASS/EXCEPTION and emit that packet
 reproducibility, and audit-chain integrity), an MCP server that exposes the
 controls, canonical queries and audit verification as tools and each warehouse's
 live schema as a resource (`vanguard mcp`, stdio) plus a token-guarded HTTP API for a
-web proxy (`vanguard serve`), the CLI, and 406 tests that run offline.
+web proxy (`vanguard serve`), the CLI, and 421 tests that run offline.
 
 **Synthetic:** the data. 416 customers over six months, generated
 deterministically from a fixed seed so that the same question always produces
@@ -394,7 +405,7 @@ src/mcp-server.js      the stdio MCP transport (the only file that imports the S
 src/http-server.js     HTTP JSON API over the same handlers (what the web proxy calls)
 src/ask.js             the pipeline
 bin/vanguard.js          CLI
-test/                  406 tests, none requiring a credential
+test/                  421 tests, none requiring a credential
 ```
 
 Requires Node 22+ (`node:sqlite` is built in, so there is no native database

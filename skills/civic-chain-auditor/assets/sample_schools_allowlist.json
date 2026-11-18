@@ -1,0 +1,70 @@
+{
+  "name": "schools",
+  "description": "Kennebec Valley Regional School Unit (fictional) school-district ledger: the student activity accounts the district holds in a custodial capacity, the cash collected into and disbursed from them, the federal programs and their costs, and the adopted and amended budget lines with their expenditures. Synthetic demo data; all money in integer cents. No student records are exposed; the controls reconcile activity accounts, federal costs and budget lines by code only.",
+  "domain": "school districts: student activity funds (GASB 84), federal program costs (2 CFR 200) and budget variance",
+  "tables": {
+    "activity_accounts": [
+      "account_id",
+      "account_name",
+      "activity_type",
+      "fund_class"
+    ],
+    "activity_collections": [
+      "collection_id",
+      "account_id",
+      "fiscal_year",
+      "amount_cents",
+      "collected_date",
+      "deposited_date"
+    ],
+    "activity_disbursements": [
+      "disbursement_id",
+      "account_id",
+      "fiscal_year",
+      "amount_cents",
+      "disbursement_date",
+      "advisor_approved",
+      "principal_approved"
+    ],
+    "federal_programs": [
+      "program_id",
+      "program_name",
+      "cfda_number",
+      "period_start",
+      "period_end"
+    ],
+    "federal_costs": [
+      "cost_id",
+      "program_id",
+      "fiscal_year",
+      "amount_cents",
+      "charge_date"
+    ],
+    "budget_lines": [
+      "line_id",
+      "fiscal_year",
+      "fund_code",
+      "function_code",
+      "object_code",
+      "line_description",
+      "adopted_cents",
+      "amended_cents"
+    ],
+    "expenditures": [
+      "expenditure_id",
+      "line_id",
+      "fiscal_year",
+      "amount_cents",
+      "status"
+    ]
+  },
+  "notes": [
+    "All money is INTEGER CENTS.",
+    "Student activity accounts (activity_accounts) are GASB 84 custodial (fiduciary) funds the district holds for the student groups. An account's balance is its collections (activity_collections) less its disbursements (activity_disbursements); a negative balance means a group spent money it did not have.",
+    "A collection's exposure is the gap between collected_date and deposited_date. activity-deposits-late flags a collection deposited more than deposit_days days after it was collected, or not deposited at all (deposited_date is NULL); deposit_days is a parameter defaulting to 1, since student-activity manuals commonly require a deposit within one business day of collection.",
+    "A disbursement needs both the advisor and the principal approval (advisor_approved = 1 AND principal_approved = 1). activity-unapproved-disbursements flags any disbursement missing either.",
+    "A federal cost (federal_costs) must be charged inside its program's period of performance (federal_programs.period_start to period_end), per 2 CFR 200.403 and 200.309. A charge dated before period_start or after period_end is outside the period.",
+    "budget-variance compares paid expenditures against the amended budget per line, the same pattern as the municipal pack; the chart of accounts follows the Maine DOE Fund / Function / Object structure.",
+    "The student_records table (student names, grade levels and meal-eligibility status, all protected under FERPA) is intentionally omitted: this engine never reads student records. The controls identify accounts, programs and budget lines by code only."
+  ]
+}

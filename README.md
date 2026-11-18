@@ -4,7 +4,7 @@ From [civic-chain.com](https://civic-chain.com). Live demo: https://vanguard-mcp
 
 **Public money, verified.** Ask a plain-English question about a budget, a grant, or a line of spending and get an answer in which *every figure* has been checked against the source records before you see it, or an explicit refusal. Never an unverified number presented as fact.
 
-[![Core tests](https://img.shields.io/badge/core-406%20tests%2C%20offline-blue.svg)](vanguard-core/)
+[![Core tests](https://img.shields.io/badge/core-421%20tests%2C%20offline-blue.svg)](vanguard-core/)
 [![Licence: Civic-Chain Commercial, source-available](https://img.shields.io/badge/licence-source--available-informational.svg)](LICENSE)
 
 The issue is that AI is excellent at turning a question into SQL, and terrible at being trusted with the math. So we took the AI out of the equation. The LLM (AI) writes a query, a read-only database returns the rows, and a verifier checks that every number in the prose actually came from those rows. What you get back is either a grounded answer with a full provenance trail, or an explicit refusal. Never an unverified paragraph presented as fact.
@@ -56,7 +56,7 @@ The external anchor **does not have to be a blockchain**, publishing each checkp
 
 | Path | What it is |
 |------|-----------|
-| [`vanguard-core/`](vanguard-core/) | **The working engine.** A Node.js CLI and library implementing the full pipeline above: guard, read-only warehouse, grounding verifier, lineage capture, a tamper-evident audit chain, a CSV importer that builds a guarded warehouse from a buyer's own ledger, signed domain rulesets, and a one-command shareable audit report. 406 tests, no API credential required to run them. |
+| [`vanguard-core/`](vanguard-core/) | **The working engine.** A Node.js CLI and library implementing the full pipeline above: guard, read-only warehouse, grounding verifier, lineage capture, a tamper-evident audit chain, a CSV importer that builds a guarded warehouse from a buyer's own ledger, signed domain rulesets, and a one-command shareable audit report. 421 tests, no API credential required to run them. |
 | [`site/`](site/) | **The web demo.** A static site: the thesis, the reporting-gap case study, and the evidence panel. |
 | [`site/enron.html`](site/enron.html) | **The reporting-gap case study**, reported figures set against what the underlying rows support, each grounded and hash-chained. |
 | [`site/controls.html`](site/controls.html) | **The evidence panel**, one-click controls that return PASS/EXCEPTION with a verifiable evidence trail. |
@@ -143,10 +143,11 @@ Because the engine is schema-agnostic, a domain pack is just a signed ruleset (n
 | **Excise Tax** | liability vs tax remitted, operations-report rollforward, report vs return, missing or late filings, loss variance | Underpaid returns, product that left without being reported, a report and a return that disagree, missed or late filings, losses over tolerance (a diversion signal) |
 | **Property Management & HOA** | broker trust vs liability, overdrawn owner ledgers, tenant deposits held vs owed, overdue deposit returns, HOA reserve transfers without board approval, HOA budget variance, delinquent assessments | A short broker trust account, one beneficiary's money funding another's, tenant deposits not in trust, late deposit returns, reserves spent without approval, overspent HOA lines, aged owner delinquencies |
 | **Nonprofit Restricted Funds** | restricted spending outside purpose or window, releases vs qualifying spending, functional-expense tie-out, restricted-cash coverage, Single Audit threshold | Donor-restricted money misspent, a restriction released before the money was used, a functional-expense statement that does not tie, restricted funds spent into operations, federal spending that triggers a Single Audit |
+| **School Districts** | student activity negative balances, late or undeposited activity cash, activity disbursements without approval, federal costs outside the award period, budget variance | A club or class account overdrawn, cash held too long before deposit, payments made without the required sign-offs, federal costs outside the period of performance, overspent budget lines |
 
-Each pack ships a synthetic demo ledger so the controls run out of the box, and the packs reach none of a ledger's sensitive fields: the municipal demo withholds `payroll` and vendor tax IDs, the insurance demo withholds an `insured_pii` table of SSNs and health notes, the IOLTA demo withholds a `client_contacts` table of client names and addresses, the excise demo withholds a `customer_accounts` table of wholesale-account names and addresses, the property and HOA demos withhold a `resident_pii` table of tenant and owner names, SSNs and bank accounts, and the nonprofit demo withholds a `donor_pii` table of donor names, addresses and gift histories, and the guard refuses any query that reaches them. The excise rate lives in a `tax_rates` table so a rate change is data, not a new ruleset. A PASS is evidence a licensed professional can recompute and confirm against the entity's own obligations, not a certification or an audit opinion.
+Each pack ships a synthetic demo ledger so the controls run out of the box, and the packs reach none of a ledger's sensitive fields: the municipal demo withholds `payroll` and vendor tax IDs, the insurance demo withholds an `insured_pii` table of SSNs and health notes, the IOLTA demo withholds a `client_contacts` table of client names and addresses, the excise demo withholds a `customer_accounts` table of wholesale-account names and addresses, the property and HOA demos withhold a `resident_pii` table of tenant and owner names, SSNs and bank accounts, the nonprofit demo withholds a `donor_pii` table of donor names, addresses and gift histories, and the schools demo withholds a `student_records` table of student names, grade levels and meal-eligibility status under FERPA, and the guard refuses any query that reaches them. The excise rate lives in a `tax_rates` table so a rate change is data, not a new ruleset. A PASS is evidence a licensed professional can recompute and confirm against the entity's own obligations, not a certification or an audit opinion.
 
-To run the insurance, IOLTA, excise, property, HOA or nonprofit pack, serve `vanguard-core/assets/insurance/`, `vanguard-core/assets/iolta/`, `vanguard-core/assets/excise/`, `vanguard-core/assets/property/`, `vanguard-core/assets/hoa/` or `vanguard-core/assets/nonprofit/` as a custom warehouse with `CIVIC_RULESET_PATH` pointing at its signed ruleset; the agent skill's READMEs for the [Insurance & Fiduciary](skills/civic-chain-auditor/README.md#insurance--fiduciary-pack), [Law Firm Trust (IOLTA)](skills/civic-chain-auditor/README.md#law-firm-trust-iolta-pack), [Excise Tax](skills/civic-chain-auditor/README.md#excise-tax-pack), [Property Management & HOA](skills/civic-chain-auditor/README.md#property-management--hoa-pack) and [Nonprofit Restricted Funds](skills/civic-chain-auditor/README.md#nonprofit-restricted-funds-pack) packs have the steps.
+To run the insurance, IOLTA, excise, property, HOA, nonprofit or schools pack, serve `vanguard-core/assets/insurance/`, `vanguard-core/assets/iolta/`, `vanguard-core/assets/excise/`, `vanguard-core/assets/property/`, `vanguard-core/assets/hoa/`, `vanguard-core/assets/nonprofit/` or `vanguard-core/assets/schools/` as a custom warehouse with `CIVIC_RULESET_PATH` pointing at its signed ruleset; the agent skill's READMEs for the [Insurance & Fiduciary](skills/civic-chain-auditor/README.md#insurance--fiduciary-pack), [Law Firm Trust (IOLTA)](skills/civic-chain-auditor/README.md#law-firm-trust-iolta-pack), [Excise Tax](skills/civic-chain-auditor/README.md#excise-tax-pack), [Property Management & HOA](skills/civic-chain-auditor/README.md#property-management--hoa-pack), [Nonprofit Restricted Funds](skills/civic-chain-auditor/README.md#nonprofit-restricted-funds-pack) and [School Districts](skills/civic-chain-auditor/README.md#school-districts-pack) packs have the steps.
 
 ## Why this matters: Big-Four assurance on a municipal budget
 
@@ -171,7 +172,7 @@ None of the underlying parts are new, guarded text-to-SQL, verification of AI-ge
 cd vanguard-core
 npm install
 npm run seed            # build the demo warehouse
-npm test                # 406 tests, no credential required
+npm test                # 421 tests, no credential required
 
 # Reporting-gap case study (no credential, real 10-K anchors, synthetic rows)
 node bin/vanguard.js enron seed
@@ -185,7 +186,7 @@ node bin/vanguard.js controls run PI1.2-enron-debt-reconciliation
 # Verify the tamper-evident audit chain end to end
 node bin/vanguard.js audit
 
-# Signed domain rulesets (the query packs: municipal, insurance, iolta, excise, property, hoa, nonprofit)
+# Signed domain rulesets (the query packs: municipal, insurance, iolta, excise, property, hoa, nonprofit, schools)
 node bin/vanguard.js ruleset list                  # the bundled municipal ruleset
 node bin/vanguard.js ruleset show assets/insurance/ruleset.insurance-v1.json   # signature status + content hash
 node bin/vanguard.js ruleset show assets/iolta/ruleset.iolta-v1.json           # the IOLTA pack
@@ -193,6 +194,7 @@ node bin/vanguard.js ruleset show assets/excise/ruleset.excise-v1.json         #
 node bin/vanguard.js ruleset show assets/property/ruleset.property-trust-v1.json  # the broker-trust pack
 node bin/vanguard.js ruleset show assets/hoa/ruleset.hoa-v1.json               # the HOA pack
 node bin/vanguard.js ruleset show assets/nonprofit/ruleset.nonprofit-v1.json   # the Nonprofit Restricted Funds pack
+node bin/vanguard.js ruleset show assets/schools/ruleset.schools-v1.json       # the School Districts pack
 
 # Build a guarded warehouse from your own ledger (local only, no credential)
 node bin/vanguard.js import spending.csv                      # propose a column mapping, writes nothing
@@ -210,7 +212,7 @@ The guard, the warehouse, the lineage record, and the audit chain all run with n
 
 In keeping with the project's own discipline about claims:
 
-- **Real:** the guard (table and column allow-lists, a query budget, a row-level scope hook driven by an authenticated principal), read-only enforcement behind a warehouse-connector interface, unit-aware grounding, lineage capture and hashing, the hash-chained audit log with Ed25519 signing, an RFC 9162 Merkle checkpoint and a pluggable external-anchoring hook, a first-class metric registry, the CSV importer (buyer's ledger to a guarded warehouse, each source file recorded by SHA-256), the signed domain rulesets (municipal, insurance, IOLTA, excise, property-trust, HOA and nonprofit) with their automatic integrity and finding checks, the shareable audit report, the CLI, and the offline test suite (406 tests, no credential).
+- **Real:** the guard (table and column allow-lists, a query budget, a row-level scope hook driven by an authenticated principal), read-only enforcement behind a warehouse-connector interface, unit-aware grounding, lineage capture and hashing, the hash-chained audit log with Ed25519 signing, an RFC 9162 Merkle checkpoint and a pluggable external-anchoring hook, a first-class metric registry, the CSV importer (buyer's ledger to a guarded warehouse, each source file recorded by SHA-256), the signed domain rulesets (municipal, insurance, IOLTA, excise, property-trust, HOA, nonprofit and schools) with their automatic integrity and finding checks, the shareable audit report, the CLI, and the offline test suite (421 tests, no credential).
 - **Synthetic:** the demo warehouse **values**, generated deterministically so the same question always produces the same result hash. The reporting-gap study's *aggregates* reconcile to real, cited FY2000 10-K figures; its transaction rows and off-balance-sheet amounts are synthetic and labelled. For a tool about traceable figures, fabricated data clearly labelled as fabricated is fine; fabricated data presented as real is the exact failure this project exists to prevent.
 - **Not a compliance claim:** audit entries carry tags like `processing-integrity` because the query path is read-only over a schema with no personal data, a true statement about this configuration, not a certification. What this produces is *evidence*: a query, its provenance, a reproducible hash of its result, and a chain showing the record has not been edited since.
 

@@ -67,6 +67,7 @@ In the host, tool names carry the server key as a prefix (for example `mcp__civi
 | `property` (when configured) | yes | Fictional Sunset Key Realty & Property Management: broker trust ledger (owner funds and tenant deposits), bank snapshots, leases. Synthetic; parties by ledger, property and lease ID only. Served with the signed `property-trust-v1` ruleset. |
 | `hoa` (when configured) | yes | Fictional Palm Grove Community Association: reserve transfers, operating budget lines, operating expenses, owner assessments. Synthetic; owners by unit ID only. Served with the signed `hoa-v1` ruleset. |
 | `nonprofit` (when configured) | yes | Fictional Merrymeeting Bay Community Services: restricted and unrestricted funds, expenses by program and functional class, restriction releases, balance-sheet snapshot, net assets by restriction class, federal awards. Synthetic; funds and programs by code only. Served with the signed `nonprofit-v1` ruleset. |
+| `schools` (when configured) | yes | Fictional Kennebec Valley Regional School Unit: student activity accounts (GASB 84 custodial funds), activity collections and disbursements, federal programs and costs, budget lines and expenditures. Synthetic; accounts, programs and budget lines by code only, no student records. Served with the signed `schools-v1` ruleset. |
 | *(any custom name)* | yes | The user's own ledger, loaded from `CIVIC_DB_PATH` / `CIVIC_ALLOWLIST_PATH` |
 | `saas` | yes | MRR, retention, LTV:CAC, cohorts. Synthetic. |
 | `enron` | no | FY2000 reporting gap: synthetic rows anchored to real 10-K aggregates |
@@ -160,6 +161,18 @@ Served by the signed `nonprofit-v1` ruleset. Presentation rules (PASS / EXCEPTIO
 | `nonprofit/restricted-cash-coverage` | `as_of` (optional, YYYY-MM-DD) | Liquid assets against net assets with donor restrictions; finding when liquid assets fall short |
 | `nonprofit/single-audit-threshold` | `fiscal_year` (optional), `threshold_cents` (optional, default 100000000) | Federal award spending in the year against the Single Audit trigger |
 
+### Named queries on the schools demo (`run_canonical`, no credential)
+
+Served by the signed `schools-v1` ruleset. Presentation rules (PASS / EXCEPTION / FLAG, the deposit-window parameter and the student-records refusal) are in SKILL.md under "School Districts pack".
+
+| `name` | `args` | What it answers |
+|---|---|---|
+| `schools/activity-negative-balances` | `as_of` (optional, YYYY-MM-DD) | Student activity accounts overdrawn (collections do not cover disbursements) |
+| `schools/activity-deposits-late` | `deposit_days` (optional, default 1) | Activity cash deposited later than the window, or not deposited at all |
+| `schools/activity-unapproved-disbursements` | none | Activity disbursements missing the advisor or the principal approval |
+| `schools/federal-outside-period` | `fiscal_year` (optional) | Federal program costs charged outside the award's period of performance |
+| `schools/budget-variance` | `fiscal_year` (optional) | Paid spending against the amended budget per line; finding when a line is over budget |
+
 Only pass the business arguments shown. Never pass `dbPath`, `logPath`, `signer` or `warehouse` inside `args`: the server refuses them, because they would otherwise redirect the query or its audit trail.
 
 ## Audit logs and verification
@@ -173,7 +186,7 @@ Pass `verify_audit` a `warehouse` and it checks that warehouse's log. The result
 | `db/enron-audit.jsonl` | enron queries and controls | `{ "warehouse": "enron" }` |
 | `db/markets-audit.jsonl` | markets queries and controls | `{ "warehouse": "markets" }` |
 | `db/lseg-audit.jsonl` | lseg controls | `{ "warehouse": "lseg" }` |
-| `<name>-audit.jsonl` beside the db | custom warehouse, e.g. `municipal`, `insurance`, `iolta`, `excise`, `property`, `hoa` or `nonprofit` | `{ "warehouse": "municipal" }` / `{ "warehouse": "insurance" }` / `{ "warehouse": "iolta" }` / `{ "warehouse": "excise" }` / `{ "warehouse": "property" }` / `{ "warehouse": "hoa" }` / `{ "warehouse": "nonprofit" }` |
+| `<name>-audit.jsonl` beside the db | custom warehouse, e.g. `municipal`, `insurance`, `iolta`, `excise`, `property`, `hoa`, `nonprofit` or `schools` | `{ "warehouse": "municipal" }` / `{ "warehouse": "insurance" }` / `{ "warehouse": "iolta" }` / `{ "warehouse": "excise" }` / `{ "warehouse": "property" }` / `{ "warehouse": "hoa" }` / `{ "warehouse": "nonprofit" }` / `{ "warehouse": "schools" }` |
 
 If the user asks about "the audit log" in general, verify every log that applies. Report:
 - `ok: true` → **INTACT**, with the entry count.

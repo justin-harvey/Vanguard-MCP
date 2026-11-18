@@ -12,7 +12,8 @@ This skill teaches an AI agent (Claude Code, Claude Desktop, Cursor, or any MCP 
 - **An excise-tax demo too.** The Excise Tax pack ships a fourth synthetic ledger (Penobscot Bay Brewing Co., a beer brewery) with a signed `excise-v1` ruleset of five controls: liability versus tax remitted, the operations-report rollforward, report-versus-return tie-out, missing or late filings, and loss variance. The excise rate lives in a `tax_rates` table so a rate change is data, not a new ruleset. See [Excise Tax pack](#excise-tax-pack) below.
 - **Property-management and HOA demos too.** The Property Management & HOA pack ships two more synthetic ledgers with two signed rulesets: a brokerage (Sunset Key Realty & Property Management) with `property-trust-v1` (four controls: broker trust versus liability, overdrawn owner ledgers, tenant deposits held versus owed, overdue deposit returns) and a community association (Palm Grove Community Association) with `hoa-v1` (three controls: reserve transfers without board approval, operating budget variance, delinquent assessments). See [Property Management & HOA pack](#property-management--hoa-pack) below.
 - **A nonprofit restricted-funds demo too.** The Nonprofit Restricted Funds pack ships a sixth synthetic ledger (Merrymeeting Bay Community Services) with a signed `nonprofit-v1` ruleset of five controls: restricted spending outside its purpose or window, releases versus qualifying spending, the ASC 958 functional-expense tie-out, restricted-cash coverage, and the Single Audit threshold. The $1,000,000 Single Audit trigger is a parameter, so an OMB change is not a new ruleset. See [Nonprofit Restricted Funds pack](#nonprofit-restricted-funds-pack) below.
-- **Privacy controls you can see working.** The municipal allow-list withholds a `payroll` table and the vendors' tax IDs and bank details; the insurance allow-list withholds an `insured_pii` table of policyholder SSNs and health notes; the IOLTA allow-list withholds a `client_contacts` table of client names and addresses; the excise allow-list withholds a `customer_accounts` table of wholesale-account names and addresses; the property and HOA allow-lists withhold a `resident_pii` table of tenant and owner names, SSNs and bank accounts; and the nonprofit allow-list withholds a `donor_pii` table of donor names, addresses and gift histories. You can watch the guard refuse requests for any of them.
+- **A school-district demo too.** The School Districts pack ships a seventh synthetic ledger (Kennebec Valley Regional School Unit) with a signed `schools-v1` ruleset of five controls: student activity negative balances, late or undeposited activity cash, activity disbursements without approval, federal costs outside the award period, and budget variance. GASB 84 custodial funds, the 2 CFR 200 period of performance, and no student-level data under FERPA. See [School Districts pack](#school-districts-pack) below.
+- **Privacy controls you can see working.** The municipal allow-list withholds a `payroll` table and the vendors' tax IDs and bank details; the insurance allow-list withholds an `insured_pii` table of policyholder SSNs and health notes; the IOLTA allow-list withholds a `client_contacts` table of client names and addresses; the excise allow-list withholds a `customer_accounts` table of wholesale-account names and addresses; the property and HOA allow-lists withhold a `resident_pii` table of tenant and owner names, SSNs and bank accounts; the nonprofit allow-list withholds a `donor_pii` table of donor names, addresses and gift histories; and the schools allow-list withholds a `student_records` table of student names, grade levels and meal-eligibility status under FERPA. You can watch the guard refuse requests for any of them.
 - **Automatic checks on every named query.** Integrity checks catch double counting from a bad JOIN before a figure reaches you; finding checks surface overspending, grant cash drawn ahead of spending, a short premium trust, commission variances, unbound premium, a trust account that does not reconcile, and overdrawn client ledgers. For the `empty` checks, a result with no rows is the clean, passing case.
 - **Refusal handling.** The agent knows which refusals to fix itself (rephrase once) and which to report (policy-withheld data, write requests), so it doesn't loop or guess.
 - **Audit answers.** Every response carries the executed SQL, the tables and columns read, the row count, the result hash and the audit-chain entry. The agent can verify any log's integrity on request.
@@ -299,6 +300,55 @@ Then try:
 
 **What a PASS means.** A figure was computed one fixed way, its check held, and its provenance verifies. It is evidence for a licensed professional or an auditor under Uniform Guidance to confirm against the gift instruments and the standards that apply, not a financial-statement or Single Audit. All Merrymeeting Bay data is synthetic.
 
+## School Districts pack
+
+A seventh signed ruleset served as a custom warehouse. The `schools` warehouse audits a school district's student activity funds, federal program costs and budget against GASB Statement No. 84 (student activity money the district holds in a custodial capacity is a fiduciary fund), the 2 CFR 200 period-of-performance requirement, and ordinary budget-versus-actual review (the demo is Kennebec Valley Regional School Unit, a fictional Maine district). It is named-query-only: no API key, deterministic SQL, automatic checks, and it never reads a student record.
+
+| Named query | `args` | Answers | Check |
+|---|---|---|---|
+| `schools/activity-negative-balances` | `as_of` (optional, YYYY-MM-DD) | Student activity accounts overdrawn (collections do not cover disbursements) | No rows = PASS; any row = **EXCEPTION** |
+| `schools/activity-deposits-late` | `deposit_days` (optional, default 1) | Activity cash deposited later than the window, or not deposited at all | No rows = PASS; any row = **FLAG** |
+| `schools/activity-unapproved-disbursements` | none | Activity disbursements missing the advisor or the principal approval | No rows = PASS; any row = **EXCEPTION** |
+| `schools/federal-outside-period` | `fiscal_year` (optional) | Federal program costs charged outside the award's period of performance | No rows = PASS; any row = **EXCEPTION** |
+| `schools/budget-variance` | `fiscal_year` (optional) | Paid spending against the amended budget per line | PASS when every line is within budget; **EXCEPTION** per overspent line |
+
+The bundled Kennebec Valley data is clean, so every control reads PASS out of the box. `examples/10-schools-activity-unapproved-disbursement.md` shows an activity payment made without the required approval being caught.
+
+**Setup.** Build the database by hand and serve it from its own server entry:
+
+```bash
+cd path/to/civic-chain-auditor/assets
+node -e "const {DatabaseSync}=require('node:sqlite');const fs=require('fs');const db=new DatabaseSync('sample_schools_ledger.sqlite');db.exec(fs.readFileSync('sample_schools_ledger.sql','utf8'));db.close()"
+```
+
+```json
+"civic-chain-schools": {
+  "command": "node",
+  "args": ["<vanguard-core>/bin/vanguard.js", "mcp"],
+  "env": {
+    "CIVIC_DB_PATH": "<assets>/sample_schools_ledger.sqlite",
+    "CIVIC_ALLOWLIST_PATH": "<assets>/sample_schools_allowlist.json",
+    "CIVIC_RULESET_PATH": "<assets>/ruleset.schools-v1.json"
+  }
+}
+```
+
+Then try:
+
+> Is any student club or class account overdrawn? Include the result hash.
+
+> Was any activity cash held more than a day before it was deposited?
+
+> Did we pay anything out of an activity account without the required approvals?
+
+> Were any Title I or IDEA costs charged outside the award period in FY2026?
+
+> Show me the students on free or reduced lunch. *(refused: `student_records` is not exposed under FERPA)*
+
+**The deposit window and approval rule are the district's.** The late-deposit window (`deposit_days`) defaults to 1 (deposit within one business day); when a district's policy differs, pass it as the argument. The advisor-plus-principal approval rule is read from the ledger's `advisor_approved` and `principal_approved` flags, so a correction is a data update, not a new ruleset.
+
+**What a PASS means.** A figure was computed one fixed way, its check held, and its provenance verifies. It is evidence for a licensed professional or a school-district auditor to confirm against GASB 84, 2 CFR 200 and the district's own policies, not a financial-statement or Single Audit. All Kennebec Valley data is synthetic.
+
 ## What's in the package
 
 ```
@@ -327,9 +377,12 @@ civic-chain-auditor/
 │   ├── sample_nonprofit_funds.sql       nonprofit seed script (Merrymeeting Bay Community Services, synthetic)
 │   ├── sample_nonprofit_allowlist.json  nonprofit permitted tables and columns (no donor_pii)
 │   ├── ruleset.nonprofit-v1.json(.sig)  signed nonprofit ruleset and its detached signature
+│   ├── sample_schools_ledger.sql        schools seed script (Kennebec Valley Regional School Unit, synthetic)
+│   ├── sample_schools_allowlist.json    schools permitted tables and columns (no student_records)
+│   ├── ruleset.schools-v1.json(.sig)    signed schools ruleset and its detached signature
 │   └── civic-chain-ruleset-pub.pem      public key the ruleset signatures verify against
 ├── references/                          setup, controls and refusal reference for the agent
-├── examples/                            worked transcripts (01-03 municipal, 04 insurance, 05 IOLTA, 06 excise, 07 property, 08 HOA, 09 nonprofit)
+├── examples/                            worked transcripts (01-03 municipal, 04 insurance, 05 IOLTA, 06 excise, 07 property, 08 HOA, 09 nonprofit, 10 schools)
 └── scripts/
     └── verify-setup.js                  local setup check and config generator (municipal demo)
 ```
