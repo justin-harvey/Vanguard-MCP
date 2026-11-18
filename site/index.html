@@ -30,7 +30,14 @@
       .split .card p{margin:0;font-size:15px;color:var(--slate-800)}
       .split .card .go{margin-top:auto}
       .lead-figure{font-family:var(--font-display);font-size:clamp(2rem,4vw,2.8rem);line-height:1.1}
+      .packs{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-top:22px}
+      .packs .card{display:flex;flex-direction:column}
+      .packs .card h4{margin:0 0 6px;font-family:var(--font-display);font-size:16px}
+      .packs .card p{margin:0;font-size:13.5px;line-height:1.5;opacity:.92}
+      .packs .card .tag{margin-top:10px;font-size:11.5px;letter-spacing:.03em;opacity:.65;font-family:var(--font-code,monospace)}
+      @media (max-width:900px){.packs{grid-template-columns:1fr 1fr}}
       @media (max-width:760px){.guar,.split{grid-template-columns:1fr}.hero{padding:48px 0 28px}}
+      @media (max-width:560px){.packs{grid-template-columns:1fr}}
     </style>
   </head>
   <body>
@@ -145,6 +152,67 @@
           somewhere outside your control. The anchor need not be a blockchain: WORM storage, an
           RFC&nbsp;3161 timestamp, or simply handing the checkpoint to the auditor all work; a public
           chain is only for the trust&#8209;no&#8209;one case.
+        </p>
+      </section>
+
+      <section class="section wash guilloche">
+        <p class="kicker">The domain packs</p>
+        <h2>One engine. Eight regulated domains.</h2>
+        <p class="lede">
+          Because the engine is schema-agnostic, a domain pack is just a <b>signed ruleset</b>,
+          named queries and their PASS / EXCEPTION / FLAG checks, over a warehouse's column
+          allow-list. No new code, no model free-writing arithmetic, and no PII: each pack ships a
+          synthetic demo ledger and withholds the sensitive tables outright, so the guard refuses
+          any query that reaches them. A PASS is evidence a licensed professional can recompute
+          against their own obligations, not a certification or an audit opinion. Each pack is
+          served to Claude, Cursor, or any agent over MCP.
+        </p>
+        <div class="packs">
+          <div class="card sage">
+            <h4>Municipal grants &amp; budgets</h4>
+            <p>Grant cash drawn ahead of spending, grants carrying unreimbursed costs, overspent budget lines, and voided duplicate invoices.</p>
+            <span class="tag">municipal-v1</span>
+          </div>
+          <div class="card sky">
+            <h4>Insurance &amp; fiduciary</h4>
+            <p>Short or commingled premium-trust funds, carrier commission variances, and client premium held against coverage that isn't bound.</p>
+            <span class="tag">insurance-v1</span>
+          </div>
+          <div class="card gold">
+            <h4>Law firm trust (IOLTA)</h4>
+            <p>Three-way reconciliation breaks, overdrawn client ledgers, fees drawn before billing, commingled firm money, dormant balances.</p>
+            <span class="tag">iolta-v1 · ABA Model Rule 1.15</span>
+          </div>
+          <div class="card slate">
+            <h4>Excise tax</h4>
+            <p>Underpaid returns, operations-report rollforward breaks, report-versus-return disagreements, missing or late filings, loss variance as a diversion signal.</p>
+            <span class="tag">excise-v1 · TTB 27 CFR 25</span>
+          </div>
+          <div class="card cream">
+            <h4>Property management &amp; HOA</h4>
+            <p>A short broker trust account, tenant deposits not held, overdue deposit returns, HOA reserves spent without board approval, overspent lines.</p>
+            <span class="tag">property-trust-v1 + hoa-v1</span>
+          </div>
+          <div class="card sage">
+            <h4>Nonprofit restricted funds</h4>
+            <p>Donor-restricted money misspent, restriction released ahead of spending, a functional-expense statement that doesn't tie, the Single Audit threshold.</p>
+            <span class="tag">nonprofit-v1 · ASC 958</span>
+          </div>
+          <div class="card sky">
+            <h4>School districts</h4>
+            <p>Overdrawn student-activity accounts, cash held too long before deposit, payments without the required sign-offs, federal costs outside the award period.</p>
+            <span class="tag">schools-v1 · GASB 84 · FERPA</span>
+          </div>
+          <div class="card gold">
+            <h4>Construction contracts</h4>
+            <p>A WIP schedule tied to the GL, over/underbillings, jobs headed for a loss, margin fade, retainage reconciliation, payments with no lien waiver.</p>
+            <span class="tag">construction-v1 · ASC 606</span>
+          </div>
+        </div>
+        <p class="lede" style="margin-top:22px">
+          The browser demo below runs the municipal pack; the other seven ship as signed rulesets
+          and synthetic ledgers you point an MCP host at. Bring your own ledger and allow-list and
+          the same guards apply, with no code changes.
         </p>
       </section>
 
