@@ -275,8 +275,25 @@ See `src/custom.js` for the format. Three worked examples ship in `assets/`:
   addresses, so the guard refuses it; the filings carry product class and period
   only. The ruleset is rebuilt and signed offline with
   `node scripts/build-excise-ruleset.js [--sign <key.pem>]`.
+- `assets/property/`: the broker-trust half of the Property Management & HOA
+  pack, a synthetic Sunset Key Realty & Property Management trust ledger with the
+  signed `property-trust-v1` ruleset (`property/trust-vs-liability`,
+  `property/negative-owner-balances`, `property/deposits-held-vs-owed`, each with
+  an optional `as_of`, and `property/deposit-return-overdue` with an optional
+  `return_days` deadline). Its allow-list deliberately omits a `resident_pii`
+  table of tenant and owner names, SSNs and bank accounts, so the guard refuses
+  it; the ledger carries ledger, property and lease IDs only. The ruleset is
+  rebuilt and signed offline with
+  `node scripts/build-property-ruleset.js [--sign <key.pem>]`.
+- `assets/hoa/`: the HOA half of the Property Management & HOA pack, a synthetic
+  Palm Grove Community Association ledger with the signed `hoa-v1` ruleset
+  (`hoa/reserve-transfers-unapproved`, `hoa/budget-variance` with an optional
+  `fiscal_year`, and `hoa/delinquent-assessments` with an optional
+  `days_past_due` threshold). It shares the `resident_pii` withholding; the
+  controls carry unit, line and transfer IDs only. The ruleset is rebuilt and
+  signed offline with `node scripts/build-hoa-ruleset.js [--sign <key.pem>]`.
 
-All four are mirrored into `../skills/civic-chain-auditor/assets/`, where the
+All six are mirrored into `../skills/civic-chain-auditor/assets/`, where the
 agent skill documents how to serve them.
 
 ## What is real here, and what is not
@@ -296,7 +313,7 @@ control catalog whose entries assert PASS/EXCEPTION and emit that packet
 reproducibility, and audit-chain integrity), an MCP server that exposes the
 controls, canonical queries and audit verification as tools and each warehouse's
 live schema as a resource (`vanguard mcp`, stdio) plus a token-guarded HTTP API for a
-web proxy (`vanguard serve`), the CLI, and 363 tests that run offline.
+web proxy (`vanguard serve`), the CLI, and 389 tests that run offline.
 
 **Synthetic:** the data. 416 customers over six months, generated
 deterministically from a fixed seed so that the same question always produces
@@ -366,7 +383,7 @@ src/mcp-server.js      the stdio MCP transport (the only file that imports the S
 src/http-server.js     HTTP JSON API over the same handlers (what the web proxy calls)
 src/ask.js             the pipeline
 bin/vanguard.js          CLI
-test/                  363 tests, none requiring a credential
+test/                  389 tests, none requiring a credential
 ```
 
 Requires Node 22+ (`node:sqlite` is built in, so there is no native database

@@ -5,6 +5,67 @@ The project follows [Semantic Versioning](https://semver.org/): MAJOR.MINOR.PATC
 
 ## [Unreleased]
 
+### Added — Property Management & HOA ruleset pack (fifth pack, two signed rulesets)
+- A pack family beside the municipal, insurance, IOLTA and excise ones, on the
+  same signed-ruleset + custom-warehouse seam (no engine change, no new
+  dependency, no server, no new credential). Two signed rulesets, served as two
+  custom warehouses, with seven controls total, each a named query with
+  automatic checks:
+  - **Broker/property-manager trust** (`property-trust-v1`, warehouse
+    `property`), encoding broker escrow-reconciliation practice (for example
+    Florida Rule 61J2-14.012) and state security-deposit law:
+    - **`property/trust-vs-liability`** (`as_of`) — the reconciled bank balance
+      against the itemized trust liability (the sum of every beneficiary ledger);
+      a `compare` (`>=`) finding with a `total_matches` integrity recompute.
+    - **`property/negative-owner-balances`** (`as_of`) — owner ledgers overdrawn
+      below zero; an `empty` finding with a `unique` integrity check.
+    - **`property/deposits-held-vs-owed`** (`as_of`) — active leases whose
+      security deposit is not held in trust in full; an `empty` finding with a
+      `unique` integrity check.
+    - **`property/deposit-return-overdue`** (`return_days`, default 30) — ended
+      leases whose deposit is unreturned past the deadline; an `empty` finding
+      with a `unique` integrity check.
+  - **HOA board review** (`hoa-v1`, warehouse `hoa`), encoding the monthly
+    board-review duties in California Civil Code s 5500 and the reserve
+    prior-approval rule in s 5502:
+    - **`hoa/reserve-transfers-unapproved`** — transfers out of reserve with no
+      board approval on record; an `empty` finding with a `unique` integrity
+      check. A transfer into reserve needs no approval and is not reported.
+    - **`hoa/budget-variance`** (`fiscal_year`) — adopted budget, spending and
+      remaining per operating line; a `compare` (`<=`) finding with a `unique`
+      integrity check.
+    - **`hoa/delinquent-assessments`** (`days_past_due`, default 60) — unpaid
+      owner assessments aged past the threshold; an `empty` finding with a
+      `unique` integrity check.
+- **Deadlines and thresholds are parameters, not code:** the deposit-return
+  deadline and the assessment aging threshold vary by state and association and
+  are optional params with documented defaults, so a different rule is an
+  argument, never a new signed ruleset.
+- **Demo warehouses** (`assets/property/`, `assets/hoa/`, mirrored into the
+  skill): a synthetic Sunset Key Realty & Property Management broker-trust ledger
+  and a synthetic Palm Grove Community Association HOA ledger, both clean so every
+  control reads PASS, each with a pure access-policy allow-list and a deliberately
+  **non-allow-listed `resident_pii` table** (tenant and owner names, SSNs and
+  bank accounts) so the guard visibly refuses resident data; the controls carry
+  ledger, property, lease, unit, line and transfer IDs only.
+- **Signed** `property-trust-v1` and `hoa-v1` rulesets
+  (`scripts/build-property-ruleset.js`, `scripts/build-hoa-ruleset.js`), signed
+  offline with the same Civic-Chain key `acb80e87885da931`; each ships in both
+  asset copies with its detached signature.
+- **Tests** (`test/property-warehouse.test.js`, `test/property-ruleset.test.js`,
+  `test/property-fixture.js`, `test/hoa-warehouse.test.js`,
+  `test/hoa-ruleset.test.js`, `test/hoa-fixture.js`): clean PASS for all seven
+  controls, a targeted mutation (or threshold parameter) tripping each, the
+  reserve-contribution-is-not-a-finding case, signature status, and the
+  `resident_pii` refusal. `test/skill-drift.test.js` extended to resolve
+  `property/*` and `hoa/*` query names from the shipped rulesets. Full suite
+  green on Node 22 (389 tests).
+- **Skill routing and docs** (`SKILL.md`, `references/setup.md`,
+  `references/refusals.md`, `examples/07-property-trust-shortfall.md`,
+  `examples/08-hoa-reserve-unapproved.md`, and the skill, top-level and core
+  READMEs): PASS/EXCEPTION/FLAG presentation per control, the parameter-as-data
+  rule, and the resident-data refusal.
+
 ### Added — Excise Tax ruleset pack (fourth signed pack)
 - A fourth domain pack beside the municipal, insurance and IOLTA ones, on the
   same signed-ruleset + custom-warehouse seam (no engine change, no new
@@ -47,7 +108,7 @@ The project follows [Semantic Versioning](https://semver.org/): MAJOR.MINOR.PATC
   mutation (or threshold parameter) tripping each, the rate-in-force selection,
   signature status, and the `customer_accounts` refusal. `test/skill-drift.test.js`
   extended to resolve `excise/*` query names from the shipped ruleset. Full
-  suite green on Node 22 (363 tests).
+  suite green on Node 22 (389 tests).
 - **Skill routing and docs** (`SKILL.md`, `references/setup.md`,
   `references/refusals.md`, `examples/06-excise-underpaid-return.md`, and the
   skill, top-level and core READMEs): PASS/EXCEPTION/FLAG presentation per

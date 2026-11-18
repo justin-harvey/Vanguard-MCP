@@ -64,6 +64,8 @@ In the host, tool names carry the server key as a prefix (for example `mcp__civi
 | `insurance` (when configured) | yes | Fictional Harborline Insurance Agency: premium trust ledger, policies, commission receipts, carrier binders, bank snapshots. Synthetic. Served with the signed `insurance-v1` ruleset. |
 | `iolta` (when configured) | yes | Fictional Northfield Law Group: client trust (IOLTA) journal, bank reconciliations, fee invoices. Synthetic; clients and matters by ID only. Served with the signed `iolta-v1` ruleset. |
 | `excise` (when configured) | yes | Fictional Penobscot Bay Brewing Co.: beer excise rate schedule, taxable removals, operations reports, excise returns. Synthetic; volumes and money by period only. Served with the signed `excise-v1` ruleset. |
+| `property` (when configured) | yes | Fictional Sunset Key Realty & Property Management: broker trust ledger (owner funds and tenant deposits), bank snapshots, leases. Synthetic; parties by ledger, property and lease ID only. Served with the signed `property-trust-v1` ruleset. |
+| `hoa` (when configured) | yes | Fictional Palm Grove Community Association: reserve transfers, operating budget lines, operating expenses, owner assessments. Synthetic; owners by unit ID only. Served with the signed `hoa-v1` ruleset. |
 | *(any custom name)* | yes | The user's own ledger, loaded from `CIVIC_DB_PATH` / `CIVIC_ALLOWLIST_PATH` |
 | `saas` | yes | MRR, retention, LTV:CAC, cohorts. Synthetic. |
 | `enron` | no | FY2000 reporting gap: synthetic rows anchored to real 10-K aggregates |
@@ -124,6 +126,27 @@ Served by the signed `excise-v1` ruleset. Presentation rules (PASS / FLAG, the r
 | `excise/missing-or-late-filings` | none | Periods with activity but no return, or a return filed after its due date |
 | `excise/loss-variance` | `max_loss_bps` (optional, default 300) | Periods whose losses, in basis points of production, exceed the tolerance |
 
+### Named queries on the property demo (`run_canonical`, no credential)
+
+Served by the signed `property-trust-v1` ruleset. Presentation rules (PASS / FLAG, the parameter-as-data rule and the resident-PII refusal) are in SKILL.md under "Property Management & HOA pack".
+
+| `name` | `args` | What it answers |
+|---|---|---|
+| `property/trust-vs-liability` | `as_of` (optional, YYYY-MM-DD) | Reconciled bank balance against the itemized trust liability (the sum of every beneficiary ledger); finding when the bank balance is short |
+| `property/negative-owner-balances` | `as_of` (optional) | Owner ledgers overdrawn below zero (one beneficiary's money funding another's) |
+| `property/deposits-held-vs-owed` | `as_of` (optional) | Active leases whose security deposit is not held in trust in full |
+| `property/deposit-return-overdue` | `return_days` (optional, default 30) | Ended leases whose deposit is unreturned past the state's deadline |
+
+### Named queries on the HOA demo (`run_canonical`, no credential)
+
+Served by the signed `hoa-v1` ruleset. Presentation rules (PASS / FLAG and the resident-PII refusal) are in SKILL.md under "Property Management & HOA pack".
+
+| `name` | `args` | What it answers |
+|---|---|---|
+| `hoa/reserve-transfers-unapproved` | none | Transfers out of the reserve account with no board approval on record |
+| `hoa/budget-variance` | `fiscal_year` (optional) | Adopted budget, spending and remaining per operating line; finding when a line is over budget |
+| `hoa/delinquent-assessments` | `days_past_due` (optional, default 60) | Unpaid owner assessments aged past the threshold |
+
 Only pass the business arguments shown. Never pass `dbPath`, `logPath`, `signer` or `warehouse` inside `args`: the server refuses them, because they would otherwise redirect the query or its audit trail.
 
 ## Audit logs and verification
@@ -137,7 +160,7 @@ Pass `verify_audit` a `warehouse` and it checks that warehouse's log. The result
 | `db/enron-audit.jsonl` | enron queries and controls | `{ "warehouse": "enron" }` |
 | `db/markets-audit.jsonl` | markets queries and controls | `{ "warehouse": "markets" }` |
 | `db/lseg-audit.jsonl` | lseg controls | `{ "warehouse": "lseg" }` |
-| `<name>-audit.jsonl` beside the db | custom warehouse, e.g. `municipal`, `insurance`, `iolta` or `excise` | `{ "warehouse": "municipal" }` / `{ "warehouse": "insurance" }` / `{ "warehouse": "iolta" }` / `{ "warehouse": "excise" }` |
+| `<name>-audit.jsonl` beside the db | custom warehouse, e.g. `municipal`, `insurance`, `iolta`, `excise`, `property` or `hoa` | `{ "warehouse": "municipal" }` / `{ "warehouse": "insurance" }` / `{ "warehouse": "iolta" }` / `{ "warehouse": "excise" }` / `{ "warehouse": "property" }` / `{ "warehouse": "hoa" }` |
 
 If the user asks about "the audit log" in general, verify every log that applies. Report:
 - `ok: true` → **INTACT**, with the entry count.

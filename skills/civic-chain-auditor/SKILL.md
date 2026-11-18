@@ -1,6 +1,6 @@
 ---
 name: civic-chain-auditor
-description: Use when the user asks to audit grant spending, check a municipal or public budget, track grant drawdowns against expenditures, find budget overruns or overspent line items, break spending down by vendor, reconcile an insurance agency's premium trust account, audit carrier commission variances or errors-and-omissions exposure on unbound policies, reconcile a law firm's client trust (IOLTA) account three ways, find overdrawn client ledgers or unsupported fee transfers, reconcile an excise licensee's filings (a brewery's or other alcohol, tobacco or cannabis business's), check an excise return against taxable removals, tie an operations report to a tax return, find missing or late excise filings or losses over tolerance, verify an audit log, or get financial figures they can trust and reproduce. Answers through the Civic-Chain Auditor MCP server (required): every number comes from a read-only SQL query checked against the source rows, with a result hash and a tamper-evident audit trail. Also covers SOC 2 evidence controls and ledger reconciliation. Includes a demo town budget ledger, a demo insurance premium-trust ledger, a demo law-firm client-trust ledger and a demo beer-excise filings ledger.
+description: Use when the user asks to audit grant spending, check a municipal or public budget, track grant drawdowns against expenditures, find budget overruns or overspent line items, break spending down by vendor, reconcile an insurance agency's premium trust account, audit carrier commission variances or errors-and-omissions exposure on unbound policies, reconcile a law firm's client trust (IOLTA) account three ways, find overdrawn client ledgers or unsupported fee transfers, reconcile an excise licensee's filings (a brewery's or other alcohol, tobacco or cannabis business's), check an excise return against taxable removals, tie an operations report to a tax return, find missing or late excise filings or losses over tolerance, reconcile a real estate broker's or property manager's trust account, check that tenant security deposits are held in trust or returned on time, review an HOA's reserve transfers, operating budget variance or delinquent owner assessments, verify an audit log, or get financial figures they can trust and reproduce. Answers through the Civic-Chain Auditor MCP server (required): every number comes from a read-only SQL query checked against the source rows, with a result hash and a tamper-evident audit trail. Also covers SOC 2 evidence controls and ledger reconciliation. Includes a demo town budget ledger, a demo insurance premium-trust ledger, a demo law-firm client-trust ledger, a demo beer-excise filings ledger, a demo broker-trust ledger and a demo HOA ledger.
 ---
 
 # Civic-Chain Grant & Budget Auditor
@@ -164,6 +164,45 @@ For the `empty` checks, remember an empty result means the control **passed**; i
 
 **Claim discipline.** A PASS means a figure was computed one blessed way, its assertion held, and its provenance verifies, never that the licensee is "compliant" or "certified". These controls produce evidence for a licensed professional or revenue auditor to confirm against the law that applies; they are not a TTB or state excise audit. The demo data is synthetic.
 
+## Property Management & HOA pack
+
+Two signed rulesets on one engine: `property` for a real estate broker or property manager who holds owner and tenant money in trust (the demo is a Florida brokerage), and `hoa` for the monthly review a community-association board owes (the demo is a California HOA). Both reconcile money without ever reading a resident's name. Call each with `run_canonical`; all are no-credential and carry automatic checks, so route through them exactly as the municipal named queries, reading `integrity` first, then the findings.
+
+When the `property` warehouse is configured:
+
+| Query | Args | Reports |
+|---|---|---|
+| `property/trust-vs-liability` | `as_of` (optional, YYYY-MM-DD) | The reconciled bank balance against the itemized trust liability (the sum of every beneficiary ledger). Finding when the bank balance is less than the liability. |
+| `property/negative-owner-balances` | `as_of` (optional) | Owner ledgers whose balance is below zero. |
+| `property/deposits-held-vs-owed` | `as_of` (optional) | Active leases whose security deposit is not held in trust in full. |
+| `property/deposit-return-overdue` | `return_days` (optional, default 30) | Ended leases whose deposit is unreturned past the state's deadline. |
+
+When the `hoa` warehouse is configured:
+
+| Query | Args | Reports |
+|---|---|---|
+| `hoa/reserve-transfers-unapproved` | none | Transfers out of the reserve account with no board approval on record. |
+| `hoa/budget-variance` | `fiscal_year` (optional) | Per operating line: adopted budget, spending and remaining. Finding when a line is spent over budget. |
+| `hoa/delinquent-assessments` | `days_past_due` (optional, default 60) | Unpaid owner assessments aged past the threshold. |
+
+How to present each result:
+
+- **`property/trust-vs-liability`** carries the integrity check `liability-recompute` (a `total_matches` on the liability) and the finding check `bank-covers-liability` (a `compare`: `reconciled_bank_cents >= trust_liability_cents`). A `pass` means the account is fully funded: present the two figures. A `flag` is a **trust shortfall**: report the reconciled bank balance and the liability and say to investigate before relying on either. If `liability-recompute` is `flag` or `error`, say the figures are not trustworthy.
+- **`property/negative-owner-balances`** carries the finding check `no-negative-owner-balances` (an `empty` check). An **empty result is the clean, passing case**. Any returned row is a **FLAG**: report the `ledger_id` and its negative `balance_cents` and say another beneficiary's money is covering the shortfall.
+- **`property/deposits-held-vs-owed`** carries the finding check `all-deposits-held` (an `empty` check). An **empty result passes**. Any returned row is a **FLAG**: report the `lease_id` with `owed_cents` and `held_cents` and say the tenant deposit is not fully in trust.
+- **`property/deposit-return-overdue`** carries the finding check `no-overdue-returns` (an `empty` check). An **empty result passes**. Any returned row is a **FLAG** (time-sensitive, not a shortage): report the `lease_id`, `move_out_date` and `days_since_moveout`, and say the deposit is past the return deadline.
+- **`hoa/reserve-transfers-unapproved`** carries the finding check `no-unapproved-reserve-transfers` (an `empty` check). An **empty result passes**. Any returned row is a **FLAG**: report the `transfer_id`, `amount_cents` and `transfer_date` and say reserve money moved without board approval on record. A transfer *into* reserve needs no approval and is never reported.
+- **`hoa/budget-variance`** carries the finding check `spending-within-budget` (a `compare`: `spent_cents <= adopted_cents`, per line) and the integrity check `one-row-per-line`. A `pass` means no line is over budget. A `flag` names the overspent lines in `detail.rows`: report each with its `adopted_cents` and `spent_cents`.
+- **`hoa/delinquent-assessments`** carries the finding check `no-aged-delinquencies` (an `empty` check). An **empty result passes**. Any returned row is a **FLAG** (a collections finding, not an error): report the `assessment_id`, `unit_id`, `amount_cents` and `days_overdue`.
+
+For the `empty` checks, remember an empty result means the control **passed**; it is not "no data". Only present a FLAG when a row is actually returned.
+
+**Resident data is never readable.** Tenant and owner names, SSNs, bank account numbers, emails and phone numbers live in a `resident_pii` table that is not on the allow-list, so any question that would read it is refused (`table_not_allowed`). The controls work from ledger, property, lease, unit, line and transfer IDs only. Say the engine does not expose resident data, and do not try to reach it another way.
+
+**Deadlines and thresholds are parameters, not assertions.** The security-deposit return deadline (`return_days`) and the assessment aging threshold (`days_past_due`) vary by state and association, and the reserve-approval rule is California's; when a user names their own rule, pass it as the argument rather than treating the default as law.
+
+**Claim discipline.** A PASS means a figure was computed one blessed way, its assertion held, and its provenance verifies, never that the broker or board is "compliant" or "certified". These controls produce evidence for a licensed professional, manager or association auditor to confirm against the governing documents and the law that applies; they are not a brokerage trust-account or HOA audit. The demo data is synthetic.
+
 ## Example prompts
 
 - "How much of the paving grant (G-402) has been spent, broken down by vendor? Include the result hash." → `municipal/spending-by-vendor { "grant_id": "G-402" }`
@@ -186,6 +225,14 @@ For the `empty` checks, remember an empty result means the control **passed**; i
 - "Did we miss any excise returns or file any late?" → `excise/missing-or-late-filings`; an empty result means none
 - "Which periods had losses over 2 percent of production?" → `excise/loss-variance { "max_loss_bps": 200 }`
 - "List the wholesale customers and their addresses from the excise ledger." → refused by policy (`table_not_allowed`, `customer_accounts` is not exposed); say so.
+- "Is our broker trust account short as of June 30? Include the result hash." → `property/trust-vs-liability { "as_of": "2026-06-30" }`, report the `bank-covers-liability` check first
+- "Is any owner's ledger overdrawn?" → `property/negative-owner-balances`; an empty result means none
+- "Are all our active tenants' security deposits actually in trust?" → `property/deposits-held-vs-owed`; report any lease as a shortfall
+- "Which move-out deposits are past Florida's 30-day return deadline?" → `property/deposit-return-overdue`; an empty result means none
+- "Were any HOA reserves spent without board approval?" → `hoa/reserve-transfers-unapproved`; report any transfer
+- "Which FY2026 HOA operating lines are over budget?" → `hoa/budget-variance { "fiscal_year": 2026 }`, report the `spending-within-budget` finding
+- "Which owner assessments are more than 90 days delinquent?" → `hoa/delinquent-assessments { "days_past_due": 90 }`
+- "Give me the owner names and SSNs from the trust ledger." → refused by policy (`table_not_allowed`, `resident_pii` is not exposed); say so.
 - "Verify every Civic-Chain Auditor audit log and tell me whether any chain is broken."
 
 Worked transcripts with real figures and hashes are in `examples/`.

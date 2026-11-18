@@ -1,0 +1,82 @@
+{
+  "name": "hoa",
+  "version": "hoa-v1",
+  "changelog": [
+    "hoa-v1: initial Civic-Chain HOA board-review ruleset — reserve-transfers-unapproved (money moved out of the reserve account with no board approval on record), budget-variance (an operating line spent over its adopted budget) and delinquent-assessments (owner assessments aged past the threshold), with integrity (unique) and finding (compare, empty) checks. These controls encode a reasonable interpretation of the monthly board-review duties in California Civil Code s 5500 and the prior-approval rule for reserve transfers in s 5502; the aging threshold varies by association and is a parameter, and other states' community-association rules differ. They produce evidence for a board, manager or association auditor to confirm against the governing documents and the law that applies; they are not an HOA audit or a compliance certification."
+  ],
+  "queries": {
+    "reserve-transfers-unapproved": {
+      "description": "Every transfer out of the reserve account that has no board approval on record. California Civil Code s 5502 requires prior written board approval to move money out of reserves; a transfer into reserve needs none and is not reported. Use for 'were any reserves spent without board approval' questions. An empty result means every reserve withdrawal cites the approving board action.",
+      "params": {},
+      "sql": "SELECT transfer_id, transfer_date, from_account, to_account, amount_cents FROM reserve_transfers WHERE from_account = 'RESERVE' AND board_approval_id IS NULL",
+      "checks": [
+        {
+          "id": "one-row-per-transfer",
+          "type": "unique",
+          "columns": [
+            "transfer_id"
+          ]
+        },
+        {
+          "id": "no-unapproved-reserve-transfers",
+          "type": "empty",
+          "key": "transfer_id",
+          "message": "Reserve money was moved with no board approval on record. California Civil Code s 5502 requires prior written board approval for a transfer out of reserves; record the approving board action or reverse the transfer."
+        }
+      ]
+    },
+    "budget-variance": {
+      "description": "Per operating budget line: the adopted budget, the actual spending charged to it, and the remaining budget, for a fiscal year. Use for 'which operating lines are over budget' and budget-versus-actual questions. The spending on a line must not exceed its adopted budget.",
+      "params": {
+        "fiscal_year": {
+          "type": "integer",
+          "description": "Fiscal year, e.g. 2026. Omit to report every fiscal year."
+        }
+      },
+      "sql": "SELECT b.line_id, b.fiscal_year, b.category, b.adopted_cents, COALESCE((SELECT SUM(e.amount_cents) FROM operating_expenses e WHERE e.line_id = b.line_id), 0) AS spent_cents, b.adopted_cents - COALESCE((SELECT SUM(e.amount_cents) FROM operating_expenses e WHERE e.line_id = b.line_id), 0) AS remaining_cents FROM budget_lines b WHERE (:fiscal_year IS NULL OR b.fiscal_year = :fiscal_year) ORDER BY b.line_id",
+      "checks": [
+        {
+          "id": "one-row-per-line",
+          "type": "unique",
+          "columns": [
+            "line_id"
+          ]
+        },
+        {
+          "id": "spending-within-budget",
+          "type": "compare",
+          "left": "spent_cents",
+          "op": "<=",
+          "right": "adopted_cents",
+          "key": "line_id",
+          "message": "An operating line is spent over its adopted budget. Confirm the spending and the budget, and whether the board approved an amendment, before relying on the figure."
+        }
+      ]
+    },
+    "delinquent-assessments": {
+      "description": "Every unpaid owner assessment aged more than the threshold past its due date, measured against the latest due date in the ledger as 'today'. Use for the delinquent-assessment review a board owes under Civil Code s 5500. A flag here is a collections finding, not an error. An empty result means no unpaid assessment is aged past the threshold.",
+      "params": {
+        "days_past_due": {
+          "type": "integer",
+          "description": "Days past the due date after which an unpaid assessment is reported. Omit for the default of 60. Associations and states set their own aging and collection thresholds."
+        }
+      },
+      "sql": "SELECT assessment_id, unit_id, due_date, amount_cents, CAST(julianday((SELECT MAX(due_date) FROM assessments)) - julianday(due_date) AS INTEGER) AS days_overdue FROM assessments WHERE paid_date IS NULL AND CAST(julianday((SELECT MAX(due_date) FROM assessments)) - julianday(due_date) AS INTEGER) > COALESCE(:days_past_due, 60)",
+      "checks": [
+        {
+          "id": "one-row-per-assessment",
+          "type": "unique",
+          "columns": [
+            "assessment_id"
+          ]
+        },
+        {
+          "id": "no-aged-delinquencies",
+          "type": "empty",
+          "key": "assessment_id",
+          "message": "An owner assessment is unpaid and aged past the threshold. Review the delinquency and the association's collection policy; aged balances may need a lien or other action."
+        }
+      ]
+    }
+  }
+}

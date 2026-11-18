@@ -1,0 +1,110 @@
+{
+  "name": "property",
+  "version": "property-trust-v1",
+  "changelog": [
+    "property-trust-v1: initial Civic-Chain broker/property-manager trust ruleset — trust-vs-liability (the reconciled bank balance against the itemized trust liability, the sum of every beneficiary ledger), negative-owner-balances (an owner ledger overdrawn, so one owner's money funds another's disbursement), deposits-held-vs-owed (an active lease whose security deposit is not held in trust in full) and deposit-return-overdue (an ended lease whose deposit is not returned past the state's deadline), with integrity (unique, total_matches) and finding (compare, empty) checks. These controls encode a reasonable interpretation of broker escrow-reconciliation practice (for example Florida Rule 61J2-14.012) and state security-deposit law; the deposit-return deadline varies by state and is a parameter. They produce evidence for a licensed professional or a real estate commission auditor to confirm against the rules that apply; they are not a brokerage trust-account audit or a compliance certification."
+  ],
+  "queries": {
+    "trust-vs-liability": {
+      "description": "The broker's trust reconciliation: the reconciled bank balance (the latest statement plus deposits in transit, less outstanding checks) against the itemized trust liability (the sum of every beneficiary ledger, owner funds and tenant deposits alike), as of a date. Use for 'is the trust account short', 'does the escrow reconcile' and shortage questions. The reconciled bank balance must be at least the trust liability.",
+      "params": {
+        "as_of": {
+          "type": "string",
+          "description": "Reconcile as of this date (YYYY-MM-DD); entries and snapshots after it are excluded. Omit for the latest."
+        }
+      },
+      "sql": "SELECT (SELECT bank_statement_balance_cents + deposits_in_transit_cents - outstanding_checks_cents FROM trust_bank_snapshots WHERE snapshot_date <= COALESCE(:as_of, '9999-12-31') ORDER BY snapshot_date DESC LIMIT 1) AS reconciled_bank_cents, COALESCE(SUM(CASE WHEN entry_type = 'IN' THEN amount_cents ELSE -amount_cents END), 0) AS trust_liability_cents FROM trust_ledger WHERE entry_date <= COALESCE(:as_of, '9999-12-31')",
+      "checks": [
+        {
+          "id": "liability-recompute",
+          "type": "total_matches",
+          "column": "trust_liability_cents",
+          "sql": "SELECT COALESCE(SUM(CASE WHEN entry_type = 'IN' THEN amount_cents ELSE -amount_cents END), 0) AS total FROM trust_ledger WHERE entry_date <= COALESCE(:as_of, '9999-12-31')"
+        },
+        {
+          "id": "bank-covers-liability",
+          "type": "compare",
+          "left": "reconciled_bank_cents",
+          "op": ">=",
+          "right": "trust_liability_cents",
+          "message": "Trust shortfall: the reconciled bank balance is less than the itemized trust liability, so the broker is holding less than it owes to owners and tenants. Investigate before relying on either figure."
+        }
+      ]
+    },
+    "negative-owner-balances": {
+      "description": "Every owner ledger whose balance is below zero as of a date: that owner has had more money disbursed than was ever collected and held for them, which means another owner's or a tenant's money is covering the shortfall. An empty result means no owner ledger is overdrawn.",
+      "params": {
+        "as_of": {
+          "type": "string",
+          "description": "Compute balances as of this date (YYYY-MM-DD); later entries are excluded. Omit for the latest."
+        }
+      },
+      "sql": "SELECT ledger_id, property_id, SUM(CASE WHEN entry_type = 'IN' THEN amount_cents ELSE -amount_cents END) AS balance_cents FROM trust_ledger WHERE ledger_type = 'OWNER' AND entry_date <= COALESCE(:as_of, '9999-12-31') GROUP BY ledger_id, property_id HAVING SUM(CASE WHEN entry_type = 'IN' THEN amount_cents ELSE -amount_cents END) < 0",
+      "checks": [
+        {
+          "id": "one-row-per-owner",
+          "type": "unique",
+          "columns": [
+            "ledger_id"
+          ]
+        },
+        {
+          "id": "no-negative-owner-balances",
+          "type": "empty",
+          "key": "ledger_id",
+          "message": "An overdrawn owner ledger: this owner's trust balance is negative, so another beneficiary's money is funding its disbursements. Correct the posting or restore the funds."
+        }
+      ]
+    },
+    "deposits-held-vs-owed": {
+      "description": "Every active lease whose tenant security deposit is not held in the trust account in full: the deposit balance held for the lease against the deposit the lease requires. Use for 'are all tenant deposits in trust' questions. An empty result means every active lease's deposit is held in trust in full.",
+      "params": {
+        "as_of": {
+          "type": "string",
+          "description": "Evaluate held balances as of this date (YYYY-MM-DD); later entries are excluded. Omit for the latest."
+        }
+      },
+      "sql": "SELECT l.lease_id, l.property_id, l.security_deposit_cents AS owed_cents, COALESCE((SELECT SUM(CASE WHEN t.entry_type = 'IN' THEN t.amount_cents ELSE -t.amount_cents END) FROM trust_ledger t WHERE t.lease_id = l.lease_id AND t.ledger_type = 'DEPOSIT' AND t.entry_date <= COALESCE(:as_of, '9999-12-31')), 0) AS held_cents FROM leases l WHERE l.status = 'ACTIVE' AND COALESCE((SELECT SUM(CASE WHEN t.entry_type = 'IN' THEN t.amount_cents ELSE -t.amount_cents END) FROM trust_ledger t WHERE t.lease_id = l.lease_id AND t.ledger_type = 'DEPOSIT' AND t.entry_date <= COALESCE(:as_of, '9999-12-31')), 0) < l.security_deposit_cents",
+      "checks": [
+        {
+          "id": "one-row-per-lease",
+          "type": "unique",
+          "columns": [
+            "lease_id"
+          ]
+        },
+        {
+          "id": "all-deposits-held",
+          "type": "empty",
+          "key": "lease_id",
+          "message": "An active lease's security deposit is not held in trust in full. Tenant deposits must stay in the trust account for the life of the lease; restore the shortfall."
+        }
+      ]
+    },
+    "deposit-return-overdue": {
+      "description": "Every ended lease whose security deposit has not been returned, where the days since move-out exceed the state's return deadline (measured against the most recent ledger entry as 'today'). Use for 'is any deposit past its return deadline' questions. A flag here is a time-sensitive finding, not a trust shortage. An empty result means no ended lease is past its deadline with the deposit still unreturned.",
+      "params": {
+        "return_days": {
+          "type": "integer",
+          "description": "Days after move-out by which the deposit must be returned or disposed of. Omit for the default of 30. States set their own deadlines (for example Florida is 15 or 30 days depending on whether a claim is made)."
+        }
+      },
+      "sql": "SELECT l.lease_id, l.property_id, l.move_out_date, l.security_deposit_cents AS deposit_cents, CAST(julianday((SELECT MAX(entry_date) FROM trust_ledger)) - julianday(l.move_out_date) AS INTEGER) AS days_since_moveout FROM leases l WHERE l.status = 'ENDED' AND l.move_out_date IS NOT NULL AND l.deposit_returned_date IS NULL AND CAST(julianday((SELECT MAX(entry_date) FROM trust_ledger)) - julianday(l.move_out_date) AS INTEGER) > COALESCE(:return_days, 30)",
+      "checks": [
+        {
+          "id": "one-row-per-lease",
+          "type": "unique",
+          "columns": [
+            "lease_id"
+          ]
+        },
+        {
+          "id": "no-overdue-returns",
+          "type": "empty",
+          "key": "lease_id",
+          "message": "An ended lease's security deposit is past the state's return deadline and has not been returned. Return the deposit or send the itemized claim; a late return can forfeit the right to withhold."
+        }
+      ]
+    }
+  }
+}

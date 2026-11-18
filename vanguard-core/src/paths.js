@@ -49,6 +49,14 @@ export const IOLTA_ALLOWLIST_PATH = assetPath('iolta', 'sample_iolta_allowlist.j
 export const EXCISE_SQL_PATH = assetPath('excise', 'sample_excise_filings.sql');
 export const EXCISE_ALLOWLIST_PATH = assetPath('excise', 'sample_excise_allowlist.json');
 
+/** The bundled broker-trust demo (the Property Management & HOA pack's property-trust seed and allow-list). */
+export const PROPERTY_SQL_PATH = assetPath('property', 'sample_property_trust.sql');
+export const PROPERTY_ALLOWLIST_PATH = assetPath('property', 'sample_property_allowlist.json');
+
+/** The bundled HOA demo (the Property Management & HOA pack's hoa seed and allow-list). */
+export const HOA_SQL_PATH = assetPath('hoa', 'sample_hoa_ledger.sql');
+export const HOA_ALLOWLIST_PATH = assetPath('hoa', 'sample_hoa_allowlist.json');
+
 /** The per-user directory the engine writes seeded warehouses and logs into. */
 export function dataDir({ env = process.env, platform = process.platform } = {}) {
     if (env.CIVIC_DATA_DIR) return env.CIVIC_DATA_DIR;

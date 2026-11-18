@@ -1,0 +1,41 @@
+{
+  "name": "property",
+  "description": "Sunset Key Realty & Property Management, LLC (fictional) broker trust account: the trust ledger (owner funds and tenant security deposits held in trust), the point-in-time bank reconciliations of the trust account, and the leases under management. Synthetic demo data; all money in integer cents. No tenant or owner PII is exposed; the controls reconcile money by ledger, property and lease ID only.",
+  "domain": "broker/property-manager trust account: beneficiary ledgers, bank reconciliations and leases",
+  "tables": {
+    "trust_ledger": [
+      "entry_id",
+      "ledger_id",
+      "ledger_type",
+      "property_id",
+      "lease_id",
+      "entry_type",
+      "amount_cents",
+      "entry_date"
+    ],
+    "trust_bank_snapshots": [
+      "snapshot_id",
+      "snapshot_date",
+      "bank_statement_balance_cents",
+      "deposits_in_transit_cents",
+      "outstanding_checks_cents"
+    ],
+    "leases": [
+      "lease_id",
+      "property_id",
+      "status",
+      "security_deposit_cents",
+      "start_date",
+      "move_out_date",
+      "deposit_returned_date"
+    ]
+  },
+  "notes": [
+    "All money is INTEGER CENTS. A beneficiary ledger's balance is the running signed total of its trust_ledger entries: an IN entry adds, an OUT entry subtracts.",
+    "The trust account pools two kinds of beneficiary money, distinguished by ledger_type: OWNER funds (rent collected and held for a property owner) and DEPOSIT funds (one tenant security deposit per lease). The broker's total trust liability is the sum of every ledger balance.",
+    "The reconciled bank balance is bank_statement_balance_cents + deposits_in_transit_cents - outstanding_checks_cents, read from the latest trust_bank_snapshots row on or before the as-of date. It must be at least the total trust liability; a shortfall means client money is missing.",
+    "security_deposit_cents on a lease is the deposit that must be held in trust for the life of the lease. An ACTIVE lease whose held DEPOSIT balance is below its security_deposit_cents is a finding.",
+    "An ENDED lease records move_out_date, and deposit_returned_date is set once the deposit is returned. An ended lease with no return past the state's deadline (a parameter, default 30 days) is a late return.",
+    "The resident_pii table (tenant and owner names, SSNs and bank account numbers) is intentionally omitted: this engine never reads resident PII. The ledger identifies parties by ledger, property and lease ID only."
+  ]
+}

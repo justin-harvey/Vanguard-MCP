@@ -1,0 +1,42 @@
+{
+  "name": "hoa",
+  "description": "Palm Grove Community Association, Inc. (fictional) HOA books: transfers between the operating and reserve accounts, the adopted operating budget, operating-account expenses, and owner assessments. Synthetic demo data; all money in integer cents. No unit-owner PII is exposed; the controls work from unit, line and transfer IDs only.",
+  "domain": "HOA board review: reserve transfers, operating budget vs actual, and delinquent assessments",
+  "tables": {
+    "reserve_transfers": [
+      "transfer_id",
+      "transfer_date",
+      "from_account",
+      "to_account",
+      "amount_cents",
+      "board_approval_id",
+      "approval_date"
+    ],
+    "budget_lines": [
+      "line_id",
+      "fiscal_year",
+      "category",
+      "adopted_cents"
+    ],
+    "operating_expenses": [
+      "expense_id",
+      "line_id",
+      "amount_cents",
+      "expense_date"
+    ],
+    "assessments": [
+      "assessment_id",
+      "unit_id",
+      "due_date",
+      "amount_cents",
+      "paid_date"
+    ]
+  },
+  "notes": [
+    "All money is INTEGER CENTS.",
+    "A transfer OUT of the reserve account (from_account = 'RESERVE') needs prior written board approval on record (California Civil Code s 5502); board_approval_id is the approving minutes reference. A transfer INTO reserve needs no approval, so a null board_approval_id on such a row is not a finding.",
+    "budget-variance is per operating line: actual spending is the sum of operating_expenses for the line, and a line whose spending exceeds its adopted_cents is an overspend. Pass the fiscal_year to scope it.",
+    "delinquent-assessments ages unpaid assessments (paid_date is null) against the latest due_date in the table as 'today'; a days_past_due parameter (default 60) sets the aging threshold. Thresholds vary by association and state.",
+    "The resident_pii table (unit-owner names, emails and phone numbers) is intentionally omitted: this engine never reads resident PII. The controls identify owners by unit ID only."
+  ]
+}
