@@ -27,8 +27,10 @@ import {
     proposeMapping,
     buildLedgerFromCsv,
     applyGrantRegisterToLedger,
+    applyGrantDrawdownsToLedger,
     CANONICAL_SCHEMA_VERSION,
     CANONICAL_GRANT_FIELDS,
+    CANONICAL_DRAWDOWN_FIELDS,
     ImportError,
 } from './import-csv.js';
 import { loadRuleset } from './ruleset.js';
@@ -50,23 +52,27 @@ function readSample(text, n = 25) {
 /**
  * Run an import, or propose a mapping when none is confirmed yet.
  *
- * A grant register can be imported alongside the expenditures (multi-file): the
- * expenditure CSV builds the ledger, then the register fills the `grants` table
- * with real award amounts so municipal/grant-status is meaningful. Each file
- * records its own source-SHA-256 audit entry on the ledger's chain.
+ * Up to two more files can be imported alongside the expenditures (multi-file):
+ * the expenditure CSV builds the ledger, a grant register fills the `grants`
+ * table with real award amounts, and a drawdown register fills grant_drawdowns
+ * with the cash requested from each grantor, so municipal/grant-status is
+ * meaningful (award, spend and drawn cash all real). Each file records its own
+ * source-SHA-256 audit entry on the ledger's chain.
  *
  * @param {object} params
  * @param {string} params.file            CSV file name within CIVIC_IMPORT_DIR
  * @param {Record<string,string>|null} [params.mapping] confirmed mapping; null = propose only
  * @param {{ file: string, mapping: (Record<string,string>|null) }|null} [params.grantRegister]
  *   an optional grant-register file to apply after the expenditure import
+ * @param {{ file: string, mapping: (Record<string,string>|null) }|null} [params.grantDrawdowns]
+ *   an optional grant-drawdowns file to apply after the grant register
  * @param {NodeJS.ProcessEnv} [params.env]
  * @param {boolean} [params.runGate]      after import, run the three named queries (default true)
  * @param {object|null} [params.signer]   audit signer (CLI passes loadSigner())
  * @returns {Promise<object>} structured result; see formatImport for the shape consumed
  * @throws {ImportError|Error}
  */
-export async function runImport({ file, mapping = null, grantRegister = null, env = process.env, runGate = true, signer = null }) {
+export async function runImport({ file, mapping = null, grantRegister = null, grantDrawdowns = null, env = process.env, runGate = true, signer = null }) {
     const csvPath = resolveImportPath(file, { env });
     const text = readFileSync(csvPath, 'utf8');
     const { headers, sample } = readSample(text);
@@ -85,7 +91,17 @@ export async function runImport({ file, mapping = null, grantRegister = null, en
                 ...proposeMapping(gHeaders, gSample, CANONICAL_GRANT_FIELDS),
             };
         }
-        return { stage: 'propose', csvPath, file: basename(file), headers, ...proposal, grantRegister: grantProposal };
+        let drawdownProposal = null;
+        if (grantDrawdowns?.file && !grantDrawdowns.mapping) {
+            const dPath = resolveImportPath(grantDrawdowns.file, { env });
+            const { headers: dHeaders, sample: dSample } = readSample(readFileSync(dPath, 'utf8'));
+            drawdownProposal = {
+                file: basename(grantDrawdowns.file),
+                headers: dHeaders,
+                ...proposeMapping(dHeaders, dSample, CANONICAL_DRAWDOWN_FIELDS),
+            };
+        }
+        return { stage: 'propose', csvPath, file: basename(file), headers, ...proposal, grantRegister: grantProposal, grantDrawdowns: drawdownProposal };
     }
 
     // A grant register confirmed alongside the expenditures is resolved (and
@@ -93,6 +109,10 @@ export async function runImport({ file, mapping = null, grantRegister = null, en
     const registerPath = grantRegister?.file ? resolveImportPath(grantRegister.file, { env }) : null;
     if (registerPath && !grantRegister.mapping) {
         throw new ImportError(`a grant register (${basename(grantRegister.file)}) was given without a confirmed --grants-map; run without --map to see a proposed grant mapping.`);
+    }
+    const drawdownPath = grantDrawdowns?.file ? resolveImportPath(grantDrawdowns.file, { env }) : null;
+    if (drawdownPath && !grantDrawdowns.mapping) {
+        throw new ImportError(`a grant drawdowns file (${basename(grantDrawdowns.file)}) was given without a confirmed --drawdowns-map; run without --map to see a proposed drawdowns mapping.`);
     }
 
     // Confirmed: build the ledger into a fresh per-import subtree of the data
@@ -165,6 +185,7 @@ export async function runImport({ file, mapping = null, grantRegister = null, en
         ruleset: rulesetMeta,
         audit: { seq: importEntry.seq, hash: importEntry.hash, signed: Boolean(importEntry.signature) },
         grantRegister: null,
+        grantDrawdowns: null,
         gate: null,
         config: null,
     };
@@ -202,6 +223,43 @@ export async function runImport({ file, mapping = null, grantRegister = null, en
             counts: applied.counts,
             mapping: grantRegister.mapping,
             audit: { seq: grantEntry.seq, hash: grantEntry.hash, signed: Boolean(grantEntry.signature) },
+        };
+    }
+
+    // Third import: apply the grant drawdowns onto the ledger (after the register,
+    // so a drawdown for a register-only grant resolves) and record it as its own
+    // audit entry, so grant-status measures cash drawn against cash spent.
+    if (drawdownPath) {
+        const applied = applyGrantDrawdownsToLedger({ csvPath: drawdownPath, mapping: grantDrawdowns.mapping, dbPath: paths.dbPath });
+        const drawEntry = append(
+            {
+                kind: 'import-drawdowns',
+                question: `Applied ${applied.counts.drawdowns} grant drawdown(s) from ${basename(grantDrawdowns.file)} across ${applied.counts.grants} grant(s)`,
+                sourceFile: basename(grantDrawdowns.file),
+                sourceFileSha256: applied.sourceFileSha256,
+                byteLength: applied.byteLength,
+                rowCount: applied.counts.drawdowns,
+                counts: applied.counts,
+                mapping: grantDrawdowns.mapping,
+                canonicalSchemaVersion: CANONICAL_SCHEMA_VERSION,
+                ruleset: rulesetMeta,
+                rulesetHash: rulesetMeta.contentHash,
+                dataHash: applied.sourceFileSha256,
+                tables: ['grant_drawdowns'],
+                resultHash: applied.sourceFileSha256,
+                llmScope: 'none',
+                dataModified: true,
+                at: new Date().toISOString(),
+            },
+            { path: paths.logPath, complianceTags: ['import'], signer },
+        );
+        result.grantDrawdowns = {
+            file: basename(grantDrawdowns.file),
+            sourceFileSha256: applied.sourceFileSha256,
+            byteLength: applied.byteLength,
+            counts: applied.counts,
+            mapping: grantDrawdowns.mapping,
+            audit: { seq: drawEntry.seq, hash: drawEntry.hash, signed: Boolean(drawEntry.signature) },
         };
     }
 
@@ -292,6 +350,12 @@ function formatPropose(r) {
         lines.push('');
         lines.push(...formatProposalBlock(r.grantRegister, { mapFlag: '--grants-map' }));
     }
+    if (r.grantDrawdowns) {
+        lines.push('');
+        lines.push(`Proposed grant-drawdowns mapping for ${r.grantDrawdowns.file} (nothing written yet)`);
+        lines.push('');
+        lines.push(...formatProposalBlock(r.grantDrawdowns, { mapFlag: '--drawdowns-map' }));
+    }
     return lines.join('\n');
 }
 
@@ -316,6 +380,13 @@ function formatImported(r) {
         lines.push(`  Grant register ${g.file}: ${g.counts.grants} grant(s) (${g.counts.updated} updated, ${g.counts.inserted} inserted)`);
         lines.push(`    source SHA-256 : ${g.sourceFileSha256}`);
         lines.push(`    audit entry    : #${g.audit.seq} ${g.audit.hash.slice(0, 16)}… (${g.audit.signed ? 'signed' : 'unsigned'})`);
+    }
+    if (r.grantDrawdowns) {
+        const d = r.grantDrawdowns;
+        lines.push('');
+        lines.push(`  Grant drawdowns ${d.file}: ${d.counts.drawdowns} drawdown(s) across ${d.counts.grants} grant(s)`);
+        lines.push(`    source SHA-256 : ${d.sourceFileSha256}`);
+        lines.push(`    audit entry    : #${d.audit.seq} ${d.audit.hash.slice(0, 16)}… (${d.audit.signed ? 'signed' : 'unsigned'})`);
     }
     if (r.gate) {
         lines.push('');

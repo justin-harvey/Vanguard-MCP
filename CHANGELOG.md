@@ -27,6 +27,31 @@ The project follows [Semantic Versioning](https://semver.org/): MAJOR.MINOR.PATC
   names are unchanged. New `test/mcp.test.js` coverage (advertise-gate, propose,
   apply, and the refusal when a grant file is given with no confirmed mapping).
 
+### Added — grant-drawdowns import (the third file)
+- A grant register fills in each award but says nothing about the cash actually
+  drawn from the grantor, so `municipal/grant-status` reported **drawn = 0** —
+  honest, but blind to its cash-ahead-of-spending check. A third import of the
+  buyer's drawdown register now fills `grant_drawdowns`.
+  - **Library (`src/import-csv.js`).** `CANONICAL_DRAWDOWN_FIELDS`
+    (`grant_id`, `amount`, `request_date`, optional `received_date` / `status` /
+    `drawdown_id`), `coerceDrawdownStatus` (received/pending, or throw), and
+    `applyGrantDrawdownsToLedger` — a transactional insert onto the ledger the
+    expenditure (and optional register) import already built. Every drawdown's
+    `grant_id` must resolve to a grant on the ledger (else refused, naming it);
+    `drawdown_id` is carried from the file when mapped (and must be unique) or
+    generated `DD-0001…` in file order. Status defaults from the presence of a
+    received date only when the file left it blank.
+  - **CLI (`cc-auditor import`).** New **`--drawdowns`** / **`--drawdowns-map`**,
+    mirroring `--grants`. Each file records its own source-SHA-256 audit entry
+    (`import` → `import-grants` → `import-drawdowns`).
+  - **MCP.** `propose_csv_mapping` takes an optional **`drawdownFile`** (proposal
+    under `grantDrawdowns`); `import_csv` takes optional **`drawdownFile` +
+    `drawdownMapping`**. Tool names unchanged; advertised only with an import
+    folder.
+  - New `test/grant-drawdowns.test.js` (coercion, insert, carried/generated ids,
+    unknown-grant refusal, rollback, end-to-end three-file import with a third
+    source-hash entry) + `test/mcp.test.js` drawdown coverage.
+
 ### Added — rulesets as the product (S9)
 - The named queries and their checks are now a **versioned, signed Civic-Chain
   ruleset**, separate from the buyer's access policy (the allow-list). Every

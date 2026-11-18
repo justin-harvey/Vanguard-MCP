@@ -157,12 +157,14 @@ function importTools() {
                 'Read the headers (and a sample of rows) of a CSV in the import folder and propose a column mapping ' +
                 'onto the canonical municipal schema. Reads only; writes nothing. The human confirms the mapping before import_csv. ' +
                 'Pass grantFile to also propose a mapping for a grant-register CSV (award amounts, grantor type, status) imported ' +
-                'alongside the expenditures; its proposal is returned under grantRegister.',
+                'alongside the expenditures; its proposal is returned under grantRegister. Pass drawdownFile to also propose a ' +
+                'mapping for a grant-drawdowns CSV (cash drawn from each grantor); its proposal is returned under grantDrawdowns.',
             inputSchema: {
                 type: 'object',
                 properties: {
                     file: { type: 'string', description: 'expenditure CSV file name within the import folder' },
                     grantFile: { type: 'string', description: 'optional grant-register CSV file name within the import folder, to propose its mapping too' },
+                    drawdownFile: { type: 'string', description: 'optional grant-drawdowns CSV file name within the import folder, to propose its mapping too' },
                 },
                 required: ['file'],
                 additionalProperties: false,
@@ -175,7 +177,9 @@ function importTools() {
                 "source file's SHA-256 as an audit entry, and runs the three named queries. Local only. The file is read by name " +
                 'from the configured import folder; pasted data and absolute paths are refused. ' +
                 'Pass grantFile + grantMapping to apply a grant register onto the ledger in the same import, so municipal/grant-status ' +
-                'measures spending against real award amounts; the register records its own source-SHA-256 audit entry.',
+                'measures spending against real award amounts; the register records its own source-SHA-256 audit entry. ' +
+                'Pass drawdownFile + drawdownMapping to also apply a grant-drawdowns file, so grant-status measures cash drawn ' +
+                'against cash spent; it records its own source-SHA-256 audit entry too.',
             inputSchema: {
                 type: 'object',
                 properties: {
@@ -183,6 +187,8 @@ function importTools() {
                     mapping: { type: 'object', description: 'confirmed mapping, canonical field -> CSV column (from propose_csv_mapping)' },
                     grantFile: { type: 'string', description: 'optional grant-register CSV file name within the import folder' },
                     grantMapping: { type: 'object', description: 'confirmed grant-register mapping (from propose_csv_mapping grantRegister); required when grantFile is given' },
+                    drawdownFile: { type: 'string', description: 'optional grant-drawdowns CSV file name within the import folder' },
+                    drawdownMapping: { type: 'object', description: 'confirmed grant-drawdowns mapping (from propose_csv_mapping grantDrawdowns); required when drawdownFile is given' },
                 },
                 required: ['file', 'mapping'],
                 additionalProperties: false,
@@ -393,11 +399,16 @@ export async function callTool(name, args = {}, { client, overrides = {} } = {})
                 file: args.file,
                 mapping: null,
                 grantRegister: args.grantFile ? { file: args.grantFile, mapping: null } : null,
+                grantDrawdowns: args.drawdownFile ? { file: args.drawdownFile, mapping: null } : null,
             });
             const out = { file: r.file, mapping: r.mapping, fields: r.fields, unmappedHeaders: r.unmappedHeaders, missingRequired: r.missingRequired };
             if (r.grantRegister) {
                 const g = r.grantRegister;
                 out.grantRegister = { file: g.file, mapping: g.mapping, fields: g.fields, unmappedHeaders: g.unmappedHeaders, missingRequired: g.missingRequired };
+            }
+            if (r.grantDrawdowns) {
+                const d = r.grantDrawdowns;
+                out.grantDrawdowns = { file: d.file, mapping: d.mapping, fields: d.fields, unmappedHeaders: d.unmappedHeaders, missingRequired: d.missingRequired };
             }
             return out;
         }
@@ -412,6 +423,7 @@ export async function callTool(name, args = {}, { client, overrides = {} } = {})
                 file: args.file,
                 mapping: args.mapping,
                 grantRegister: args.grantFile ? { file: args.grantFile, mapping: args.grantMapping ?? null } : null,
+                grantDrawdowns: args.drawdownFile ? { file: args.drawdownFile, mapping: args.drawdownMapping ?? null } : null,
                 signer: loadSigner(),
             });
             return {
@@ -423,6 +435,7 @@ export async function callTool(name, args = {}, { client, overrides = {} } = {})
                 mapping: r.mapping,
                 audit: r.audit,
                 grantRegister: r.grantRegister,
+                grantDrawdowns: r.grantDrawdowns,
                 gate: r.gate,
                 dbPath: r.paths.dbPath,
                 allowlistPath: r.paths.allowlistPath,

@@ -869,8 +869,10 @@ async function main() {
             // an optional grant-register CSV applied onto the same ledger.
             const grantsIdx = rest.indexOf('--grants');
             const grantsFile = grantsIdx !== -1 ? rest[grantsIdx + 1] : null;
+            const drawdownsIdx = rest.indexOf('--drawdowns');
+            const drawdownsFile = drawdownsIdx !== -1 ? rest[drawdownsIdx + 1] : null;
             const flagValues = new Set(
-                ['--map', '--grants', '--grants-map']
+                ['--map', '--grants', '--grants-map', '--drawdowns', '--drawdowns-map']
                     .map((f) => rest.indexOf(f))
                     .filter((i) => i !== -1)
                     .map((i) => rest[i + 1])
@@ -878,9 +880,10 @@ async function main() {
             );
             const file = rest.find((a) => !a.startsWith('--') && !flagValues.has(a));
             if (!file) {
-                console.error('Usage: cc-auditor import <file.csv> [--map mapping.json] [--grants register.csv --grants-map grants.json]');
+                console.error('Usage: cc-auditor import <file.csv> [--map mapping.json] [--grants register.csv --grants-map grants.json] [--drawdowns draws.csv --drawdowns-map draws.json]');
                 console.error('  Set CIVIC_IMPORT_DIR to the folder your CSV lives in. Without --map, prints a proposed mapping.');
                 console.error('  --grants adds a grant register (award amounts) so grant-status is meaningful.');
+                console.error('  --drawdowns adds grant cash drawn down, so grant-status measures drawn vs spent.');
                 process.exitCode = 2;
                 return;
             }
@@ -908,8 +911,11 @@ async function main() {
             const grantsMapping = readMapping('--grants-map');
             if (process.exitCode === 2) return;
             const grantRegister = grantsFile ? { file: grantsFile, mapping: grantsMapping ?? null } : null;
+            const drawdownsMapping = readMapping('--drawdowns-map');
+            if (process.exitCode === 2) return;
+            const grantDrawdowns = drawdownsFile ? { file: drawdownsFile, mapping: drawdownsMapping ?? null } : null;
             try {
-                const result = await runImport({ file, mapping, grantRegister, signer: loadSigner() });
+                const result = await runImport({ file, mapping, grantRegister, grantDrawdowns, signer: loadSigner() });
                 console.log(formatImport(result));
                 if (result.stage === 'imported' && result.gate && !result.gate.ok) process.exitCode = 1;
             } catch (error) {

@@ -14,7 +14,7 @@ import { fileURLToPath } from 'node:url';
 import { seedEnron } from '../src/enron.js';
 import { listTools, callTool, listResources, readResource } from '../src/mcp.js';
 import { warehouseSchema, getWarehouse } from '../src/warehouses.js';
-import { parseCsv, proposeMapping, CANONICAL_GRANT_FIELDS } from '../src/import-csv.js';
+import { parseCsv, proposeMapping, CANONICAL_GRANT_FIELDS, CANONICAL_DRAWDOWN_FIELDS } from '../src/import-csv.js';
 
 const FIXTURE_DIR = join(dirname(fileURLToPath(import.meta.url)), 'fixtures');
 
@@ -197,10 +197,12 @@ test('the import tools are advertised only when an import folder is configured',
     await withImportFolder(() => {
         const names = listTools().map((t) => t.name);
         assert.ok(names.includes('propose_csv_mapping') && names.includes('import_csv'));
-        // The grant second file is part of the advertised contract.
+        // The grant and drawdown extra files are part of the advertised contract.
         const importTool = listTools().find((t) => t.name === 'import_csv');
         assert.ok(importTool.inputSchema.properties.grantFile);
         assert.ok(importTool.inputSchema.properties.grantMapping);
+        assert.ok(importTool.inputSchema.properties.drawdownFile);
+        assert.ok(importTool.inputSchema.properties.drawdownMapping);
     });
 });
 
@@ -250,6 +252,56 @@ test('import_csv refuses a grant file without a confirmed grant mapping', async 
                 grantFile: 'riverton_grant_register.csv',
             }),
             /grants-map/,
+        );
+    });
+});
+
+test('propose_csv_mapping proposes the grant-drawdowns mapping when drawdownFile is given', async () => {
+    await withImportFolder(async () => {
+        const out = await callTool('propose_csv_mapping', {
+            file: 'riverton_grant_expenditures.csv',
+            drawdownFile: 'riverton_grant_drawdowns.csv',
+        });
+        assert.ok(out.grantDrawdowns, 'expected a grant-drawdowns proposal');
+        assert.equal(out.grantDrawdowns.file, 'riverton_grant_drawdowns.csv');
+        assert.deepEqual(out.grantDrawdowns.missingRequired, []);
+        assert.equal(out.grantDrawdowns.mapping.grant_id, 'Grant');
+        assert.equal(out.grantDrawdowns.mapping.amount, 'Amount');
+    });
+});
+
+test('import_csv applies grant drawdowns so grant-status measures drawn vs spent', async () => {
+    await withImportFolder(async () => {
+        const out = await callTool('import_csv', {
+            file: 'riverton_grant_expenditures.csv',
+            mapping: mappingFor('riverton_grant_expenditures.csv'),
+            grantFile: 'riverton_grant_register.csv',
+            grantMapping: mappingFor('riverton_grant_register.csv', CANONICAL_GRANT_FIELDS),
+            drawdownFile: 'riverton_grant_drawdowns.csv',
+            drawdownMapping: mappingFor('riverton_grant_drawdowns.csv', CANONICAL_DRAWDOWN_FIELDS),
+        });
+        // The drawdowns were applied and recorded as their own source-hash entry.
+        assert.ok(out.grantDrawdowns, 'expected a grant-drawdowns result');
+        assert.equal(out.grantDrawdowns.counts.drawdowns, 6);
+        assert.notEqual(out.grantDrawdowns.sourceFileSha256, out.grantRegister.sourceFileSha256);
+        assert.equal(out.grantDrawdowns.audit.seq, 2); // #0 import, #1 import-grants, #2 import-drawdowns
+        // grant-status stays clean: real awards, drawn cash within paid spending.
+        const grantStatus = out.gate.queries.find((q) => q.name === 'grant-status');
+        assert.equal(grantStatus.rowCount, 3);
+        assert.equal(grantStatus.integrity, 'pass');
+        assert.equal(grantStatus.findings, 0);
+    });
+});
+
+test('import_csv refuses a drawdown file without a confirmed drawdown mapping', async () => {
+    await withImportFolder(async () => {
+        await assert.rejects(
+            () => callTool('import_csv', {
+                file: 'riverton_grant_expenditures.csv',
+                mapping: mappingFor('riverton_grant_expenditures.csv'),
+                drawdownFile: 'riverton_grant_drawdowns.csv',
+            }),
+            /drawdowns-map/,
         );
     });
 });

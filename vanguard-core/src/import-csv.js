@@ -142,6 +142,39 @@ export const CANONICAL_GRANT_FIELDS = Object.freeze([
       description: 'active / closed (defaults to active).' },
 ]);
 
+// ── grant-drawdowns mapping target ────────────────────────────────────────────
+//
+// A grant register gives each award; it says nothing about the cash actually
+// requested from the grantor. `municipal/grant-status` measures drawn cash
+// (grant_drawdowns, status 'received') against paid spending to catch cash drawn
+// ahead of spending. With no drawdowns file, drawn = 0, which is honest but
+// blind. A third import of the buyer's drawdown register fills grant_drawdowns:
+// one row per cash request, applied onto the same ledger the expenditures and
+// register already built (see applyGrantDrawdownsToLedger), so each drawdown's
+// grant_id resolves to a real grant. drawdown_id is optional — supply it to
+// carry the municipality's own ids, or leave it unmapped to have DD-0001…
+// generated in file order.
+export const CANONICAL_DRAWDOWN_FIELDS = Object.freeze([
+    { field: 'grant_id', type: 'text', required: true,
+      synonyms: ['grant', 'grant id', 'grant number', 'grant no', 'award', 'award id', 'award number', 'cfda'],
+      description: 'The grant the cash was drawn against; must match a grant_id already in the ledger.' },
+    { field: 'amount', type: 'money', required: true,
+      synonyms: ['amount', 'drawdown amount', 'draw amount', 'amount drawn', 'cash drawn', 'disbursed', 'disbursement', 'requested amount', 'reimbursement'],
+      description: 'The cash requested in this drawdown; coerced to integer cents.' },
+    { field: 'request_date', type: 'date', required: true,
+      synonyms: ['request date', 'requested', 'requested date', 'date requested', 'draw date', 'drawdown date', 'submitted'],
+      description: 'When the drawdown was requested from the grantor.' },
+    { field: 'received_date', type: 'date', required: false,
+      synonyms: ['received date', 'received', 'date received', 'receipt date', 'funded date', 'deposited', 'deposit date', 'payment date'],
+      description: 'When the cash was received; leave blank for a pending drawdown.' },
+    { field: 'status', type: 'drawdown_status', required: false,
+      synonyms: ['status', 'drawdown status', 'draw status', 'state'],
+      description: "received / pending (defaults to received when a received date is present, else pending)." },
+    { field: 'drawdown_id', type: 'text', required: false,
+      synonyms: ['drawdown id', 'drawdown', 'draw id', 'drawdown number', 'draw number', 'reference', 'reference number'],
+      description: 'The municipality\'s own id for the drawdown; generated (DD-0001…) when unmapped.' },
+]);
+
 const FIELD_BY_NAME = new Map(CANONICAL_IMPORT_FIELDS.map((f) => [f.field, f]));
 
 // ── CSV parsing (RFC 4180) ──────────────────────────────────────────────────
@@ -316,6 +349,25 @@ export function coerceGrantStatus(raw) {
     if (s === '') return 'active';
     const mapped = GRANT_STATUS_MAP.get(s);
     if (!mapped) throw new ImportError(`unrecognised grant status: "${raw}" (expected active or closed)`);
+    return mapped;
+}
+
+const DRAWDOWN_STATUS_MAP = new Map([
+    ['received', 'received'], ['paid', 'received'], ['funded', 'received'], ['deposited', 'received'],
+    ['complete', 'received'], ['completed', 'received'], ['reimbursed', 'received'], ['settled', 'received'],
+    ['pending', 'pending'], ['requested', 'pending'], ['open', 'pending'], ['outstanding', 'pending'],
+    ['submitted', 'pending'], ['in process', 'pending'], ['in progress', 'pending'],
+]);
+
+/**
+ * Map a raw drawdown status to the schema's CHECK set (received/pending), or
+ * throw rather than guess. An empty value is resolved by the caller from whether
+ * a received date is present, so this never defaults on its own.
+ */
+export function coerceDrawdownStatus(raw) {
+    const s = String(raw).trim().toLowerCase();
+    const mapped = DRAWDOWN_STATUS_MAP.get(s);
+    if (!mapped) throw new ImportError(`unrecognised drawdown status: "${raw}" (expected received or pending)`);
     return mapped;
 }
 
@@ -738,6 +790,118 @@ export function applyGrantRegisterToLedger({ csvPath, mapping, dbPath }) {
         }
 
         return { sourceFileSha256, byteLength: bytes.length, counts: { grants: grants.length, updated, inserted } };
+    } finally {
+        db.close();
+    }
+}
+
+/**
+ * Coerce the grant-drawdown rows under a confirmed mapping. One row is one cash
+ * request. Coercion throws, naming the row and column, rather than writing a
+ * malformed drawdown. The status defaults from the presence of a received date
+ * (received if the cash landed, else pending) only when the file left it blank.
+ *
+ * @returns {object[]}
+ */
+function coerceDrawdownRows(rows, headers, mapping) {
+    const idx = {};
+    for (const [field, header] of Object.entries(mapping)) idx[field] = headers.indexOf(header);
+    const cell = (row, field) => (idx[field] === undefined ? '' : (row[idx[field]] ?? ''));
+
+    return rows.map((row, r) => {
+        const lineNo = r + 2;
+        const at = (field, fn) => {
+            try { return fn(String(cell(row, field))); }
+            catch (error) { throw new ImportError(`Row ${lineNo}, column "${mapping[field]}": ${error.message}`); }
+        };
+        const grantId = String(cell(row, 'grant_id')).trim();
+        if (grantId === '') throw new ImportError(`Row ${lineNo}, column "${mapping.grant_id}": empty grant id`);
+
+        const requestDate = at('request_date', normalizeDate);
+        const receivedRaw = 'received_date' in mapping ? String(cell(row, 'received_date')).trim() : '';
+        const receivedDate = receivedRaw === '' ? null : at('received_date', normalizeDate);
+
+        const statusRaw = 'status' in mapping ? String(cell(row, 'status')).trim() : '';
+        const status = statusRaw === '' ? (receivedDate ? 'received' : 'pending') : at('status', coerceDrawdownStatus);
+
+        // drawdown_id, when the file carries its own, must be present on every row
+        // (it is a primary key); unmapped, the id is generated by the caller.
+        let drawdownId = null;
+        if ('drawdown_id' in mapping) {
+            drawdownId = String(cell(row, 'drawdown_id')).trim();
+            if (drawdownId === '') throw new ImportError(`Row ${lineNo}, column "${mapping.drawdown_id}": empty drawdown id`);
+        }
+
+        return { lineNo, drawdownId, grantId, requestDate, receivedDate, amountCents: at('amount', coerceMoneyToCents), status };
+    });
+}
+
+/**
+ * Apply a grant-drawdown register onto an existing imported ledger, filling the
+ * grant_drawdowns table so municipal/grant-status measures cash drawn against
+ * cash spent (the cash-ahead-of-spending check).
+ *
+ * It writes onto the ledger the expenditure (and optionally grant-register)
+ * import already built: every drawdown's grant_id must resolve to a grant on the
+ * ledger, so a drawdown for a grant no expenditure referenced needs the grant
+ * register imported first. The whole file is applied in one transaction, so a
+ * malformed row aborts it and leaves the ledger untouched. drawdown_id is taken
+ * from the file when mapped (and must be unique), else generated DD-0001… in
+ * file order.
+ *
+ * @param {object} params
+ * @param {string} params.csvPath absolute path to the drawdowns CSV (confined by the caller)
+ * @param {Record<string,string>} params.mapping confirmed drawdown-field -> column
+ * @param {string} params.dbPath  the existing imported ledger to write onto
+ * @returns {{ sourceFileSha256: string, byteLength: number, counts: { drawdowns: number, inserted: number, grants: number } }}
+ * @throws {ImportError}
+ */
+export function applyGrantDrawdownsToLedger({ csvPath, mapping, dbPath }) {
+    if (!existsSync(csvPath)) throw new ImportError(`grant drawdowns not found: ${csvPath}`);
+    if (!existsSync(dbPath)) throw new ImportError(`no imported ledger to apply the grant drawdowns to: ${dbPath}`);
+    const bytes = readFileSync(csvPath);
+    const sourceFileSha256 = createHash('sha256').update(bytes).digest('hex');
+    const { headers, rows } = parseCsv(bytes.toString('utf8'));
+    validateMapping(mapping, headers, CANONICAL_DRAWDOWN_FIELDS);
+    if (rows.length === 0) throw new ImportError('The grant drawdowns file has a header but no data rows.');
+    const draws = coerceDrawdownRows(rows, headers, mapping);
+
+    // Carried ids must be unique: grant_drawdowns.drawdown_id is a primary key.
+    const seen = new Set();
+    for (const d of draws) {
+        if (!d.drawdownId) continue;
+        if (seen.has(d.drawdownId)) throw new ImportError(`The drawdowns file lists drawdown "${d.drawdownId}" more than once.`);
+        seen.add(d.drawdownId);
+    }
+
+    const db = new DatabaseSync(dbPath);
+    try {
+        db.exec('PRAGMA foreign_keys = ON');
+        const grantExists = db.prepare('SELECT grant_id FROM grants WHERE grant_id = ?');
+        const insert = db.prepare(
+            'INSERT INTO grant_drawdowns (drawdown_id, grant_id, request_date, received_date, amount_cents, status) VALUES (?, ?, ?, ?, ?, ?)',
+        );
+
+        let inserted = 0;
+        const grants = new Set();
+        db.exec('BEGIN');
+        try {
+            draws.forEach((d, i) => {
+                if (!grantExists.get(d.grantId)) {
+                    throw new ImportError(`drawdown row ${d.lineNo}: grant "${d.grantId}" is not in the ledger; import that grant (via expenditures or the grant register) first.`);
+                }
+                const id = d.drawdownId || `DD-${String(i + 1).padStart(4, '0')}`;
+                insert.run(id, d.grantId, d.requestDate, d.receivedDate, d.amountCents, d.status);
+                inserted += 1;
+                grants.add(d.grantId);
+            });
+            db.exec('COMMIT');
+        } catch (error) {
+            db.exec('ROLLBACK');
+            throw error;
+        }
+
+        return { sourceFileSha256, byteLength: bytes.length, counts: { drawdowns: draws.length, inserted, grants: grants.size } };
     } finally {
         db.close();
     }
