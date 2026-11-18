@@ -142,6 +142,8 @@ Because the engine is schema-agnostic, a domain pack is just a signed ruleset (n
 
 Each pack ships a synthetic demo ledger so the controls run out of the box, and the packs reach none of a ledger's sensitive fields: the municipal demo withholds `payroll` and vendor tax IDs, the insurance demo withholds an `insured_pii` table of SSNs and health notes, and the guard refuses any query that reaches them. A PASS is evidence a licensed professional can recompute and confirm against the entity's own obligations, not a certification or an audit opinion.
 
+To run the insurance pack, serve `vanguard-core/assets/insurance/` as a custom warehouse with `CIVIC_RULESET_PATH` pointing at its signed ruleset; the agent skill's [README](skills/civic-chain-auditor/README.md#insurance--fiduciary-pack) has the steps.
+
 ## Why this matters: Big-Four assurance on a municipal budget
 
 A Big Four audit is deep, skilled work. It is also periodic, sampled, retrospective, and priced for large entities: a firm tests a slice of the transactions, forms a judgment, and issues an opinion you are asked to trust, while the evidence stays in the firm's workpapers. The smaller the government, a town, a school district, a county, the less continuous assurance it can afford, exactly where every dollar is most visible to a resident.
@@ -180,8 +182,8 @@ node bin/vanguard.js controls run PI1.2-enron-debt-reconciliation
 node bin/vanguard.js audit
 
 # Signed domain rulesets (the query packs: municipal, insurance)
-node bin/vanguard.js ruleset list
-node bin/vanguard.js ruleset show insurance-v1
+node bin/vanguard.js ruleset list                  # the bundled municipal ruleset
+node bin/vanguard.js ruleset show assets/insurance/ruleset.insurance-v1.json   # signature status + content hash
 
 # Build a guarded warehouse from your own ledger (local only, no credential)
 node bin/vanguard.js import spending.csv                      # propose a column mapping, writes nothing

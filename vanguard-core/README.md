@@ -213,16 +213,21 @@ cents, documented in `db/enron-schema.sql`.)
 
 The built-in warehouses hardcode their schema and allow-list. To point the
 engine at your own SQLite ledger (a town budget, a grant register, a checkbook)
-without a code change, set three environment variables on the MCP server:
+without a code change, set these environment variables on the MCP server:
 
 | Variable | Meaning |
 |---|---|
-| `VANGUARD_DB_PATH` | The SQLite file. Opened read-only, like every other warehouse. |
-| `VANGUARD_ALLOWLIST_PATH` | JSON naming the warehouse, the permitted tables and the permitted columns of each, plus optional planner notes. |
-| `VANGUARD_AUDIT_LOG` | Optional. Defaults to `<name>-audit.jsonl` beside the database. |
+| `CIVIC_DB_PATH` | The SQLite file. Opened read-only, like every other warehouse. |
+| `CIVIC_ALLOWLIST_PATH` | JSON naming the warehouse, the permitted tables and the permitted columns of each, plus optional planner notes. |
+| `CIVIC_AUDIT_LOG` | Optional. Defaults to `<name>-audit.jsonl` beside the database. |
+| `CIVIC_RULESET_PATH` | Optional. A signed Civic-Chain ruleset (such as `assets/insurance/ruleset.insurance-v1.json`). Its named queries replace the allow-list's, and every result reports the ruleset's signature status. |
 
-The warehouse then appears in `vanguard://warehouses`, gets a
-`vanguard://schema/<name>` resource, and accepts free text through
+The former `VANGUARD_DB_PATH` / `VANGUARD_ALLOWLIST_PATH` / `VANGUARD_AUDIT_LOG`
+names are still read as a fallback for one release. One custom warehouse is
+served per server process.
+
+The warehouse then appears in `civic-chain://warehouses`, gets a
+`civic-chain://schema/<name>` resource, and accepts free text through
 `execute_financial_query` with `warehouse: "<name>"`. Nothing new is trusted:
 the existing guard enforces the table *and* column allow-list (so `SELECT *` is
 refused), and the planner is shown only the permitted columns. The allow-list is
@@ -230,14 +235,29 @@ checked against the live database when the server starts, so a typo fails
 immediately on stderr.
 
 The allow-list can also define **named queries**: operator-written SQL with
-`:named` parameters and automatic checks (`unique`, `total_matches`, `compare`),
+`:named` parameters and automatic checks (`unique`, `total_matches`, `compare`,
+`empty`; an `empty` finding flags when SQL that already filters to the offending
+rows, such as a `HAVING` clause, returns any row),
 run through `run_canonical` as `<warehouse>/<query>` with no credential. Every
 query and check SQL is compiled against the database at load and guarded at
 server start; check results are written into the audit entry. See
 `src/named-queries.js`.
 
-See `src/custom.js` for the format, and the municipal
-demo in `../skills/vanguard-mcp-auditor/assets/` for a worked example.
+See `src/custom.js` for the format. Two worked examples ship in `assets/`:
+
+- `assets/municipal/`: the Town of Sampleton grant and budget ledger with the
+  signed `municipal-v1` ruleset.
+- `assets/insurance/`: the Insurance & Fiduciary pack, a synthetic Harborline
+  Insurance Agency premium-trust ledger with the signed `insurance-v1` ruleset
+  (`insurance/trust-account-solvency`, `insurance/commission-variance-audit`
+  with an optional `min_variance_cents` threshold, and
+  `insurance/eo-unbound-exposure`). Its allow-list deliberately omits an
+  `insured_pii` table of SSNs and health notes, so the guard refuses it. The
+  ruleset is rebuilt and signed offline with
+  `node scripts/build-insurance-ruleset.js [--sign <key.pem>]`.
+
+Both are mirrored into `../skills/civic-chain-auditor/assets/`, where the agent
+skill documents how to serve them.
 
 ## What is real here, and what is not
 
