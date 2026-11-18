@@ -28,16 +28,36 @@
       .split .card{display:flex;flex-direction:column;gap:10px}
       .split .card h3{margin:0}
       .split .card p{margin:0;font-size:15px;color:var(--slate-800)}
+      .split .card.ink p,.split .card.slate p{color:var(--cream-100)}
       .split .card .go{margin-top:auto}
       .lead-figure{font-family:var(--font-display);font-size:clamp(2rem,4vw,2.8rem);line-height:1.1}
       .packs{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-top:22px}
-      .packs .card{display:flex;flex-direction:column}
-      .packs .card h4{margin:0 0 6px;font-family:var(--font-display);font-size:16px}
-      .packs .card p{margin:0;font-size:13.5px;line-height:1.5;opacity:.92}
-      .packs .card .tag{margin-top:10px;font-size:11.5px;letter-spacing:.03em;opacity:.65;font-family:var(--font-code,monospace)}
+      .packs .flip{perspective:1200px;cursor:pointer}
+      .packs .flip:focus-visible{outline:2px solid var(--ring);outline-offset:3px;border-radius:16px}
+      .packs .flip-inner{position:relative;min-height:244px;height:100%;transition:transform .6s cubic-bezier(.2,.75,.2,1);transform-style:preserve-3d}
+      .packs .flip:hover .flip-inner,
+      .packs .flip:focus-within .flip-inner{transform:rotateY(180deg)}
+      .packs .flip-face{position:absolute;inset:0;display:flex;flex-direction:column;-webkit-backface-visibility:hidden;backface-visibility:hidden;overflow:hidden}
+      .packs .flip-back{transform:rotateY(180deg)}
+      .packs .flip-face h4{margin:0 0 6px;font-family:var(--font-display);font-size:16px}
+      .packs .flip-front p{margin:0;font-size:13.5px;line-height:1.5;opacity:.92}
+      .packs .flip-foot{margin-top:auto;display:flex;flex-direction:column;gap:7px;padding-top:12px}
+      .packs .pack-tag{font-size:11.5px;letter-spacing:.03em;opacity:.72;font-family:var(--font-code,monospace)}
+      .packs .flip-hint{font:600 11px var(--font-sans);letter-spacing:.02em;opacity:.6}
+      .packs .flip-back .back-kicker{display:block;font:600 11px var(--font-sans);text-transform:uppercase;letter-spacing:.12em;opacity:.7;margin-bottom:9px}
+      .packs .flip-back ul{margin:0;padding-left:1.05em;display:flex;flex-direction:column;gap:5px}
+      .packs .flip-back li{font-size:12.5px;line-height:1.38;opacity:.95}
       @media (max-width:900px){.packs{grid-template-columns:1fr 1fr}}
       @media (max-width:760px){.guar,.split{grid-template-columns:1fr}.hero{padding:48px 0 28px}}
-      @media (max-width:560px){.packs{grid-template-columns:1fr}}
+      @media (max-width:560px){
+        .packs{grid-template-columns:1fr}
+        .packs .flip-inner{min-height:0;transform:none!important}
+        .packs .flip-face{position:static;transform:none;-webkit-backface-visibility:visible;backface-visibility:visible;box-shadow:none}
+        .packs .flip-front{border-bottom-left-radius:0;border-bottom-right-radius:0}
+        .packs .flip-back{border-top-left-radius:0;border-top-right-radius:0;margin-top:-1px}
+        .packs .flip-hint{display:none}
+      }
+      @media (prefers-reduced-motion:reduce){.packs .flip-inner{transition:none}}
     </style>
   </head>
   <body>
@@ -168,45 +188,156 @@
           served to Claude, Cursor, or any agent over MCP.
         </p>
         <div class="packs">
-          <div class="card sage">
-            <h4>Municipal grants &amp; budgets</h4>
-            <p>Grant cash drawn ahead of spending, grants carrying unreimbursed costs, overspent budget lines, and voided duplicate invoices.</p>
-            <span class="tag">municipal-v1</span>
+          <div class="flip" tabindex="0" role="group" aria-label="Municipal grants and budgets pack">
+            <div class="flip-inner">
+              <div class="flip-face card sage flip-front">
+                <h4>Municipal grants &amp; budgets</h4>
+                <p>Grant cash drawn ahead of spending, unreimbursed costs, overspent budget lines, and voided duplicate invoices.</p>
+                <div class="flip-foot"><span class="pack-tag">municipal-v1</span><span class="flip-hint">Hover or tap for the controls →</span></div>
+              </div>
+              <div class="flip-face card sage flip-back">
+                <span class="back-kicker">What it checks</span>
+                <ul>
+                  <li>Grant cash drawn ahead of spend</li>
+                  <li>Unreimbursed costs on a grant</li>
+                  <li>Budget lines over the amended budget</li>
+                  <li>Voided or duplicate invoices</li>
+                </ul>
+              </div>
+            </div>
           </div>
-          <div class="card sky">
-            <h4>Insurance &amp; fiduciary</h4>
-            <p>Short or commingled premium-trust funds, carrier commission variances, and client premium held against coverage that isn't bound.</p>
-            <span class="tag">insurance-v1</span>
+          <div class="flip" tabindex="0" role="group" aria-label="Insurance and fiduciary pack">
+            <div class="flip-inner">
+              <div class="flip-face card sky flip-front">
+                <h4>Insurance &amp; fiduciary</h4>
+                <p>Short or commingled premium-trust funds, carrier commission variances, and client premium held against coverage that isn't bound.</p>
+                <div class="flip-foot"><span class="pack-tag">insurance-v1</span><span class="flip-hint">Hover or tap for the controls →</span></div>
+              </div>
+              <div class="flip-face card sky flip-back">
+                <span class="back-kicker">What it checks</span>
+                <ul>
+                  <li>Premium trust covers the net liability</li>
+                  <li>Commission paid vs the contracted rate</li>
+                  <li>Client premium held on unbound coverage</li>
+                </ul>
+              </div>
+            </div>
           </div>
-          <div class="card gold">
-            <h4>Law firm trust (IOLTA)</h4>
-            <p>Three-way reconciliation breaks, overdrawn client ledgers, fees drawn before billing, commingled firm money, dormant balances.</p>
-            <span class="tag">iolta-v1 · ABA Model Rule 1.15</span>
+          <div class="flip" tabindex="0" role="group" aria-label="Law firm trust IOLTA pack">
+            <div class="flip-inner">
+              <div class="flip-face card gold flip-front">
+                <h4>Law firm trust (IOLTA)</h4>
+                <p>Three-way reconciliation breaks, overdrawn client ledgers, fees drawn before billing, commingled firm money, dormant balances.</p>
+                <div class="flip-foot"><span class="pack-tag">iolta-v1 · ABA Model Rule 1.15</span><span class="flip-hint">Hover or tap for the controls →</span></div>
+              </div>
+              <div class="flip-face card gold flip-back">
+                <span class="back-kicker">What it checks</span>
+                <ul>
+                  <li>Bank = journal = client ledgers (three-way)</li>
+                  <li>No client ledger overdrawn</li>
+                  <li>Fee transfers backed by an invoice</li>
+                  <li>Firm funds in trust within the buffer</li>
+                  <li>Dormant client balances</li>
+                </ul>
+              </div>
+            </div>
           </div>
-          <div class="card slate">
-            <h4>Excise tax</h4>
-            <p>Underpaid returns, operations-report rollforward breaks, report-versus-return disagreements, missing or late filings, loss variance as a diversion signal.</p>
-            <span class="tag">excise-v1 · TTB 27 CFR 25</span>
+          <div class="flip" tabindex="0" role="group" aria-label="Excise tax pack">
+            <div class="flip-inner">
+              <div class="flip-face card slate flip-front">
+                <h4>Excise tax</h4>
+                <p>Underpaid returns, operations-report rollforward breaks, report-versus-return disagreements, missing or late filings, loss variance.</p>
+                <div class="flip-foot"><span class="pack-tag">excise-v1 · TTB 27 CFR 25</span><span class="flip-hint">Hover or tap for the controls →</span></div>
+              </div>
+              <div class="flip-face card slate flip-back">
+                <span class="back-kicker">What it checks</span>
+                <ul>
+                  <li>Tax remitted vs barrels × rate</li>
+                  <li>Operations-report rollforward ties</li>
+                  <li>Report agrees with the return</li>
+                  <li>No missing or late filings</li>
+                  <li>Losses within tolerance</li>
+                </ul>
+              </div>
+            </div>
           </div>
-          <div class="card cream">
-            <h4>Property management &amp; HOA</h4>
-            <p>A short broker trust account, tenant deposits not held, overdue deposit returns, HOA reserves spent without board approval, overspent lines.</p>
-            <span class="tag">property-trust-v1 + hoa-v1</span>
+          <div class="flip" tabindex="0" role="group" aria-label="Property management and HOA pack">
+            <div class="flip-inner">
+              <div class="flip-face card cream flip-front">
+                <h4>Property management &amp; HOA</h4>
+                <p>A short broker trust account, tenant deposits not held, overdue deposit returns, HOA reserves spent without board approval, overspent lines.</p>
+                <div class="flip-foot"><span class="pack-tag">property-trust-v1 + hoa-v1</span><span class="flip-hint">Hover or tap for the controls →</span></div>
+              </div>
+              <div class="flip-face card cream flip-back">
+                <span class="back-kicker">What it checks</span>
+                <ul>
+                  <li>Broker trust covers its liability</li>
+                  <li>No owner ledger overdrawn</li>
+                  <li>Tenant deposits held in full</li>
+                  <li>Deposits returned on time</li>
+                  <li>HOA reserves need board approval</li>
+                  <li>HOA budget held; dues current</li>
+                </ul>
+              </div>
+            </div>
           </div>
-          <div class="card sage">
-            <h4>Nonprofit restricted funds</h4>
-            <p>Donor-restricted money misspent, restriction released ahead of spending, a functional-expense statement that doesn't tie, the Single Audit threshold.</p>
-            <span class="tag">nonprofit-v1 · ASC 958</span>
+          <div class="flip" tabindex="0" role="group" aria-label="Nonprofit restricted funds pack">
+            <div class="flip-inner">
+              <div class="flip-face card sage flip-front">
+                <h4>Nonprofit restricted funds</h4>
+                <p>Donor-restricted money misspent, restriction released ahead of spending, a functional-expense statement that doesn't tie, the Single Audit threshold.</p>
+                <div class="flip-foot"><span class="pack-tag">nonprofit-v1 · ASC 958</span><span class="flip-hint">Hover or tap for the controls →</span></div>
+              </div>
+              <div class="flip-face card sage flip-back">
+                <span class="back-kicker">What it checks</span>
+                <ul>
+                  <li>Restricted spend within purpose/window</li>
+                  <li>Releases ≤ qualifying spending</li>
+                  <li>Functional-expense grid ties (ASC 958)</li>
+                  <li>Liquid assets cover restrictions</li>
+                  <li>Single Audit threshold watch</li>
+                </ul>
+              </div>
+            </div>
           </div>
-          <div class="card sky">
-            <h4>School districts</h4>
-            <p>Overdrawn student-activity accounts, cash held too long before deposit, payments without the required sign-offs, federal costs outside the award period.</p>
-            <span class="tag">schools-v1 · GASB 84 · FERPA</span>
+          <div class="flip" tabindex="0" role="group" aria-label="School districts pack">
+            <div class="flip-inner">
+              <div class="flip-face card sky flip-front">
+                <h4>School districts</h4>
+                <p>Overdrawn student-activity accounts, cash held too long before deposit, payments without the required sign-offs, federal costs outside the award period.</p>
+                <div class="flip-foot"><span class="pack-tag">schools-v1 · GASB 84 · FERPA</span><span class="flip-hint">Hover or tap for the controls →</span></div>
+              </div>
+              <div class="flip-face card sky flip-back">
+                <span class="back-kicker">What it checks</span>
+                <ul>
+                  <li>No activity account overdrawn</li>
+                  <li>Activity cash deposited on time</li>
+                  <li>Advisor + principal sign-off present</li>
+                  <li>Federal costs within the award period</li>
+                  <li>Spending within the amended budget</li>
+                </ul>
+              </div>
+            </div>
           </div>
-          <div class="card gold">
-            <h4>Construction contracts</h4>
-            <p>A WIP schedule tied to the GL, over/underbillings, jobs headed for a loss, margin fade, retainage reconciliation, payments with no lien waiver.</p>
-            <span class="tag">construction-v1 · ASC 606</span>
+          <div class="flip" tabindex="0" role="group" aria-label="Construction contracts pack">
+            <div class="flip-inner">
+              <div class="flip-face card gold flip-front">
+                <h4>Construction contracts</h4>
+                <p>A WIP schedule tied to the GL, over/underbillings, jobs headed for a loss, margin fade, retainage reconciliation, payments with no lien waiver.</p>
+                <div class="flip-foot"><span class="pack-tag">construction-v1 · ASC 606</span><span class="flip-hint">Hover or tap for the controls →</span></div>
+              </div>
+              <div class="flip-face card gold flip-back">
+                <span class="back-kicker">What it checks</span>
+                <ul>
+                  <li>WIP ties to the general ledger</li>
+                  <li>Over/underbillings tie to the books</li>
+                  <li>Loss jobs flagged early</li>
+                  <li>Margin fade since last snapshot</li>
+                  <li>Retainage reconciles</li>
+                  <li>Sub payments need a lien waiver</li>
+                </ul>
+              </div>
+            </div>
           </div>
         </div>
         <p class="lede" style="margin-top:22px">
