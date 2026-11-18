@@ -18,6 +18,8 @@
  *   finding checks: is there a data condition worth reporting? A flag here is
  *     an audit finding about the ledger, not a fault in the query.
  *       compare         per row, left <op> right, e.g. paid_cents <= award_cents
+ *       empty           the result must have no rows, for SQL that already
+ *                       filters to only the offending rows (a HAVING clause)
  *
  * Nothing here trusts the definitions: every query and check SQL still goes
  * through the guard (with the warehouse's table and column allow-lists) and the
@@ -200,8 +202,19 @@ function parseCheck(name, check, params, seen) {
                 message,
             };
         }
+        case 'empty': {
+            // A finding check for queries whose SQL already filters to exactly
+            // the offending rows (a HAVING that keeps only variances, only
+            // unbound policies). The finding is simply "no such row should
+            // exist": clean when the result is empty, a flag otherwise. An
+            // optional "key" column names what to sample in the detail.
+            if (check.key !== undefined && typeof check.key !== 'string') {
+                throw new NamedQueryError(`Query "${name}": check "${id}" "key" must be a column name.`);
+            }
+            return { id, type, severity: 'finding', key: typeof check.key === 'string' ? check.key : null, message };
+        }
         default:
-            throw new NamedQueryError(`Query "${name}": check "${id}" has unknown type "${type}" (unique, total_matches, compare).`);
+            throw new NamedQueryError(`Query "${name}": check "${id}" has unknown type "${type}" (unique, total_matches, compare, empty).`);
     }
 }
 
@@ -366,6 +379,18 @@ export function evaluateChecks(checks, rows, { totals = {}, truncated = false } 
                       message: check.message ?? 'Column total does not match an independent total; rows may be double counted or missing.',
                       detail: { resultTotal: actual, independentTotal: expected },
                   };
+        }
+
+        if (check.type === 'empty') {
+            if (rows.length === 0) return { ...base, status: 'pass' };
+            if (check.key && missing(check.key)) return { ...base, status: 'error', detail: `result has no column ${check.key}` };
+            const sample = check.key ? rows.map((r) => r[check.key]) : [];
+            return {
+                ...base,
+                status: 'flag',
+                message: check.message ?? 'The query returned rows; none were expected.',
+                detail: { count: rows.length, ...(check.key ? { rows: sample.slice(0, MAX_FLAGGED_KEYS) } : {}) },
+            };
         }
 
         // compare

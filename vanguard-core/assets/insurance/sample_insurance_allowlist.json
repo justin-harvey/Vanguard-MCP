@@ -1,0 +1,47 @@
+{
+  "name": "insurance",
+  "description": "Harborline Insurance Agency (fictional) premium-trust and policy ledger: trust movements, policies, commission receipts, carrier binders and point-in-time bank snapshots. Synthetic demo data; all money in integer cents.",
+  "domain": "insurance agency premium-trust, commission and policy-binder data",
+  "tables": {
+    "trust_ledger": [
+      "entry_id",
+      "policy_id",
+      "carrier_code",
+      "entry_type",
+      "amount_cents",
+      "reconciled_status",
+      "entry_date"
+    ],
+    "trust_bank_snapshots": [
+      "snapshot_id",
+      "snapshot_date",
+      "actual_bank_balance_cents"
+    ],
+    "policies": [
+      "policy_id",
+      "carrier_code",
+      "line_of_business",
+      "written_premium_cents",
+      "contracted_comm_bps",
+      "status"
+    ],
+    "commission_receipts": [
+      "receipt_id",
+      "policy_id",
+      "paid_comm_cents"
+    ],
+    "binders": [
+      "binder_id",
+      "policy_id",
+      "carrier_confirmed",
+      "effective_date"
+    ]
+  },
+  "notes": [
+    "All money is INTEGER CENTS.",
+    "Commission rates are basis points: contracted_comm_bps 1500 = 15%, so expected commission = written_premium_cents * contracted_comm_bps / 10000.",
+    "entry_type is one of CLIENT_PREMIUM_IN, CARRIER_REMIT_OUT, AGENCY_COMMISSION_DRAW. reconciled_status is POSTED or PENDING; only POSTED entries are settled.",
+    "binders.carrier_confirmed is 1 when the carrier has confirmed coverage is bound, 0 otherwise.",
+    "The insured_pii table (names, SSNs, health notes) is intentionally omitted: this engine never reads policyholder PII."
+  ]
+}

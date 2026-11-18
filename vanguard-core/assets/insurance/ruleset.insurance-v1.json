@@ -1,0 +1,68 @@
+{
+  "name": "insurance",
+  "version": "insurance-v1",
+  "changelog": [
+    "insurance-v1: initial Civic-Chain Insurance & Fiduciary ruleset — trust-account-solvency (premium trust reconciliation), commission-variance-audit (carrier commission split and chargeback variance) and eo-unbound-exposure (client premium held against unbound coverage), with integrity (unique, total_matches) and finding (compare, empty) checks. These controls encode a reasonable interpretation of common agency-accounting practice; they produce evidence for a licensed professional to confirm against the agency's own obligations, they are not a department-of-insurance audit or an E&O coverage opinion."
+  ],
+  "queries": {
+    "trust-account-solvency": {
+      "description": "Premium trust reconciliation: total client premiums collected, carrier remittances paid, agency commission drawn, the resulting net trust liability, and the most recent actual trust bank balance. Use for 'is the premium trust account solvent', fiduciary shortfall and commingling questions. Only POSTED entries are counted.",
+      "params": {},
+      "sql": "SELECT SUM(CASE WHEN entry_type = 'CLIENT_PREMIUM_IN' THEN amount_cents ELSE 0 END) AS total_collected_cents, SUM(CASE WHEN entry_type = 'CARRIER_REMIT_OUT' THEN amount_cents ELSE 0 END) AS total_remitted_cents, SUM(CASE WHEN entry_type = 'AGENCY_COMMISSION_DRAW' THEN amount_cents ELSE 0 END) AS commission_drawn_cents, (SUM(CASE WHEN entry_type = 'CLIENT_PREMIUM_IN' THEN amount_cents ELSE 0 END) - SUM(CASE WHEN entry_type = 'CARRIER_REMIT_OUT' THEN amount_cents ELSE 0 END) - SUM(CASE WHEN entry_type = 'AGENCY_COMMISSION_DRAW' THEN amount_cents ELSE 0 END)) AS net_trust_liability_cents, (SELECT actual_bank_balance_cents FROM trust_bank_snapshots ORDER BY snapshot_date DESC LIMIT 1) AS bank_balance_cents FROM trust_ledger WHERE reconciled_status = 'POSTED'",
+      "checks": [
+        {
+          "id": "collected-reconciles",
+          "type": "total_matches",
+          "column": "total_collected_cents",
+          "sql": "SELECT COALESCE(SUM(amount_cents), 0) AS total FROM trust_ledger WHERE entry_type = 'CLIENT_PREMIUM_IN' AND reconciled_status = 'POSTED'"
+        },
+        {
+          "id": "trust-solvent",
+          "type": "compare",
+          "left": "bank_balance_cents",
+          "op": ">=",
+          "right": "net_trust_liability_cents",
+          "message": "Fiduciary trust shortfall: the trust bank balance is less than the net premium and commission obligations it is holding."
+        }
+      ]
+    },
+    "commission-variance-audit": {
+      "description": "Per active or bound policy: contracted commission (written premium times the contracted basis points) against commission actually received from the carrier, and the variance. Use for underpaid carrier commissions, missed chargebacks on cancelled policies and unauthorized split overrides. Returns only policies whose variance exceeds the materiality threshold; an empty result means every policy was paid as contracted.",
+      "params": {
+        "min_variance_cents": {
+          "type": "integer",
+          "description": "Materiality threshold in cents; a policy is reported only if its commission variance exceeds this. Omit for the default of 100 (one dollar)."
+        }
+      },
+      "sql": "SELECT p.policy_id, p.carrier_code, p.line_of_business, p.written_premium_cents, (p.written_premium_cents * p.contracted_comm_bps) / 10000 AS expected_comm_cents, COALESCE(SUM(c.paid_comm_cents), 0) AS actual_paid_cents, COALESCE(SUM(c.paid_comm_cents), 0) - ((p.written_premium_cents * p.contracted_comm_bps) / 10000) AS variance_cents FROM policies p LEFT JOIN commission_receipts c ON p.policy_id = c.policy_id WHERE p.status IN ('ACTIVE', 'BOUND') GROUP BY p.policy_id, p.carrier_code, p.line_of_business, p.written_premium_cents, p.contracted_comm_bps HAVING ABS(COALESCE(SUM(c.paid_comm_cents), 0) - ((p.written_premium_cents * p.contracted_comm_bps) / 10000)) > COALESCE(:min_variance_cents, 100)",
+      "checks": [
+        {
+          "id": "one-row-per-policy",
+          "type": "unique",
+          "columns": [
+            "policy_id"
+          ]
+        },
+        {
+          "id": "no-commission-variance",
+          "type": "empty",
+          "key": "policy_id",
+          "message": "Commission variance detected: one or more active policies were paid a commission that differs materially from the contracted rate. Review the carrier statements before any producer payout."
+        }
+      ]
+    },
+    "eo-unbound-exposure": {
+      "description": "Per policy holding client premium in trust: total client funds held, the first payment date, and whether a carrier binder is confirmed. Use for errors-and-omissions exposure questions. Returns only policies holding premium with no carrier-confirmed binder; an empty result means every dollar of client premium held corresponds to confirmed coverage.",
+      "params": {},
+      "sql": "SELECT t.policy_id, SUM(t.amount_cents) AS client_funds_held_cents, MIN(t.entry_date) AS first_payment_date, COALESCE(b.carrier_confirmed, 0) AS is_bound FROM trust_ledger t LEFT JOIN binders b ON t.policy_id = b.policy_id WHERE t.entry_type = 'CLIENT_PREMIUM_IN' GROUP BY t.policy_id, b.carrier_confirmed HAVING COALESCE(b.carrier_confirmed, 0) = 0",
+      "checks": [
+        {
+          "id": "no-unbound-premium",
+          "type": "empty",
+          "key": "policy_id",
+          "message": "Client premium is held for coverage that is not carrier-confirmed, an immediate errors-and-omissions exposure. Confirm the binder or return the premium."
+        }
+      ]
+    }
+  }
+}

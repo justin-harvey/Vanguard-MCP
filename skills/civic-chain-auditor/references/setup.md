@@ -35,6 +35,7 @@ The printed config has this shape:
 | Variable | Needed for |
 |---|---|
 | `CIVIC_DB_PATH` + `CIVIC_ALLOWLIST_PATH` | Serving a custom warehouse, such as the municipal demo or the user's own ledger. Both or neither. |
+| `CIVIC_RULESET_PATH` | Optional. Points at a signed Civic-Chain ruleset (e.g. the insurance pack's `ruleset.insurance-v1.json`); its named queries replace the allow-list's, and every result reports the ruleset's signature status. |
 | `CIVIC_AUDIT_LOG` | Optional. Defaults to `<name>-audit.jsonl` beside the database. |
 | `ANTHROPIC_API_KEY` | `execute_financial_query` only. Everything else runs without a credential. |
 | `CIVIC_SIGNING_KEY_FILE` (or `CIVIC_SIGNING_KEY`) | Optional Ed25519 signing of audit entries. |
@@ -60,6 +61,7 @@ In the host, tool names carry the server key as a prefix (for example `mcp__civi
 | Warehouse | Free text | What it holds |
 |---|---|---|
 | `municipal` (when configured) | yes | Fictional Town of Sampleton: grants, drawdowns, budget lines, expenditures, vendors. Synthetic. |
+| `insurance` (when configured) | yes | Fictional Harborline Insurance Agency: premium trust ledger, policies, commission receipts, carrier binders, bank snapshots. Synthetic. Served with the signed `insurance-v1` ruleset. |
 | *(any custom name)* | yes | The user's own ledger, loaded from `CIVIC_DB_PATH` / `CIVIC_ALLOWLIST_PATH` |
 | `saas` | yes | MRR, retention, LTV:CAC, cohorts. Synthetic. |
 | `enron` | no | FY2000 reporting gap: synthetic rows anchored to real 10-K aggregates |
@@ -86,6 +88,16 @@ Listed, with their parameters, under `queries` in `civic-chain://warehouses`.
 | `municipal/spending-by-vendor` | `grant_id`, `fiscal_year`, `dept_id` | Paid spending and invoice count per vendor |
 | `municipal/budget-variance` | `fiscal_year`, `dept_id` | Adopted vs amended budget, paid, pending, remaining, % used, per line |
 
+### Named queries on the insurance demo (`run_canonical`, no credential)
+
+Served by the signed `insurance-v1` ruleset. Presentation rules (PASS / EXCEPTION / FLAG, and the PII refusal) are in SKILL.md under "Insurance & Fiduciary pack".
+
+| `name` | `args` | What it answers |
+|---|---|---|
+| `insurance/trust-account-solvency` | none | Premiums collected, carrier remittances, commission drawn, net trust liability, latest bank balance; finding when the balance does not cover the liability |
+| `insurance/commission-variance-audit` | `min_variance_cents` (optional, default 100) | Active or bound policies whose received commission varies materially from the contracted rate |
+| `insurance/eo-unbound-exposure` | none | Policies holding client premium with no carrier-confirmed binder |
+
 Only pass the business arguments shown. Never pass `dbPath`, `logPath`, `signer` or `warehouse` inside `args`: the server refuses them, because they would otherwise redirect the query or its audit trail.
 
 ## Audit logs and verification
@@ -99,7 +111,7 @@ Pass `verify_audit` a `warehouse` and it checks that warehouse's log. The result
 | `db/enron-audit.jsonl` | enron queries and controls | `{ "warehouse": "enron" }` |
 | `db/markets-audit.jsonl` | markets queries and controls | `{ "warehouse": "markets" }` |
 | `db/lseg-audit.jsonl` | lseg controls | `{ "warehouse": "lseg" }` |
-| `<name>-audit.jsonl` beside the db | custom warehouse, e.g. `municipal` | `{ "warehouse": "municipal" }` |
+| `<name>-audit.jsonl` beside the db | custom warehouse, e.g. `municipal` or `insurance` | `{ "warehouse": "municipal" }` / `{ "warehouse": "insurance" }` |
 
 If the user asks about "the audit log" in general, verify every log that applies. Report:
 - `ok: true` → **INTACT**, with the entry count.

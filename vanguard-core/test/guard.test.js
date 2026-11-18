@@ -200,3 +200,62 @@ test('the allow-list is exactly the warehouse schema', () => {
         'subscriptions',
     ]);
 });
+
+// ── insurance pack coverage ──────────────────────────────────────────────
+//
+// The insurance ruleset's three canonical queries use constructs the municipal
+// queries do not all exercise: a scalar subquery in SELECT with its own
+// ORDER BY ... LIMIT, ABS(), integer division, and aliased LEFT JOINs. These
+// pin that the guard accepts all three unchanged, and still refuses SELECT *,
+// a non-allow-listed table (the PII table), and a non-allow-listed column.
+
+const INSURANCE_COLUMNS = {
+    trust_ledger: ['entry_id', 'carrier_code', 'entry_type', 'amount_cents', 'reconciled_status', 'entry_date', 'policy_id'],
+    trust_bank_snapshots: ['snapshot_id', 'snapshot_date', 'actual_bank_balance_cents'],
+    policies: ['policy_id', 'carrier_code', 'line_of_business', 'written_premium_cents', 'contracted_comm_bps', 'status'],
+    commission_receipts: ['receipt_id', 'policy_id', 'paid_comm_cents'],
+    binders: ['binder_id', 'policy_id', 'carrier_confirmed', 'effective_date'],
+};
+const INSURANCE_OPTS = { allowedTables: Object.keys(INSURANCE_COLUMNS), allowedColumns: INSURANCE_COLUMNS };
+
+const TRUST_SOLVENCY_SQL = `SELECT
+  SUM(CASE WHEN entry_type = 'CLIENT_PREMIUM_IN' THEN amount_cents ELSE 0 END) AS total_collected_cents,
+  SUM(CASE WHEN entry_type = 'CARRIER_REMIT_OUT' THEN amount_cents ELSE 0 END) AS total_remitted_cents,
+  SUM(CASE WHEN entry_type = 'AGENCY_COMMISSION_DRAW' THEN amount_cents ELSE 0 END) AS commission_drawn_cents,
+  (SUM(CASE WHEN entry_type = 'CLIENT_PREMIUM_IN' THEN amount_cents ELSE 0 END)
+   - SUM(CASE WHEN entry_type = 'CARRIER_REMIT_OUT' THEN amount_cents ELSE 0 END)
+   - SUM(CASE WHEN entry_type = 'AGENCY_COMMISSION_DRAW' THEN amount_cents ELSE 0 END)) AS net_trust_liability_cents,
+  (SELECT actual_bank_balance_cents FROM trust_bank_snapshots ORDER BY snapshot_date DESC LIMIT 1) AS bank_balance_cents
+FROM trust_ledger
+WHERE reconciled_status = 'POSTED'`;
+
+const COMMISSION_VARIANCE_SQL = `SELECT p.policy_id, p.carrier_code, p.line_of_business, p.written_premium_cents,
+  (p.written_premium_cents * p.contracted_comm_bps) / 10000 AS expected_comm_cents,
+  COALESCE(SUM(c.paid_comm_cents), 0) AS actual_paid_cents,
+  COALESCE(SUM(c.paid_comm_cents), 0) - ((p.written_premium_cents * p.contracted_comm_bps) / 10000) AS variance_cents
+FROM policies p
+LEFT JOIN commission_receipts c ON p.policy_id = c.policy_id
+WHERE p.status IN ('ACTIVE', 'BOUND')
+GROUP BY p.policy_id, p.carrier_code, p.line_of_business, p.written_premium_cents, p.contracted_comm_bps
+HAVING ABS(COALESCE(SUM(c.paid_comm_cents), 0) - ((p.written_premium_cents * p.contracted_comm_bps) / 10000)) > 100`;
+
+const EO_UNBOUND_SQL = `SELECT t.policy_id, SUM(t.amount_cents) AS client_funds_held_cents,
+  MIN(t.entry_date) AS first_payment_date, COALESCE(b.carrier_confirmed, 0) AS is_bound
+FROM trust_ledger t
+LEFT JOIN binders b ON t.policy_id = b.policy_id
+WHERE t.entry_type = 'CLIENT_PREMIUM_IN'
+GROUP BY t.policy_id, b.carrier_confirmed
+HAVING COALESCE(b.carrier_confirmed, 0) = 0`;
+
+test('the three insurance canonical queries all pass the guard unchanged', () => {
+    const solvency = guard(TRUST_SOLVENCY_SQL, INSURANCE_OPTS);
+    assert.deepEqual(solvency.tables.sort(), ['trust_bank_snapshots', 'trust_ledger'], 'scalar subquery table is seen');
+    assert.deepEqual(guard(COMMISSION_VARIANCE_SQL, INSURANCE_OPTS).tables.sort(), ['commission_receipts', 'policies']);
+    assert.deepEqual(guard(EO_UNBOUND_SQL, INSURANCE_OPTS).tables.sort(), ['binders', 'trust_ledger']);
+});
+
+test('the insurance allow-list still refuses SELECT *, the PII table, and off-list columns', () => {
+    assert.equal(rejection('SELECT * FROM trust_ledger', INSURANCE_OPTS).reason, 'wildcard_not_allowed');
+    assert.equal(rejection('SELECT ssn FROM insured_pii', INSURANCE_OPTS).reason, 'table_not_allowed');
+    assert.equal(rejection('SELECT policy_id, health_condition FROM policies', INSURANCE_OPTS).reason, 'column_not_allowed');
+});

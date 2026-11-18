@@ -5,6 +5,49 @@ The project follows [Semantic Versioning](https://semver.org/): MAJOR.MINOR.PATC
 
 ## [Unreleased]
 
+### Added — Insurance & Fiduciary ruleset pack (second signed pack)
+- A second domain pack beside the municipal one, built on the existing signed
+  ruleset + custom-warehouse seam (no change to the municipal CSV-import path, no
+  server, no new credential). Three controls for an insurance agency's premium
+  trust, each shipped as a named query with automatic checks:
+  - **`insurance/trust-account-solvency`** — premiums collected, carrier
+    remittances, commission drawn, the net trust liability, and the latest actual
+    bank balance; a `compare` finding (`bank_balance_cents >= net_trust_liability_cents`)
+    and a `total_matches` integrity check reconciling the premium total.
+  - **`insurance/commission-variance-audit`** — active/bound policies whose
+    received commission varies from the contracted basis-point rate by more than
+    a materiality threshold (`min_variance_cents`, default 100); an `empty`
+    finding, so a clean result is no rows.
+  - **`insurance/eo-unbound-exposure`** — policies holding client premium with no
+    carrier-confirmed binder; an `empty` finding.
+- **New engine check type `empty`** (`src/named-queries.js`): a finding that
+  flags when a query whose SQL already filters to only the offending rows (a
+  `HAVING` clause) returns any row, with an optional `key` column sampled in the
+  detail. Pure; same validation path as the other checks.
+- **Guard coverage proven for the pack's SQL** (`test/guard.test.js`): the three
+  canonical queries pass unchanged (scalar subquery with `ORDER BY ... LIMIT`,
+  `ABS`, integer division, aliased `LEFT JOIN`); no guard change was needed, and
+  `SELECT *`, the PII table and off-list columns are still refused.
+- **Demo warehouse** (`assets/insurance/`, mirrored into the skill): a synthetic
+  Harborline Insurance Agency seed (clean, so all three controls read PASS), a
+  pure access-policy allow-list, and a deliberately **non-allow-listed
+  `insured_pii` table** (SSNs, health notes) so the guard visibly refuses
+  policyholder PII, the enforcement behind the pack's "no PII" claim.
+- **Signed** `insurance-v1` ruleset (`scripts/build-insurance-ruleset.js`),
+  signed offline with the same Civic-Chain key `acb80e87885da931`; ships in both
+  asset copies with its detached signature, pinned byte-identical by the drift
+  test.
+- **Skill routing** (`SKILL.md`, `references/setup.md`, `references/refusals.md`,
+  `examples/04-insurance-trust-shortfall.md`): how to present PASS / EXCEPTION /
+  FLAG for each control, the empty-result-is-clean rule, the PII refusal, and
+  Posture-A claim discipline (evidence for a licensed professional, not a
+  department-of-insurance audit or an E&O opinion). Skill-drift test extended to
+  validate the insurance query names against the shipped ruleset.
+- Tests: `test/insurance-warehouse.test.js`, `test/insurance-ruleset.test.js`
+  (clean PASS and each control tripped by a targeted mutation, the materiality
+  param, and the signed-status checks), plus the `empty`-check and guard-coverage
+  units.
+
 ### Added — security policy + published signing key (V1, part)
 - **`SECURITY.md`** at the repo root and inside the npm package (added to the
   package `files`): how to report a vulnerability (`info@civic-chain.com`), a

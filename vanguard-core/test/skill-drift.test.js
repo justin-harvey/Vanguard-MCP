@@ -21,6 +21,7 @@ import { fileURLToPath } from 'node:url';
 import { controlCatalog } from '../src/controls.js';
 import { listTools, canonicalNames } from '../src/mcp.js';
 import { CUSTOM_ENV } from '../src/custom.js';
+import { loadRuleset } from '../src/ruleset.js';
 import { freshMunicipalDb, MUNICIPAL_ALLOWLIST } from './municipal-fixture.js';
 
 const here = dirname(fileURLToPath(import.meta.url));
@@ -78,8 +79,15 @@ test('every control id the skill names exists in the catalog', () => {
 });
 
 test('every canonical/named query the skill names is served', () => {
-    const real = new Set(canonicalNames());
-    const re = /\b(?:enron|markets|saas|municipal)\/[a-z][a-z-]*/g;
+    // canonicalNames() reflects the env-configured custom warehouse (municipal,
+    // from the test above). The insurance pack's queries ship in its signed
+    // ruleset rather than a configured warehouse, so resolve them from the
+    // ruleset directly: a skill reference to an insurance query must match a
+    // query the shipped ruleset actually defines.
+    const insuranceRuleset = loadRuleset(join(here, '..', 'assets', 'insurance', 'ruleset.insurance-v1.json'));
+    const insuranceNames = Object.keys(insuranceRuleset.queries).map((q) => `insurance/${q}`);
+    const real = new Set([...canonicalNames(), ...insuranceNames]);
+    const re = /\b(?:enron|markets|saas|municipal|insurance)\/[a-z][a-z-]*/g;
     for (const { rel, text } of skillDocs()) {
         for (const name of matches(text, re)) {
             assert.ok(real.has(name), `${rel} names query "${name}", which run_canonical does not serve`);

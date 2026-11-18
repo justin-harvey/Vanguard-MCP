@@ -88,8 +88,11 @@ test('parseQueries rejects malformed definitions', () => {
         { q: { ...ok, checks: [{ id: 'c', type: 'compare', left: 'a', op: '<>', right: 'b' }] } },
         { q: { ...ok, checks: [{ id: 'c', type: 'total_matches', column: 'a', sql: 'SELECT :nope' }] } },
         { q: { ...ok, checks: [{ id: 'c', type: 'unique', columns: ['a'] }, { id: 'c', type: 'unique', columns: ['b'] }] } },
+        { q: { ...ok, checks: [{ id: 'c', type: 'empty', key: 7 }] } },
     ];
     for (const queries of bad) assert.throws(() => parseQueries(queries), NamedQueryError, JSON.stringify(queries));
+    assert.doesNotThrow(() => parseQueries({ q: { ...ok, checks: [{ id: 'c', type: 'empty' }] } }), 'empty needs no key');
+    assert.throws(() => parseQueries({ q: { ...ok, checks: [{ id: 'c', type: 'mystery' }] } }), /unique, total_matches, compare, empty/);
 });
 
 // ── arguments ─────────────────────────────────────────────────────────────
@@ -181,6 +184,39 @@ test('nulls are skipped by compare; truncation skips totals; a missing column is
 test('an empty result passes: nothing repeats, totals of zero match', () => {
     const r = evaluateChecks(CHECKS, [], { totals: { t: 0 } });
     assert.equal(r.integrity, 'pass');
+});
+
+test('the empty check: a clean (empty) result passes, any row is a finding', () => {
+    const [def] = Object.values(
+        parseQueries({
+            q: {
+                description: 'd',
+                sql: 'SELECT 1',
+                checks: [{ id: 'e', type: 'empty', key: 'policy_id', message: 'variance detected' }],
+            },
+        }),
+    );
+    const clean = evaluateChecks(def.checks, []);
+    assert.equal(clean.integrity, 'pass');
+    assert.equal(clean.findings, 0);
+    assert.equal(clean.checks[0].status, 'pass');
+
+    const flagged = evaluateChecks(def.checks, [{ policy_id: 'P-1' }, { policy_id: 'P-2' }]);
+    assert.equal(flagged.integrity, 'pass', 'a finding does not fail integrity');
+    assert.equal(flagged.findings, 1);
+    assert.equal(flagged.checks[0].status, 'flag');
+    assert.equal(flagged.checks[0].message, 'variance detected');
+    assert.deepEqual(flagged.checks[0].detail, { count: 2, rows: ['P-1', 'P-2'] });
+
+    // key-less empty check: flags with a count, no row sample
+    const [bare] = Object.values(parseQueries({ q: { description: 'd', sql: 'SELECT 1', checks: [{ id: 'e', type: 'empty' }] } }));
+    const bareFlag = evaluateChecks(bare.checks, [{ x: 1 }]);
+    assert.equal(bareFlag.checks[0].status, 'flag');
+    assert.deepEqual(bareFlag.checks[0].detail, { count: 1 });
+
+    // a key naming a column the result lacks is an error, not a silent pass
+    const missing = evaluateChecks(def.checks, [{ other: 1 }]);
+    assert.equal(missing.checks[0].status, 'error');
 });
 
 // ── the demo warehouse, end to end ────────────────────────────────────────

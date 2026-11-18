@@ -11,7 +11,15 @@ import { tmpdir } from 'node:os';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { DatabaseSync } from 'node:sqlite';
-import { dataDir, dataPath, municipalDbPath, MUNICIPAL_SQL_PATH, MUNICIPAL_ALLOWLIST_PATH } from '../src/paths.js';
+import {
+    dataDir,
+    dataPath,
+    municipalDbPath,
+    MUNICIPAL_SQL_PATH,
+    MUNICIPAL_ALLOWLIST_PATH,
+    INSURANCE_SQL_PATH,
+    INSURANCE_ALLOWLIST_PATH,
+} from '../src/paths.js';
 import { buildMunicipalDemo, municipalAllowlistPath } from '../src/municipal.js';
 
 const here = dirname(fileURLToPath(import.meta.url));
@@ -106,6 +114,22 @@ test('the bundled municipal assets match the skill copy byte for byte (one sourc
             readFileSync(join(coreAssets, coreRel)),
             readFileSync(join(skillAssets, skillRel)),
             `${coreRel} drifted between the package and the skill copy`,
+        );
+    }
+});
+
+test('the bundled insurance assets match the skill copy byte for byte (one source of truth)', () => {
+    const skillAssets = join(here, '..', '..', 'skills', 'civic-chain-auditor', 'assets');
+    assert.deepEqual(readFileSync(INSURANCE_SQL_PATH), readFileSync(join(skillAssets, 'sample_insurance_trust.sql')));
+    assert.deepEqual(readFileSync(INSURANCE_ALLOWLIST_PATH), readFileSync(join(skillAssets, 'sample_insurance_allowlist.json')));
+    // The signed ruleset and its detached signature must stay byte-identical in
+    // both copies, or the signature check diverges between package and skill.
+    const coreInsurance = join(here, '..', 'assets', 'insurance');
+    for (const f of ['ruleset.insurance-v1.json', 'ruleset.insurance-v1.json.sig']) {
+        assert.deepEqual(
+            readFileSync(join(coreInsurance, f)),
+            readFileSync(join(skillAssets, f)),
+            `${f} drifted between the package and the skill copy`,
         );
     }
 });

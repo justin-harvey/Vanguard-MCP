@@ -37,6 +37,10 @@ export function assetPath(...parts) {
 export const MUNICIPAL_SQL_PATH = assetPath('municipal', 'sample_municipal_budget.sql');
 export const MUNICIPAL_ALLOWLIST_PATH = assetPath('municipal', 'sample_allowlist.json');
 
+/** The bundled insurance demo (the Insurance & Fiduciary pack's seed and allow-list). */
+export const INSURANCE_SQL_PATH = assetPath('insurance', 'sample_insurance_trust.sql');
+export const INSURANCE_ALLOWLIST_PATH = assetPath('insurance', 'sample_insurance_allowlist.json');
+
 /** The per-user directory the engine writes seeded warehouses and logs into. */
 export function dataDir({ env = process.env, platform = process.platform } = {}) {
     if (env.CIVIC_DATA_DIR) return env.CIVIC_DATA_DIR;

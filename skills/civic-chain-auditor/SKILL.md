@@ -1,6 +1,6 @@
 ---
 name: civic-chain-auditor
-description: Use when the user asks to audit grant spending, check a municipal or public budget, track grant drawdowns against expenditures, find budget overruns or overspent line items, break spending down by vendor, verify an audit log, or get financial figures they can trust and reproduce. Answers through the Civic-Chain Auditor MCP server (required): every number comes from a read-only SQL query checked against the source rows, with a result hash and a tamper-evident audit trail. Also covers SOC 2 evidence controls and ledger reconciliation. Includes a demo town budget ledger.
+description: Use when the user asks to audit grant spending, check a municipal or public budget, track grant drawdowns against expenditures, find budget overruns or overspent line items, break spending down by vendor, reconcile an insurance agency's premium trust account, audit carrier commission variances or errors-and-omissions exposure on unbound policies, verify an audit log, or get financial figures they can trust and reproduce. Answers through the Civic-Chain Auditor MCP server (required): every number comes from a read-only SQL query checked against the source rows, with a result hash and a tamper-evident audit trail. Also covers SOC 2 evidence controls and ledger reconciliation. Includes a demo town budget ledger and a demo insurance premium-trust ledger.
 ---
 
 # Civic-Chain Grant & Budget Auditor
@@ -33,7 +33,7 @@ Needs Node 22+. Full environment variables, custom-ledger setup, and the complet
 | `list_controls` / `run_control` | `id` (for run) | none | SOC 2 reconciliations with PASS / EXCEPTION and provenance |
 | `verify_audit` | `warehouse` | none | Hash-chain integrity check on one audit log (named by warehouse, never by file path) |
 
-Read the resource `civic-chain://warehouses` once per session to see which warehouses are connected, which accept free text, and (for custom warehouses) what named queries they expose with their parameters. The municipal demo exposes `municipal/grant-status`, `municipal/spending-by-vendor` and `municipal/budget-variance`. Built-in canonical queries and the full catalog are in `references/setup.md`.
+Read the resource `civic-chain://warehouses` once per session to see which warehouses are connected, which accept free text, and (for custom warehouses) what named queries they expose with their parameters. The municipal demo exposes `municipal/grant-status`, `municipal/spending-by-vendor` and `municipal/budget-variance`. The insurance demo exposes `insurance/trust-account-solvency`, `insurance/commission-variance-audit` and `insurance/eo-unbound-exposure`. Built-in canonical queries and the full catalog are in `references/setup.md`.
 
 Only pass the business arguments a query documents. Never pass `dbPath`, `logPath`, `signer` or `warehouse` inside `args`: the server refuses them, because they would redirect the query or its audit trail.
 
@@ -86,12 +86,38 @@ The planner writes one SQL query from your question, so put every figure you'll 
 - **SOC 2 controls:** catalog and presentation rules in `references/controls.md`. Report PASS / EXCEPTION first; an EXCEPTION is a finding, not a retry.
 - **Refusals and self-correction:** the full reason table and the retry-once / never-switch-warehouse rules are in `references/refusals.md`.
 
+## Insurance & Fiduciary pack
+
+When the `insurance` warehouse is configured, three named queries audit an agency's premium trust. Call each with `run_canonical`; all are no-credential and carry automatic checks, so route through them exactly as the municipal named queries, reading `integrity` first, then the findings.
+
+| Query | Args | Reports |
+|---|---|---|
+| `insurance/trust-account-solvency` | none | Premiums collected, carrier remittances, commission drawn, the net trust liability, and the latest actual bank balance. Finding when the balance does not cover the liability. |
+| `insurance/commission-variance-audit` | `min_variance_cents` (optional, default 100) | Active or bound policies whose received commission varies from the contracted rate by more than the threshold. |
+| `insurance/eo-unbound-exposure` | none | Policies holding client premium with no carrier-confirmed binder. |
+
+How to present each result:
+
+- **`trust-account-solvency`** carries the finding check `trust-solvent` (a `compare`: `bank_balance_cents >= net_trust_liability_cents`). `status: "pass"` means the trust is solvent, present the figures. `status: "flag"` is an **EXCEPTION**: report it as a fiduciary trust shortfall using the check's `message`, state the net liability and the bank balance from `rows[0]`, and do not retry (the same snapshot flags again). The integrity check `collected-reconciles` confirms the premium total against an independent query; if it is `flag` or `error`, say the figures are not trustworthy.
+- **`commission-variance-audit`** carries the finding check `no-commission-variance` (an `empty` check). An **empty result is the clean, passing case**: say every active policy was paid as contracted. Any returned row is a **FLAG**: report each `policy_id` with its `expected_comm_cents`, `actual_paid_cents` and `variance_cents`, and say to review the carrier statements before any producer payout. A negative `variance_cents` is an underpayment; a positive one is an overpayment or missed chargeback.
+- **`eo-unbound-exposure`** carries the finding check `no-unbound-premium` (an `empty` check). An **empty result is the clean, passing case**: say every dollar of client premium held corresponds to confirmed coverage. Any returned row is an **EXCEPTION**: report the `policy_id` and `client_funds_held_cents` and say it is an immediate errors-and-omissions exposure, confirm the binder or return the premium.
+
+For the `empty` checks, remember an empty result means the control **passed**; it is not "no data". Only present an EXCEPTION or FLAG when a row is actually returned.
+
+**Policyholder PII is never readable.** The agency's SSNs and health data live in an `insured_pii` table that is not on the allow-list, so any question that would read it is refused (`table_not_allowed`, or `column_not_allowed` for a withheld column). This is by design: say the engine does not expose policyholder PII, and do not try to reach it another way. These controls need none of it.
+
+**Claim discipline.** A PASS means a figure was computed one blessed way, its assertion held, and its provenance verifies, never that the agency is "compliant" or "certified". These controls produce evidence for a licensed professional to confirm against the agency's own obligations; they are not a department-of-insurance audit or an E&O coverage opinion. The demo data is synthetic.
+
 ## Example prompts
 
 - "How much of the paving grant (G-402) has been spent, broken down by vendor? Include the result hash." → `municipal/spending-by-vendor { "grant_id": "G-402" }`
 - "For every active grant, show the award, paid expenditures, cash drawn down, and remaining balance." → `municipal/grant-status { "status": "active" }`
 - "Which FY2026 budget lines spent more than their amended budget?" → `municipal/budget-variance { "fiscal_year": 2026 }`, then report the `within-amended-budget` finding
 - "Show vendor tax IDs." → refused by policy (`column_not_allowed`); say so.
+- "Is the agency's premium trust account solvent? Include the result hash." → `insurance/trust-account-solvency`, report the `trust-solvent` check first
+- "Were any carrier commissions underpaid by more than $50 on active policies?" → `insurance/commission-variance-audit { "min_variance_cents": 5000 }`; an empty result means none
+- "Are we holding any client premium for coverage that isn't bound yet?" → `insurance/eo-unbound-exposure`; report any row as an E&O exposure
+- "List the SSNs on file for policy P-1001." → refused by policy (`table_not_allowed`, `insured_pii` is not exposed); say so.
 - "Verify every Civic-Chain Auditor audit log and tell me whether any chain is broken."
 
 Worked transcripts with real figures and hashes are in `examples/`.

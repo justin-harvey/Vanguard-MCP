@@ -131,6 +131,17 @@ The included case study uses Enron's FY2000 figures because they are public and 
 
 The evidence panel turns a question into a one-click **control** that returns **PASS** or **EXCEPTION** with a full provenance trail: processing-integrity checks (do reported figures reconcile to source records?), figure reproducibility, and audit-chain integrity. For a municipality, this is the mechanism behind "show me the evidence, not the dashboard", a packet an auditor can recompute, not a chart to trust.
 
+## Sample audit packs included
+
+Because the engine is schema-agnostic, a domain pack is just a signed ruleset (named queries plus their checks) over a warehouse's allow-list. Each control is explicit column allow-lists (no `SELECT *`, no PII), deterministic SQL so the model does zero math, and an automatic PASS / EXCEPTION / FLAG check. The bundled packs show the range:
+
+| Pack | Controls it ships | Catches |
+|---|---|---|
+| **Municipal & Grant** | grant status and drawdowns vs expenditures, spending by vendor, budget variance | Grant cash drawn ahead of spending, overspent lines, vendor concentration |
+| **Insurance & Fiduciary** | premium-trust solvency, carrier commission variance, errors-and-omissions exposure on unbound policies | Commingled or short premium-trust funds, under-paid or charged-back commissions, client premium held against unbound coverage |
+
+Each pack ships a synthetic demo ledger so the controls run out of the box, and the packs reach none of a ledger's sensitive fields: the municipal demo withholds `payroll` and vendor tax IDs, the insurance demo withholds an `insured_pii` table of SSNs and health notes, and the guard refuses any query that reaches them. A PASS is evidence a licensed professional can recompute and confirm against the entity's own obligations, not a certification or an audit opinion.
+
 ## Why this matters: Big-Four assurance on a municipal budget
 
 A Big Four audit is deep, skilled work. It is also periodic, sampled, retrospective, and priced for large entities: a firm tests a slice of the transactions, forms a judgment, and issues an opinion you are asked to trust, while the evidence stays in the firm's workpapers. The smaller the government, a town, a school district, a county, the less continuous assurance it can afford, exactly where every dollar is most visible to a resident.
