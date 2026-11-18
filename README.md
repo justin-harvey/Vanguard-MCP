@@ -4,7 +4,7 @@ From [civic-chain.com](https://civic-chain.com). Live demo: https://vanguard-mcp
 
 **Public money, verified.** Ask a plain-English question about a budget, a grant, or a line of spending and get an answer in which *every figure* has been checked against the source records before you see it, or an explicit refusal. Never an unverified number presented as fact.
 
-[![Core tests](https://img.shields.io/badge/core-165%20tests%2C%20offline-blue.svg)](vanguard-core/)
+[![Core tests](https://img.shields.io/badge/core-329%20tests%2C%20offline-blue.svg)](vanguard-core/)
 [![Licence: Civic-Chain Commercial, source-available](https://img.shields.io/badge/licence-source--available-informational.svg)](LICENSE)
 
 The issue is that AI is excellent at turning a question into SQL, and terrible at being trusted with the math. So we took the AI out of the equation. The LLM (AI) writes a query, a read-only database returns the rows, and a verifier checks that every number in the prose actually came from those rows. What you get back is either a grounded answer with a full provenance trail, or an explicit refusal. Never an unverified paragraph presented as fact.
@@ -56,7 +56,7 @@ The external anchor **does not have to be a blockchain**, publishing each checkp
 
 | Path | What it is |
 |------|-----------|
-| [`vanguard-core/`](vanguard-core/) | **The working engine.** A Node.js CLI and library implementing the full pipeline above: guard, read-only warehouse, grounding verifier, lineage capture, and a tamper-evident audit chain. 165 tests, no API credential required to run them. |
+| [`vanguard-core/`](vanguard-core/) | **The working engine.** A Node.js CLI and library implementing the full pipeline above: guard, read-only warehouse, grounding verifier, lineage capture, a tamper-evident audit chain, a CSV importer that builds a guarded warehouse from a buyer's own ledger, signed domain rulesets, and a one-command shareable audit report. 329 tests, no API credential required to run them. |
 | [`site/`](site/) | **The web demo.** A static site: the thesis, the reporting-gap case study, and the evidence panel. |
 | [`site/enron.html`](site/enron.html) | **The reporting-gap case study**, reported figures set against what the underlying rows support, each grounded and hash-chained. |
 | [`site/controls.html`](site/controls.html) | **The evidence panel**, one-click controls that return PASS/EXCEPTION with a verifiable evidence trail. |
@@ -114,7 +114,7 @@ Because the engine is bundled, it is downloadable from the page. That is accepte
 
 Step by step:
 
-1. **Setup (once).** `scripts/verify-setup.js` checks the core and prints an `mcpServers` block; pasting it into the host and restarting registers the server. The host then launches `node vanguard-core/bin/vanguard.js mcp`, a stdio MCP server exposing the same tools (`run_canonical`, `execute_financial_query`, `list_controls` / `run_control`, `verify_audit`) and the `civic-chain://warehouses` resource.
+1. **Setup (once).** `scripts/verify-setup.js` checks the core and prints an `mcpServers` block; pasting it into the host and restarting registers the server. The host then launches `node vanguard-core/bin/vanguard.js mcp`, a stdio MCP server exposing the same tools (`run_canonical`, `run_query` and `verify_answer` for credential-free open-ended SQL, `execute_financial_query`, `list_controls` / `run_control`, `verify_audit`, and `propose_csv_mapping` / `import_csv` when an import folder is configured) and the `civic-chain://warehouses` resource.
 2. **The host routes the question.** Guided by `SKILL.md`, the model reads `civic-chain://warehouses` to see what is connected, then prefers a named canonical query (`run_canonical` on `<warehouse>/<query>`, credential-free, operator-fixed definitions, and automatic integrity checks) and falls back to `execute_financial_query` only for free-text questions on a warehouse that permits them. It phrases the question so the SQL returns every figure it will quote, because a figure the query did not return cannot be grounded.
 3. **The MCP server runs the same pipeline** the HTTP path does: guard, read-only execute, grounding, lineage, hash-chained audit. A malformed or out-of-policy request is refused by the engine, not by the skill; the refusal is the system working.
 4. **The host presents the result in three parts** and does no arithmetic of its own: the grounded answer (figures exactly as returned), the provenance (executed SQL, tables and columns, row count), and the audit trail (result hash, audit sequence and entry hash, each check's verdict). For a named query it reads `integrity` before anything else: an `integrity: "flag"` result must not be presented as fact, and each `finding` is an audit observation about the ledger, not an error.
@@ -165,7 +165,7 @@ None of the underlying parts are new, guarded text-to-SQL, verification of AI-ge
 cd vanguard-core
 npm install
 npm run seed            # build the demo warehouse
-npm test                # 165 tests, no credential required
+npm test                # 329 tests, no credential required
 
 # Reporting-gap case study (no credential, real 10-K anchors, synthetic rows)
 node bin/vanguard.js enron seed
@@ -179,6 +179,15 @@ node bin/vanguard.js controls run PI1.2-enron-debt-reconciliation
 # Verify the tamper-evident audit chain end to end
 node bin/vanguard.js audit
 
+# Signed domain rulesets (the query packs: municipal, insurance)
+node bin/vanguard.js ruleset list
+node bin/vanguard.js ruleset show insurance-v1
+
+# Build a guarded warehouse from your own ledger (local only, no credential)
+node bin/vanguard.js import spending.csv                      # propose a column mapping, writes nothing
+node bin/vanguard.js import spending.csv --map mapping.json   # confirm the mapping and build
+node bin/vanguard.js report --warehouse municipal --out report.html   # a shareable evidence report
+
 # Ask in plain English, planning and narration call a model (set the key first)
 export ANTHROPIC_API_KEY=...
 node bin/vanguard.js ask "your question about the seeded demo data"
@@ -190,7 +199,7 @@ The guard, the warehouse, the lineage record, and the audit chain all run with n
 
 In keeping with the project's own discipline about claims:
 
-- **Real:** the guard (table and column allow-lists, a query budget, a row-level scope hook driven by an authenticated principal), read-only enforcement behind a warehouse-connector interface, unit-aware grounding, lineage capture and hashing, the hash-chained audit log with Ed25519 signing and a pluggable external-anchoring hook, a first-class metric registry, the CLI, and the offline test suite (165 tests, no credential).
+- **Real:** the guard (table and column allow-lists, a query budget, a row-level scope hook driven by an authenticated principal), read-only enforcement behind a warehouse-connector interface, unit-aware grounding, lineage capture and hashing, the hash-chained audit log with Ed25519 signing, an RFC 9162 Merkle checkpoint and a pluggable external-anchoring hook, a first-class metric registry, the CSV importer (buyer's ledger to a guarded warehouse, each source file recorded by SHA-256), the signed domain rulesets (municipal and insurance) with their automatic integrity and finding checks, the shareable audit report, the CLI, and the offline test suite (329 tests, no credential).
 - **Synthetic:** the demo warehouse **values**, generated deterministically so the same question always produces the same result hash. The reporting-gap study's *aggregates* reconcile to real, cited FY2000 10-K figures; its transaction rows and off-balance-sheet amounts are synthetic and labelled. For a tool about traceable figures, fabricated data clearly labelled as fabricated is fine; fabricated data presented as real is the exact failure this project exists to prevent.
 - **Not a compliance claim:** audit entries carry tags like `processing-integrity` because the query path is read-only over a schema with no personal data, a true statement about this configuration, not a certification. What this produces is *evidence*: a query, its provenance, a reproducible hash of its result, and a chain showing the record has not been edited since.
 
