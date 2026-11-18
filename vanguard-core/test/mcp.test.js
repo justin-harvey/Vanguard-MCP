@@ -7,12 +7,16 @@
 
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdtempSync, existsSync } from 'node:fs';
+import { mkdtempSync, existsSync, readFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { join } from 'node:path';
+import { dirname, join } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { seedEnron } from '../src/enron.js';
 import { listTools, callTool, listResources, readResource } from '../src/mcp.js';
 import { warehouseSchema, getWarehouse } from '../src/warehouses.js';
+import { parseCsv, proposeMapping, CANONICAL_GRANT_FIELDS } from '../src/import-csv.js';
+
+const FIXTURE_DIR = join(dirname(fileURLToPath(import.meta.url)), 'fixtures');
 
 function freshDb(tag) {
     return join(mkdtempSync(join(tmpdir(), `vanguard-mcp-${tag}-`)), 'enron.db');
@@ -158,4 +162,94 @@ test('execute_financial_query refuses a non-SaaS warehouse without calling a mod
     const out = await callTool('execute_financial_query', { question: 'net position?', warehouse: 'markets' });
     assert.equal(out.ok, false);
     assert.equal(out.reason, 'warehouse_not_supported');
+});
+
+// ── CSV import tools, with the grant-register second file (MCP surface) ──────
+//
+// The import tools only advertise when an import folder is configured. These
+// drive the same multi-file path the CLI's --grants/--grants-map flags use,
+// over the MCP surface, so the agent loop can turn an empty grant-status into a
+// meaningful one. env is set per test and restored, because the import folder's
+// presence changes the advertised tool list.
+
+/** Run `fn` with CIVIC_IMPORT_DIR/CIVIC_DATA_DIR set, restoring both after. */
+async function withImportFolder(fn) {
+    const prev = { imp: process.env.CIVIC_IMPORT_DIR, data: process.env.CIVIC_DATA_DIR };
+    process.env.CIVIC_IMPORT_DIR = FIXTURE_DIR;
+    process.env.CIVIC_DATA_DIR = mkdtempSync(join(tmpdir(), 'vanguard-mcp-import-'));
+    try {
+        return await fn();
+    } finally {
+        for (const [k, v] of [['CIVIC_IMPORT_DIR', prev.imp], ['CIVIC_DATA_DIR', prev.data]]) {
+            if (v === undefined) delete process.env[k]; else process.env[k] = v;
+        }
+    }
+}
+
+/** The confirmed mapping proposeMapping suggests for a fixture CSV. */
+function mappingFor(file, fields) {
+    const { headers, rows } = parseCsv(readFileSync(join(FIXTURE_DIR, file), 'utf8'));
+    return proposeMapping(headers, rows, fields).mapping;
+}
+
+test('the import tools are advertised only when an import folder is configured', async () => {
+    assert.ok(!listTools().some((t) => t.name === 'import_csv'), 'no import folder: import tools must be hidden');
+    await withImportFolder(() => {
+        const names = listTools().map((t) => t.name);
+        assert.ok(names.includes('propose_csv_mapping') && names.includes('import_csv'));
+        // The grant second file is part of the advertised contract.
+        const importTool = listTools().find((t) => t.name === 'import_csv');
+        assert.ok(importTool.inputSchema.properties.grantFile);
+        assert.ok(importTool.inputSchema.properties.grantMapping);
+    });
+});
+
+test('propose_csv_mapping proposes the grant-register mapping when grantFile is given', async () => {
+    await withImportFolder(async () => {
+        const out = await callTool('propose_csv_mapping', {
+            file: 'riverton_grant_expenditures.csv',
+            grantFile: 'riverton_grant_register.csv',
+        });
+        assert.equal(out.missingRequired.length, 0);
+        assert.ok(out.grantRegister, 'expected a grant-register proposal');
+        assert.equal(out.grantRegister.file, 'riverton_grant_register.csv');
+        assert.deepEqual(out.grantRegister.missingRequired, []);
+        assert.equal(out.grantRegister.mapping.grant_id, 'Grant ID');
+        assert.equal(out.grantRegister.mapping.award_amount, 'Award');
+    });
+});
+
+test('import_csv applies a grant register so grant-status measures real awards', async () => {
+    await withImportFolder(async () => {
+        const out = await callTool('import_csv', {
+            file: 'riverton_grant_expenditures.csv',
+            mapping: mappingFor('riverton_grant_expenditures.csv'),
+            grantFile: 'riverton_grant_register.csv',
+            grantMapping: mappingFor('riverton_grant_register.csv', CANONICAL_GRANT_FIELDS),
+        });
+        // The register was applied and recorded as its own source-hash entry.
+        assert.ok(out.grantRegister, 'expected a grant-register result');
+        assert.equal(out.grantRegister.counts.updated, 2);
+        assert.equal(out.grantRegister.counts.inserted, 1);
+        assert.notEqual(out.grantRegister.sourceFileSha256, out.sourceFileSha256);
+        assert.equal(out.grantRegister.audit.seq, 1); // #0 import, #1 import-grants
+        // grant-status is now meaningful: three grants, clean integrity.
+        const grantStatus = out.gate.queries.find((q) => q.name === 'grant-status');
+        assert.equal(grantStatus.rowCount, 3);
+        assert.equal(grantStatus.integrity, 'pass');
+        assert.equal(grantStatus.findings, 0);
+    });
+});
+
+test('import_csv refuses a grant file without a confirmed grant mapping', async () => {
+    await withImportFolder(async () => {
+        await assert.rejects(
+            () => callTool('import_csv', {
+                file: 'riverton_grant_expenditures.csv',
+                mapping: mappingFor('riverton_grant_expenditures.csv'),
+                grantFile: 'riverton_grant_register.csv',
+            }),
+            /grants-map/,
+        );
+    });
 });

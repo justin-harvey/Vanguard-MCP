@@ -5,6 +5,28 @@ The project follows [Semantic Versioning](https://semver.org/): MAJOR.MINOR.PATC
 
 ## [Unreleased]
 
+### Added — security policy + published signing key (V1, part)
+- **`SECURITY.md`** at the repo root and inside the npm package (added to the
+  package `files`): how to report a vulnerability (`info@civic-chain.com`), a
+  plain statement of what runs locally (no telemetry, no Civic-Chain servers in
+  the data path, read-only by construction), and the **ruleset signing key
+  published for pinning** — key id `acb80e87885da931`, full SPKI DER SHA-256
+  fingerprint, and the `openssl` one-liner to recompute it from the bundled
+  `assets/civic-chain-ruleset-pub.pem`. A ruleset whose `signedBy` does not match
+  the published key id is untrusted. README links it from the repo map.
+
+### Added — grant-register import over MCP
+- The multi-file grant-register import (the CLI's `--grants`/`--grants-map`) is
+  now exposed over the MCP surface so the agent loop can drive it:
+  `propose_csv_mapping` takes an optional **`grantFile`** and returns the
+  proposed grant-register mapping under `grantRegister`; `import_csv` takes
+  optional **`grantFile` + `grantMapping`** and applies the register onto the
+  just-built ledger, recording its own source-SHA-256 audit entry, so
+  `municipal/grant-status` measures spending against real award amounts instead
+  of award-0 placeholders. Both route through the existing `runImport`; the tool
+  names are unchanged. New `test/mcp.test.js` coverage (advertise-gate, propose,
+  apply, and the refusal when a grant file is given with no confirmed mapping).
+
 ### Added — rulesets as the product (S9)
 - The named queries and their checks are now a **versioned, signed Civic-Chain
   ruleset**, separate from the buyer's access policy (the allow-list). Every

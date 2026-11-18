@@ -27,7 +27,8 @@
     "db/*.md",
     "assets/",
     "LICENSE",
-    "README.md"
+    "README.md",
+    "SECURITY.md"
   ],
   "publishConfig": {
     "access": "public",

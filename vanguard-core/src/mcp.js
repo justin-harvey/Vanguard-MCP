@@ -155,10 +155,15 @@ function importTools() {
             name: 'propose_csv_mapping',
             description:
                 'Read the headers (and a sample of rows) of a CSV in the import folder and propose a column mapping ' +
-                'onto the canonical municipal schema. Reads only; writes nothing. The human confirms the mapping before import_csv.',
+                'onto the canonical municipal schema. Reads only; writes nothing. The human confirms the mapping before import_csv. ' +
+                'Pass grantFile to also propose a mapping for a grant-register CSV (award amounts, grantor type, status) imported ' +
+                'alongside the expenditures; its proposal is returned under grantRegister.',
             inputSchema: {
                 type: 'object',
-                properties: { file: { type: 'string', description: 'CSV file name within the import folder' } },
+                properties: {
+                    file: { type: 'string', description: 'expenditure CSV file name within the import folder' },
+                    grantFile: { type: 'string', description: 'optional grant-register CSV file name within the import folder, to propose its mapping too' },
+                },
                 required: ['file'],
                 additionalProperties: false,
             },
@@ -168,12 +173,16 @@ function importTools() {
             description:
                 'Import a CSV from the import folder with a confirmed column mapping: builds a canonical ledger, records the ' +
                 "source file's SHA-256 as an audit entry, and runs the three named queries. Local only. The file is read by name " +
-                'from the configured import folder; pasted data and absolute paths are refused.',
+                'from the configured import folder; pasted data and absolute paths are refused. ' +
+                'Pass grantFile + grantMapping to apply a grant register onto the ledger in the same import, so municipal/grant-status ' +
+                'measures spending against real award amounts; the register records its own source-SHA-256 audit entry.',
             inputSchema: {
                 type: 'object',
                 properties: {
-                    file: { type: 'string', description: 'CSV file name within the import folder' },
+                    file: { type: 'string', description: 'expenditure CSV file name within the import folder' },
                     mapping: { type: 'object', description: 'confirmed mapping, canonical field -> CSV column (from propose_csv_mapping)' },
+                    grantFile: { type: 'string', description: 'optional grant-register CSV file name within the import folder' },
+                    grantMapping: { type: 'object', description: 'confirmed grant-register mapping (from propose_csv_mapping grantRegister); required when grantFile is given' },
                 },
                 required: ['file', 'mapping'],
                 additionalProperties: false,
@@ -376,11 +385,21 @@ export async function callTool(name, args = {}, { client, overrides = {} } = {})
 
         case 'propose_csv_mapping': {
             // Read-only: headers in, a proposed mapping out, nothing written. The
-            // file name is confined to the import folder inside runImport.
+            // file name is confined to the import folder inside runImport. A
+            // grantFile proposes the grant-register mapping in the same pass.
             if (!importDir()) throw new Error('No import folder is configured (set CIVIC_IMPORT_DIR).');
             const { runImport } = await import('./import.js');
-            const r = await runImport({ file: args.file, mapping: null });
-            return { file: r.file, mapping: r.mapping, fields: r.fields, unmappedHeaders: r.unmappedHeaders, missingRequired: r.missingRequired };
+            const r = await runImport({
+                file: args.file,
+                mapping: null,
+                grantRegister: args.grantFile ? { file: args.grantFile, mapping: null } : null,
+            });
+            const out = { file: r.file, mapping: r.mapping, fields: r.fields, unmappedHeaders: r.unmappedHeaders, missingRequired: r.missingRequired };
+            if (r.grantRegister) {
+                const g = r.grantRegister;
+                out.grantRegister = { file: g.file, mapping: g.mapping, fields: g.fields, unmappedHeaders: g.unmappedHeaders, missingRequired: g.missingRequired };
+            }
+            return out;
         }
 
         case 'import_csv': {
@@ -389,7 +408,12 @@ export async function callTool(name, args = {}, { client, overrides = {} } = {})
             // and mapping paths are server-derived (data dir), never from the wire.
             if (!importDir()) throw new Error('No import folder is configured (set CIVIC_IMPORT_DIR).');
             const { runImport } = await import('./import.js');
-            const r = await runImport({ file: args.file, mapping: args.mapping, signer: loadSigner() });
+            const r = await runImport({
+                file: args.file,
+                mapping: args.mapping,
+                grantRegister: args.grantFile ? { file: args.grantFile, mapping: args.grantMapping ?? null } : null,
+                signer: loadSigner(),
+            });
             return {
                 file: r.file,
                 counts: r.counts,
@@ -398,6 +422,7 @@ export async function callTool(name, args = {}, { client, overrides = {} } = {})
                 canonicalSchemaVersion: r.canonicalSchemaVersion,
                 mapping: r.mapping,
                 audit: r.audit,
+                grantRegister: r.grantRegister,
                 gate: r.gate,
                 dbPath: r.paths.dbPath,
                 allowlistPath: r.paths.allowlistPath,

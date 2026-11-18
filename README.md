@@ -63,6 +63,7 @@ The external anchor **does not have to be a blockchain**, publishing each checkp
 | [`site/value.html`](site/value.html) | **The value-proposition page**, why this brings Big-Four-caliber assurance to a municipality at software cost. |
 | [`skills/civic-chain-auditor/`](skills/civic-chain-auditor/SKILL.md) | **The agent skill**, teaches an MCP host (Claude, Cursor, etc.) to route questions to the right tool, handle guard refusals, and present every figure with its result hash and audit entry. |
 | [`HASHING.md`](HASHING.md) | **The hashing explainer**, the result hash vs the entry hash, the chain, and the signing/anchoring layers above it, in full. |
+| [`SECURITY.md`](SECURITY.md) | **The security policy**, how to report a vulnerability, what runs locally (no telemetry), and the ruleset signing key's published fingerprint so you can pin it. |
 | [`COMPARISON.md`](COMPARISON.md) | **The landscape**, how this relates to and differs from governed text-to-SQL, claim verifiers, and database ledgers. |
 
 The demo makes the case; the core makes it executable. Start with the [`vanguard-core/` README](vanguard-core/README.md) for the full technical account.
