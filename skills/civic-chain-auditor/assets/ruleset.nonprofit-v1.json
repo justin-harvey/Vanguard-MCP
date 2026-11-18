@@ -1,0 +1,155 @@
+{
+  "name": "nonprofit",
+  "version": "nonprofit-v1",
+  "changelog": [
+    "nonprofit-v1: initial Civic-Chain Nonprofit Restricted Funds ruleset — restricted-spending (an expense charged to a donor-restricted fund outside its purpose or time window), releases-vs-spending (more released from a restriction than the qualifying spending that justified it), functional-expense-tie (the ASC 958 nature-by-function expense grid against total expenses), restricted-cash-coverage (liquid assets against net assets with donor restrictions) and single-audit-threshold (federal spending at or over the Single Audit trigger), with integrity (unique, total_matches) and finding (compare, empty) checks. These controls encode a reasonable interpretation of ASC 958 as amended by ASU 2016-14 (net assets with and without donor restrictions, releases from restriction, and expenses analyzed by both nature and function) and the Single Audit requirement in 2 CFR 200.501. The Single Audit trigger is a parameter (threshold_cents, default 100,000,000 cents, the $1,000,000 threshold for fiscal years beginning on or after October 1, 2024), so an OMB change is a parameter or version bump, not new SQL. They produce evidence for a licensed professional or an auditor under Uniform Guidance to confirm against the standards that apply; they are not a financial-statement or Single Audit, and not a compliance certification."
+  ],
+  "queries": {
+    "restricted-spending": {
+      "description": "Every expense charged to a donor-restricted fund that falls outside the fund's restriction: either for a program other than the fund's purpose (program_code does not equal the fund's purpose_code), or dated outside the fund's time window. Use for 'was any restricted money misspent' and donor-restriction questions. Unrestricted funds are not examined. An empty result means every restricted-fund expense is within its purpose and window.",
+      "params": {
+        "fiscal_year": {
+          "type": "integer",
+          "description": "Examine only this fiscal year, e.g. 2026. Omit to examine every year."
+        }
+      },
+      "sql": "SELECT e.expense_id, e.fiscal_year, e.fund_id, e.program_code, f.purpose_code, e.expense_date, f.window_start, f.window_end, e.amount_cents, CASE WHEN e.program_code <> f.purpose_code THEN 'OUT_OF_PURPOSE' ELSE 'OUT_OF_WINDOW' END AS reason FROM expenses e JOIN funds f ON f.fund_id = e.fund_id WHERE f.restriction_class = 'RESTRICTED' AND (e.program_code <> f.purpose_code OR e.expense_date < f.window_start OR e.expense_date > f.window_end) AND (:fiscal_year IS NULL OR e.fiscal_year = :fiscal_year) ORDER BY e.expense_id",
+      "checks": [
+        {
+          "id": "one-row-per-expense",
+          "type": "unique",
+          "columns": [
+            "expense_id"
+          ]
+        },
+        {
+          "id": "no-restricted-misspending",
+          "type": "empty",
+          "key": "expense_id",
+          "message": "An expense charged to a donor-restricted fund is outside its purpose or time window. Confirm the fund's restriction and the coding before relying on the figure; restricted money spent outside the restriction may need to be reclassed or refunded."
+        }
+      ]
+    },
+    "releases-vs-spending": {
+      "description": "Per donor-restricted fund: the amount released from restriction in the period against the qualifying spending that justified it (expenses for the fund's purpose, inside its window). Use for 'were restrictions released before the money was used' questions. ASC 958 releases a restriction as it is met; the released amount must not exceed the qualifying spending.",
+      "params": {
+        "fiscal_year": {
+          "type": "integer",
+          "description": "Scope releases and qualifying spending to this fiscal year, e.g. 2026. Omit for all years."
+        }
+      },
+      "sql": "SELECT f.fund_id, f.fund_name, COALESCE((SELECT SUM(r.released_cents) FROM restriction_releases r WHERE r.fund_id = f.fund_id AND (:fiscal_year IS NULL OR r.fiscal_year = :fiscal_year)), 0) AS released_cents, COALESCE((SELECT SUM(e.amount_cents) FROM expenses e WHERE e.fund_id = f.fund_id AND e.program_code = f.purpose_code AND e.expense_date >= f.window_start AND e.expense_date <= f.window_end AND (:fiscal_year IS NULL OR e.fiscal_year = :fiscal_year)), 0) AS qualifying_spending_cents FROM funds f WHERE f.restriction_class = 'RESTRICTED' ORDER BY f.fund_id",
+      "checks": [
+        {
+          "id": "one-row-per-fund",
+          "type": "unique",
+          "columns": [
+            "fund_id"
+          ]
+        },
+        {
+          "id": "release-within-spending",
+          "type": "compare",
+          "left": "released_cents",
+          "op": "<=",
+          "right": "qualifying_spending_cents",
+          "key": "fund_id",
+          "message": "More was released from a fund's donor restriction than the qualifying spending that justified it. A restriction is released as it is met; confirm the spending and the release before relying on the figure."
+        }
+      ]
+    },
+    "functional-expense-tie": {
+      "description": "The statement of functional expenses as a grid: every expense summed by natural classification (nature_code) and functional classification (function_class), for a fiscal year. Use for 'does the functional expense statement tie' and ASC 958 functional-analysis questions. The grid must sum to total expenses and carry no negative cell.",
+      "params": {
+        "fiscal_year": {
+          "type": "integer",
+          "description": "Build the grid for this fiscal year, e.g. 2026. Omit to grid every year together."
+        }
+      },
+      "sql": "SELECT e.nature_code, e.function_class, (e.nature_code || '/' || e.function_class) AS cell, SUM(e.amount_cents) AS amount_cents FROM expenses e WHERE (:fiscal_year IS NULL OR e.fiscal_year = :fiscal_year) GROUP BY e.nature_code, e.function_class ORDER BY e.nature_code, e.function_class",
+      "checks": [
+        {
+          "id": "one-row-per-cell",
+          "type": "unique",
+          "columns": [
+            "nature_code",
+            "function_class"
+          ]
+        },
+        {
+          "id": "grid-ties-total",
+          "type": "total_matches",
+          "column": "amount_cents",
+          "sql": "SELECT COALESCE(SUM(amount_cents), 0) AS total FROM expenses WHERE (:fiscal_year IS NULL OR fiscal_year = :fiscal_year)"
+        },
+        {
+          "id": "no-negative-cell",
+          "type": "compare",
+          "left": "amount_cents",
+          "op": ">=",
+          "right": 0,
+          "key": "cell",
+          "message": "A cell of the functional-expense grid is negative. A negative nature-by-function total signals a misclassification or an uncorrected reversal that distorts the functional presentation; review the coding before relying on the statement."
+        }
+      ]
+    },
+    "restricted-cash-coverage": {
+      "description": "The organization's liquid assets (cash and investments) against its net assets with donor restrictions, as of a date. Use for 'is restricted money still on hand' and 'were restricted funds spent into operations' questions. A flag here is an investigative finding, not an error: liquid assets below the restricted net asset balance suggest donor-restricted money has been spent on operations.",
+      "params": {
+        "as_of": {
+          "type": "string",
+          "description": "Evaluate balances as of this date (YYYY-MM-DD); later snapshots are excluded. Omit for the latest snapshot."
+        }
+      },
+      "sql": "SELECT (SELECT COALESCE(SUM(ab.balance_cents), 0) FROM account_balances ab WHERE (ab.account_type = 'CASH' OR ab.account_type = 'INVESTMENT') AND ab.as_of = (SELECT MAX(as_of) FROM account_balances WHERE as_of <= COALESCE(:as_of, '9999-12-31'))) AS liquid_cents, COALESCE(SUM(CASE WHEN na.restriction_class = 'WITH_DONOR_RESTRICTIONS' THEN na.balance_cents ELSE 0 END), 0) AS restricted_na_cents FROM net_assets na WHERE na.as_of = (SELECT MAX(as_of) FROM net_assets WHERE as_of <= COALESCE(:as_of, '9999-12-31'))",
+      "checks": [
+        {
+          "id": "restricted-na-recompute",
+          "type": "total_matches",
+          "column": "restricted_na_cents",
+          "sql": "SELECT COALESCE(SUM(balance_cents), 0) AS total FROM net_assets WHERE restriction_class = 'WITH_DONOR_RESTRICTIONS' AND as_of = (SELECT MAX(as_of) FROM net_assets WHERE as_of <= COALESCE(:as_of, '9999-12-31'))"
+        },
+        {
+          "id": "liquid-covers-restricted",
+          "type": "compare",
+          "left": "liquid_cents",
+          "op": ">=",
+          "right": "restricted_na_cents",
+          "message": "Liquid assets (cash and investments) are less than net assets with donor restrictions. This suggests donor-restricted money has been spent into operations; confirm the restriction balances and the liquidity before relying on either figure."
+        }
+      ]
+    },
+    "single-audit-threshold": {
+      "description": "Federal award money expended in a fiscal year against the Single Audit trigger. Use for 'do we need a Single Audit' questions. 2 CFR 200.501 requires a Single Audit when an entity spends threshold_cents or more in federal awards in its fiscal year (default 100,000,000 cents, the $1,000,000 threshold for fiscal years beginning on or after October 1, 2024). A flag here is informational: it means the year reached the trigger, not that anything is wrong.",
+      "params": {
+        "fiscal_year": {
+          "type": "integer",
+          "description": "Check only this fiscal year, e.g. 2026. Omit to check every year."
+        },
+        "threshold_cents": {
+          "type": "integer",
+          "description": "The Single Audit trigger in cents. Omit for the default of 100,000,000 ($1,000,000). Pass a different value if the governing threshold has changed."
+        }
+      },
+      "sql": "SELECT fa.fiscal_year, SUM(fa.expended_cents) AS federal_expended_cents, COALESCE(:threshold_cents, 100000000) AS threshold_cents FROM federal_awards fa WHERE (:fiscal_year IS NULL OR fa.fiscal_year = :fiscal_year) GROUP BY fa.fiscal_year ORDER BY fa.fiscal_year",
+      "checks": [
+        {
+          "id": "one-row-per-year",
+          "type": "unique",
+          "columns": [
+            "fiscal_year"
+          ]
+        },
+        {
+          "id": "below-single-audit-threshold",
+          "type": "compare",
+          "left": "federal_expended_cents",
+          "op": "<",
+          "right": "threshold_cents",
+          "key": "fiscal_year",
+          "message": "Federal award spending in this fiscal year reached the Single Audit trigger (2 CFR 200.501). The organization likely needs a Single Audit for the year; confirm the federal expenditures and arrange the audit. This is a threshold flag, not a misspending finding."
+        }
+      ]
+    }
+  }
+}

@@ -1,0 +1,60 @@
+{
+  "name": "nonprofit",
+  "description": "Merrymeeting Bay Community Services, Inc. (fictional) nonprofit fund accounting: the restricted and unrestricted funds, every expense tagged by fund, program and functional classification, amounts released from donor restriction, the balance-sheet snapshot, the net asset balances by restriction class, and federal award spending. Synthetic demo data; all money in integer cents. No donor PII is exposed; the controls reconcile funds, releases and expenses by fund, line and program code only.",
+  "domain": "nonprofit restricted funds: donor restrictions, functional expenses, net assets and federal awards",
+  "tables": {
+    "funds": [
+      "fund_id",
+      "fund_name",
+      "restriction_class",
+      "purpose_code",
+      "window_start",
+      "window_end"
+    ],
+    "expenses": [
+      "expense_id",
+      "fiscal_year",
+      "fund_id",
+      "program_code",
+      "nature_code",
+      "function_class",
+      "amount_cents",
+      "expense_date"
+    ],
+    "restriction_releases": [
+      "release_id",
+      "fund_id",
+      "fiscal_year",
+      "released_cents",
+      "release_date"
+    ],
+    "account_balances": [
+      "balance_id",
+      "account_type",
+      "balance_cents",
+      "as_of"
+    ],
+    "net_assets": [
+      "na_id",
+      "restriction_class",
+      "balance_cents",
+      "as_of"
+    ],
+    "federal_awards": [
+      "award_id",
+      "fiscal_year",
+      "program_name",
+      "cfda_number",
+      "expended_cents"
+    ]
+  },
+  "notes": [
+    "All money is INTEGER CENTS.",
+    "A RESTRICTED fund may be spent only for its purpose_code and only inside [window_start, window_end]; an expense charged to it with a different program_code, or dated outside the window, is spending outside the restriction. An UNRESTRICTED fund carries the sentinel purpose_code 'GENERAL' and an open window, and the restricted-spending control ignores it.",
+    "An amount released from donor restriction (restriction_releases.released_cents) for a fund must not exceed the qualifying spending for that fund: expenses whose program_code equals the fund's purpose_code and whose expense_date is inside the fund's window. A release ahead of qualifying spending is a finding.",
+    "Expenses carry both a natural classification (nature_code: SALARIES, GRANTS, OCCUPANCY, SUPPLIES) and a functional classification (function_class: PROGRAM, MGMT_GENERAL, FUNDRAISING). ASC 958 requires expenses analyzed by both; the nature x function grid must sum to total expenses and carry no negative cell.",
+    "net_assets reports balances in ASC 958's two classes, WITH_DONOR_RESTRICTIONS and WITHOUT_DONOR_RESTRICTIONS, as of a snapshot date. Liquid assets (account_balances rows with account_type CASH or INVESTMENT) at that date must be at least the WITH_DONOR_RESTRICTIONS balance, or restricted money has been spent into operations.",
+    "single-audit-threshold sums federal_awards.expended_cents for a fiscal year against the Single Audit trigger (2 CFR 200.501), a threshold_cents parameter defaulting to 100,000,000 cents ($1,000,000, raised from $750,000 for fiscal years beginning on or after October 1, 2024). The threshold is data, so an OMB change is a parameter or version bump, not new SQL.",
+    "The donor_pii table (donor names, addresses and individual gift histories) is intentionally omitted: this engine never reads donor PII. The controls identify funds and programs by code only."
+  ]
+}

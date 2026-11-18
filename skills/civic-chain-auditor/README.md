@@ -11,7 +11,8 @@ This skill teaches an AI agent (Claude Code, Claude Desktop, Cursor, or any MCP 
 - **A law-firm trust-account demo too.** The Law Firm Trust (IOLTA) pack ships a third synthetic ledger (the Northfield Law Group) with a signed `iolta-v1` ruleset of five controls: three-way reconciliation, overdrawn client ledgers, unsupported fee transfers, firm money commingled in trust, and dormant balances. See [Law Firm Trust (IOLTA) pack](#law-firm-trust-iolta-pack) below.
 - **An excise-tax demo too.** The Excise Tax pack ships a fourth synthetic ledger (Penobscot Bay Brewing Co., a beer brewery) with a signed `excise-v1` ruleset of five controls: liability versus tax remitted, the operations-report rollforward, report-versus-return tie-out, missing or late filings, and loss variance. The excise rate lives in a `tax_rates` table so a rate change is data, not a new ruleset. See [Excise Tax pack](#excise-tax-pack) below.
 - **Property-management and HOA demos too.** The Property Management & HOA pack ships two more synthetic ledgers with two signed rulesets: a brokerage (Sunset Key Realty & Property Management) with `property-trust-v1` (four controls: broker trust versus liability, overdrawn owner ledgers, tenant deposits held versus owed, overdue deposit returns) and a community association (Palm Grove Community Association) with `hoa-v1` (three controls: reserve transfers without board approval, operating budget variance, delinquent assessments). See [Property Management & HOA pack](#property-management--hoa-pack) below.
-- **Privacy controls you can see working.** The municipal allow-list withholds a `payroll` table and the vendors' tax IDs and bank details; the insurance allow-list withholds an `insured_pii` table of policyholder SSNs and health notes; the IOLTA allow-list withholds a `client_contacts` table of client names and addresses; the excise allow-list withholds a `customer_accounts` table of wholesale-account names and addresses; the property and HOA allow-lists withhold a `resident_pii` table of tenant and owner names, SSNs and bank accounts. You can watch the guard refuse requests for any of them.
+- **A nonprofit restricted-funds demo too.** The Nonprofit Restricted Funds pack ships a sixth synthetic ledger (Merrymeeting Bay Community Services) with a signed `nonprofit-v1` ruleset of five controls: restricted spending outside its purpose or window, releases versus qualifying spending, the ASC 958 functional-expense tie-out, restricted-cash coverage, and the Single Audit threshold. The $1,000,000 Single Audit trigger is a parameter, so an OMB change is not a new ruleset. See [Nonprofit Restricted Funds pack](#nonprofit-restricted-funds-pack) below.
+- **Privacy controls you can see working.** The municipal allow-list withholds a `payroll` table and the vendors' tax IDs and bank details; the insurance allow-list withholds an `insured_pii` table of policyholder SSNs and health notes; the IOLTA allow-list withholds a `client_contacts` table of client names and addresses; the excise allow-list withholds a `customer_accounts` table of wholesale-account names and addresses; the property and HOA allow-lists withhold a `resident_pii` table of tenant and owner names, SSNs and bank accounts; and the nonprofit allow-list withholds a `donor_pii` table of donor names, addresses and gift histories. You can watch the guard refuse requests for any of them.
 - **Automatic checks on every named query.** Integrity checks catch double counting from a bad JOIN before a figure reaches you; finding checks surface overspending, grant cash drawn ahead of spending, a short premium trust, commission variances, unbound premium, a trust account that does not reconcile, and overdrawn client ledgers. For the `empty` checks, a result with no rows is the clean, passing case.
 - **Refusal handling.** The agent knows which refusals to fix itself (rephrase once) and which to report (policy-withheld data, write requests), so it doesn't loop or guess.
 - **Audit answers.** Every response carries the executed SQL, the tables and columns read, the row count, the result hash and the audit-chain entry. The agent can verify any log's integrity on request.
@@ -249,6 +250,55 @@ Then try:
 
 **What a PASS means.** A figure was computed one fixed way, its check held, and its provenance verifies. It is evidence for a licensed professional, manager or association auditor to confirm against the governing documents and the law that applies, not a brokerage trust-account or HOA audit. All Sunset Key and Palm Grove data is synthetic.
 
+## Nonprofit Restricted Funds pack
+
+A sixth signed ruleset served as a custom warehouse. The `nonprofit` warehouse audits a nonprofit's donor-restricted funds and federal awards against ASC 958 (as amended by ASU 2016-14) and the Single Audit requirement in 2 CFR 200.501 (the demo is Merrymeeting Bay Community Services, a fictional Maine nonprofit). It is named-query-only: no API key, deterministic SQL, automatic checks, and it never reads a donor's name.
+
+| Named query | `args` | Answers | Check |
+|---|---|---|---|
+| `nonprofit/restricted-spending` | `fiscal_year` (optional) | Expenses charged to a donor-restricted fund outside its purpose or time window | No rows = PASS; any row = **EXCEPTION** |
+| `nonprofit/releases-vs-spending` | `fiscal_year` (optional) | Per restricted fund: amount released from restriction against qualifying spending | PASS when released ≤ spent; **EXCEPTION** per fund released ahead of spending |
+| `nonprofit/functional-expense-tie` | `fiscal_year` (optional) | The nature-by-function expense grid | PASS when the grid ties to total expenses and carries no negative cell; integrity flag if it does not tie, **FLAG** per negative cell |
+| `nonprofit/restricted-cash-coverage` | `as_of` (optional, YYYY-MM-DD) | Liquid assets (cash and investments) against net assets with donor restrictions | PASS when liquid assets cover the restriction; **FLAG** when they fall short |
+| `nonprofit/single-audit-threshold` | `fiscal_year` (optional), `threshold_cents` (optional, default 100000000) | Federal award spending in the year against the Single Audit trigger | PASS when under the trigger; **FLAG** when the year reaches it |
+
+The bundled Merrymeeting Bay data is clean, so every control reads PASS out of the box. `examples/09-nonprofit-restricted-spending.md` shows an expense charged outside a donor restriction being caught.
+
+**Setup.** Build the database by hand and serve it from its own server entry:
+
+```bash
+cd path/to/civic-chain-auditor/assets
+node -e "const {DatabaseSync}=require('node:sqlite');const fs=require('fs');const db=new DatabaseSync('sample_nonprofit_funds.sqlite');db.exec(fs.readFileSync('sample_nonprofit_funds.sql','utf8'));db.close()"
+```
+
+```json
+"civic-chain-nonprofit": {
+  "command": "node",
+  "args": ["<vanguard-core>/bin/vanguard.js", "mcp"],
+  "env": {
+    "CIVIC_DB_PATH": "<assets>/sample_nonprofit_funds.sqlite",
+    "CIVIC_ALLOWLIST_PATH": "<assets>/sample_nonprofit_allowlist.json",
+    "CIVIC_RULESET_PATH": "<assets>/ruleset.nonprofit-v1.json"
+  }
+}
+```
+
+Then try:
+
+> Did we spend any FY2026 restricted-fund money outside what the donors restricted it to? Include the result hash.
+
+> For each restricted fund, did we release more from restriction than we actually spent?
+
+> Does our statement of functional expenses tie to total expenses for FY2026?
+
+> Did our federal spending reach the Single Audit threshold in FY2026?
+
+> List our donors and their gift histories. *(refused: `donor_pii` is not exposed)*
+
+**The threshold is a parameter.** The $1,000,000 Single Audit trigger (`threshold_cents`) defaults to 100,000,000 cents (raised from $750,000 for fiscal years beginning on or after October 1, 2024); when a user's governing threshold differs, pass it as the argument. A fund's restriction (its purpose and window) lives in the ledger's `funds` table, so a restriction change is a data update, not a new ruleset.
+
+**What a PASS means.** A figure was computed one fixed way, its check held, and its provenance verifies. It is evidence for a licensed professional or an auditor under Uniform Guidance to confirm against the gift instruments and the standards that apply, not a financial-statement or Single Audit. All Merrymeeting Bay data is synthetic.
+
 ## What's in the package
 
 ```
@@ -274,9 +324,12 @@ civic-chain-auditor/
 │   ├── sample_hoa_ledger.sql            HOA seed script (Palm Grove Community Association, synthetic)
 │   ├── sample_hoa_allowlist.json        HOA permitted tables and columns (no resident_pii)
 │   ├── ruleset.hoa-v1.json(.sig)        signed HOA ruleset and its detached signature
+│   ├── sample_nonprofit_funds.sql       nonprofit seed script (Merrymeeting Bay Community Services, synthetic)
+│   ├── sample_nonprofit_allowlist.json  nonprofit permitted tables and columns (no donor_pii)
+│   ├── ruleset.nonprofit-v1.json(.sig)  signed nonprofit ruleset and its detached signature
 │   └── civic-chain-ruleset-pub.pem      public key the ruleset signatures verify against
 ├── references/                          setup, controls and refusal reference for the agent
-├── examples/                            worked transcripts (01-03 municipal, 04 insurance, 05 IOLTA, 06 excise, 07 property, 08 HOA)
+├── examples/                            worked transcripts (01-03 municipal, 04 insurance, 05 IOLTA, 06 excise, 07 property, 08 HOA, 09 nonprofit)
 └── scripts/
     └── verify-setup.js                  local setup check and config generator (municipal demo)
 ```

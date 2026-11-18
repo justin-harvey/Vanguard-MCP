@@ -292,6 +292,17 @@ See `src/custom.js` for the format. Three worked examples ship in `assets/`:
   `days_past_due` threshold). It shares the `resident_pii` withholding; the
   controls carry unit, line and transfer IDs only. The ruleset is rebuilt and
   signed offline with `node scripts/build-hoa-ruleset.js [--sign <key.pem>]`.
+- `assets/nonprofit/`: the Nonprofit Restricted Funds pack, a synthetic
+  Merrymeeting Bay Community Services fund-accounting ledger with the signed
+  `nonprofit-v1` ruleset (`nonprofit/restricted-spending`,
+  `nonprofit/releases-vs-spending`, `nonprofit/functional-expense-tie`, each with
+  an optional `fiscal_year`, `nonprofit/restricted-cash-coverage` with an optional
+  `as_of`, and `nonprofit/single-audit-threshold` with an optional `fiscal_year`
+  and a `threshold_cents` default of the $1,000,000 Single Audit trigger). Its
+  allow-list deliberately omits a `donor_pii` table of donor names, addresses and
+  gift histories, so the guard refuses it; the controls carry fund, line and
+  program codes only. The ruleset is rebuilt and signed offline with
+  `node scripts/build-nonprofit-ruleset.js [--sign <key.pem>]`.
 
 All six are mirrored into `../skills/civic-chain-auditor/assets/`, where the
 agent skill documents how to serve them.
@@ -313,7 +324,7 @@ control catalog whose entries assert PASS/EXCEPTION and emit that packet
 reproducibility, and audit-chain integrity), an MCP server that exposes the
 controls, canonical queries and audit verification as tools and each warehouse's
 live schema as a resource (`vanguard mcp`, stdio) plus a token-guarded HTTP API for a
-web proxy (`vanguard serve`), the CLI, and 389 tests that run offline.
+web proxy (`vanguard serve`), the CLI, and 406 tests that run offline.
 
 **Synthetic:** the data. 416 customers over six months, generated
 deterministically from a fixed seed so that the same question always produces
@@ -383,7 +394,7 @@ src/mcp-server.js      the stdio MCP transport (the only file that imports the S
 src/http-server.js     HTTP JSON API over the same handlers (what the web proxy calls)
 src/ask.js             the pipeline
 bin/vanguard.js          CLI
-test/                  389 tests, none requiring a credential
+test/                  406 tests, none requiring a credential
 ```
 
 Requires Node 22+ (`node:sqlite` is built in, so there is no native database

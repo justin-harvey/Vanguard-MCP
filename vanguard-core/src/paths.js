@@ -57,6 +57,10 @@ export const PROPERTY_ALLOWLIST_PATH = assetPath('property', 'sample_property_al
 export const HOA_SQL_PATH = assetPath('hoa', 'sample_hoa_ledger.sql');
 export const HOA_ALLOWLIST_PATH = assetPath('hoa', 'sample_hoa_allowlist.json');
 
+/** The bundled nonprofit demo (the Nonprofit Restricted Funds pack's seed and allow-list). */
+export const NONPROFIT_SQL_PATH = assetPath('nonprofit', 'sample_nonprofit_funds.sql');
+export const NONPROFIT_ALLOWLIST_PATH = assetPath('nonprofit', 'sample_nonprofit_allowlist.json');
+
 /** The per-user directory the engine writes seeded warehouses and logs into. */
 export function dataDir({ env = process.env, platform = process.platform } = {}) {
     if (env.CIVIC_DATA_DIR) return env.CIVIC_DATA_DIR;

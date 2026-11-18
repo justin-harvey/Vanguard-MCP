@@ -5,6 +5,56 @@ The project follows [Semantic Versioning](https://semver.org/): MAJOR.MINOR.PATC
 
 ## [Unreleased]
 
+### Added — Nonprofit Restricted Funds ruleset pack (sixth signed pack)
+- A sixth domain pack beside the municipal, insurance, IOLTA, excise and
+  property/HOA ones, on the same signed-ruleset + custom-warehouse seam (no
+  engine change, no new dependency, no server, no new credential). Five controls
+  for a nonprofit's donor-restricted funds and federal awards, each a named query
+  with automatic checks, encoding ASC 958 as amended by ASU 2016-14 (net assets
+  with and without donor restrictions, releases from restriction, and expenses
+  analyzed by both nature and function) and the Single Audit requirement in
+  2 CFR 200.501:
+  - **`nonprofit/restricted-spending`** (`fiscal_year`) — expenses charged to a
+    donor-restricted fund outside its purpose or time window; an `empty` finding
+    with a `unique` integrity check.
+  - **`nonprofit/releases-vs-spending`** (`fiscal_year`) — per restricted fund:
+    the amount released from restriction against the qualifying spending that
+    justified it; a `compare` (`<=`) finding with a `unique` integrity check.
+  - **`nonprofit/functional-expense-tie`** (`fiscal_year`) — the nature-by-function
+    expense grid; a `total_matches` integrity tie to total expenses, plus a
+    `compare` (`>=`) finding for any negative cell, with a `unique` integrity
+    check per cell.
+  - **`nonprofit/restricted-cash-coverage`** (`as_of`) — liquid assets (cash and
+    investments) against net assets with donor restrictions; a `compare` (`>=`)
+    finding with a `total_matches` integrity recompute.
+  - **`nonprofit/single-audit-threshold`** (`fiscal_year`, `threshold_cents`,
+    default 100000000) — federal award spending in the year against the Single
+    Audit trigger; a `compare` (`<`) finding with a `unique` integrity check.
+- **The threshold is a parameter, not code:** the $1,000,000 Single Audit trigger
+  is `threshold_cents` with a documented default (raised from $750,000 for fiscal
+  years beginning on or after October 1, 2024), so an OMB change is an argument or
+  version bump, never new SQL. A fund's restriction (purpose and window) lives in
+  the `funds` table, so a restriction change is a data update.
+- **Demo warehouse** (`assets/nonprofit/`, mirrored into the skill): a synthetic
+  Merrymeeting Bay Community Services fund-accounting ledger (clean, so all five
+  controls read PASS), a pure access-policy allow-list, and a deliberately
+  **non-allow-listed `donor_pii` table** (donor names, addresses and gift
+  histories) so the guard visibly refuses donor data; the controls carry fund,
+  line and program codes only.
+- **Signed** `nonprofit-v1` ruleset (`scripts/build-nonprofit-ruleset.js`), signed
+  offline with the same Civic-Chain key `acb80e87885da931`; ships in both asset
+  copies with its detached signature.
+- **Tests** (`test/nonprofit-warehouse.test.js`, `test/nonprofit-ruleset.test.js`,
+  `test/nonprofit-fixture.js`): clean PASS for all five controls, a targeted
+  mutation (or threshold parameter) tripping each, the negative-cell-with-tying-grid
+  case, signature status, and the `donor_pii` refusal. `test/skill-drift.test.js`
+  extended to resolve `nonprofit/*` query names from the shipped ruleset. Full
+  suite green on Node 22 (406 tests).
+- **Skill routing and docs** (`SKILL.md`, `references/setup.md`,
+  `references/refusals.md`, `examples/09-nonprofit-restricted-spending.md`, and the
+  skill, top-level and core READMEs): PASS/EXCEPTION/FLAG presentation per control,
+  the threshold-as-parameter rule, and the donor-data refusal.
+
 ### Added — Property Management & HOA ruleset pack (fifth pack, two signed rulesets)
 - A pack family beside the municipal, insurance, IOLTA and excise ones, on the
   same signed-ruleset + custom-warehouse seam (no engine change, no new
@@ -59,7 +109,7 @@ The project follows [Semantic Versioning](https://semver.org/): MAJOR.MINOR.PATC
   reserve-contribution-is-not-a-finding case, signature status, and the
   `resident_pii` refusal. `test/skill-drift.test.js` extended to resolve
   `property/*` and `hoa/*` query names from the shipped rulesets. Full suite
-  green on Node 22 (389 tests).
+  green on Node 22 (406 tests).
 - **Skill routing and docs** (`SKILL.md`, `references/setup.md`,
   `references/refusals.md`, `examples/07-property-trust-shortfall.md`,
   `examples/08-hoa-reserve-unapproved.md`, and the skill, top-level and core
@@ -108,7 +158,7 @@ The project follows [Semantic Versioning](https://semver.org/): MAJOR.MINOR.PATC
   mutation (or threshold parameter) tripping each, the rate-in-force selection,
   signature status, and the `customer_accounts` refusal. `test/skill-drift.test.js`
   extended to resolve `excise/*` query names from the shipped ruleset. Full
-  suite green on Node 22 (389 tests).
+  suite green on Node 22 (406 tests).
 - **Skill routing and docs** (`SKILL.md`, `references/setup.md`,
   `references/refusals.md`, `examples/06-excise-underpaid-return.md`, and the
   skill, top-level and core READMEs): PASS/EXCEPTION/FLAG presentation per

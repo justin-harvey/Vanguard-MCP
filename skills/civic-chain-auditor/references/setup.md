@@ -66,6 +66,7 @@ In the host, tool names carry the server key as a prefix (for example `mcp__civi
 | `excise` (when configured) | yes | Fictional Penobscot Bay Brewing Co.: beer excise rate schedule, taxable removals, operations reports, excise returns. Synthetic; volumes and money by period only. Served with the signed `excise-v1` ruleset. |
 | `property` (when configured) | yes | Fictional Sunset Key Realty & Property Management: broker trust ledger (owner funds and tenant deposits), bank snapshots, leases. Synthetic; parties by ledger, property and lease ID only. Served with the signed `property-trust-v1` ruleset. |
 | `hoa` (when configured) | yes | Fictional Palm Grove Community Association: reserve transfers, operating budget lines, operating expenses, owner assessments. Synthetic; owners by unit ID only. Served with the signed `hoa-v1` ruleset. |
+| `nonprofit` (when configured) | yes | Fictional Merrymeeting Bay Community Services: restricted and unrestricted funds, expenses by program and functional class, restriction releases, balance-sheet snapshot, net assets by restriction class, federal awards. Synthetic; funds and programs by code only. Served with the signed `nonprofit-v1` ruleset. |
 | *(any custom name)* | yes | The user's own ledger, loaded from `CIVIC_DB_PATH` / `CIVIC_ALLOWLIST_PATH` |
 | `saas` | yes | MRR, retention, LTV:CAC, cohorts. Synthetic. |
 | `enron` | no | FY2000 reporting gap: synthetic rows anchored to real 10-K aggregates |
@@ -147,6 +148,18 @@ Served by the signed `hoa-v1` ruleset. Presentation rules (PASS / FLAG and the r
 | `hoa/budget-variance` | `fiscal_year` (optional) | Adopted budget, spending and remaining per operating line; finding when a line is over budget |
 | `hoa/delinquent-assessments` | `days_past_due` (optional, default 60) | Unpaid owner assessments aged past the threshold |
 
+### Named queries on the nonprofit demo (`run_canonical`, no credential)
+
+Served by the signed `nonprofit-v1` ruleset. Presentation rules (PASS / EXCEPTION / FLAG, the threshold-as-parameter rule and the donor-PII refusal) are in SKILL.md under "Nonprofit Restricted Funds pack".
+
+| `name` | `args` | What it answers |
+|---|---|---|
+| `nonprofit/restricted-spending` | `fiscal_year` (optional) | Expenses charged to a donor-restricted fund outside its purpose or time window |
+| `nonprofit/releases-vs-spending` | `fiscal_year` (optional) | Per restricted fund: amount released from restriction against the qualifying spending; finding when more was released than spent |
+| `nonprofit/functional-expense-tie` | `fiscal_year` (optional) | The nature-by-function expense grid, tied to total expenses, with a finding for any negative cell |
+| `nonprofit/restricted-cash-coverage` | `as_of` (optional, YYYY-MM-DD) | Liquid assets against net assets with donor restrictions; finding when liquid assets fall short |
+| `nonprofit/single-audit-threshold` | `fiscal_year` (optional), `threshold_cents` (optional, default 100000000) | Federal award spending in the year against the Single Audit trigger |
+
 Only pass the business arguments shown. Never pass `dbPath`, `logPath`, `signer` or `warehouse` inside `args`: the server refuses them, because they would otherwise redirect the query or its audit trail.
 
 ## Audit logs and verification
@@ -160,7 +173,7 @@ Pass `verify_audit` a `warehouse` and it checks that warehouse's log. The result
 | `db/enron-audit.jsonl` | enron queries and controls | `{ "warehouse": "enron" }` |
 | `db/markets-audit.jsonl` | markets queries and controls | `{ "warehouse": "markets" }` |
 | `db/lseg-audit.jsonl` | lseg controls | `{ "warehouse": "lseg" }` |
-| `<name>-audit.jsonl` beside the db | custom warehouse, e.g. `municipal`, `insurance`, `iolta`, `excise`, `property` or `hoa` | `{ "warehouse": "municipal" }` / `{ "warehouse": "insurance" }` / `{ "warehouse": "iolta" }` / `{ "warehouse": "excise" }` / `{ "warehouse": "property" }` / `{ "warehouse": "hoa" }` |
+| `<name>-audit.jsonl` beside the db | custom warehouse, e.g. `municipal`, `insurance`, `iolta`, `excise`, `property`, `hoa` or `nonprofit` | `{ "warehouse": "municipal" }` / `{ "warehouse": "insurance" }` / `{ "warehouse": "iolta" }` / `{ "warehouse": "excise" }` / `{ "warehouse": "property" }` / `{ "warehouse": "hoa" }` / `{ "warehouse": "nonprofit" }` |
 
 If the user asks about "the audit log" in general, verify every log that applies. Report:
 - `ok: true` → **INTACT**, with the entry count.
