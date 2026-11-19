@@ -66,7 +66,49 @@
       .byo-grid textarea { font: 500 13px var(--font-code); color: var(--foreground); background: var(--control-bg); border: 1px solid var(--border-strong); border-radius: 10px; padding: 11px 12px; resize: vertical; line-height: 1.55; white-space: pre; overflow-x: auto; }
       .byo-asks { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 14px; }
 
-      @media (max-width: 760px) { .hero { padding: 44px 0 20px; } .byo-grid { grid-template-columns: 1fr; } }
+
+      #byo-verify-wrap[hidden] { display: none !important; }
+      /* plain-English ask */
+      .ask-form { display: flex; gap: 10px; flex-wrap: wrap; }
+      #ask-input { flex: 1 1 320px; font: 500 17px var(--font-sans); color: var(--foreground); background: var(--control-bg); border: 1px solid var(--border-strong); border-radius: 12px; padding: 14px 16px; }
+      #ask-input:focus { outline: 2px solid var(--ring); outline-offset: 1px; }
+      #ask-chips, .ask-try { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
+      .chip { font: 500 13px var(--font-sans); color: var(--slate-800); background: var(--surface); border: 1px solid var(--border-strong); border-radius: 999px; padding: 6px 12px; cursor: pointer; }
+      .chip:hover { border-color: var(--blue-600); color: var(--blue-700); }
+      .views { display: inline-flex; gap: 4px; padding: 4px; margin-top: 20px; border: 1px solid var(--border); border-radius: 999px; background: var(--surface); }
+      .views[hidden] { display: none; }
+      .views button { font: 600 12.5px var(--font-sans); border: 0; background: transparent; color: var(--slate-700); padding: 7px 14px; border-radius: 999px; cursor: pointer; }
+      .views button.active { background: var(--blue-900); color: var(--cream-50); }
+      #ask-out { margin-top: 14px; }
+      .ask-card { background: var(--surface-raised, var(--surface)); border: 1px solid var(--border); border-radius: 14px; padding: 20px 22px; box-shadow: var(--shadow-sm); }
+      .ask-card.refused { border-color: color-mix(in oklab, var(--rose-600) 40%, transparent); }
+      .ask-top { display: flex; align-items: center; gap: 12px; }
+      .ask-figure { font-family: var(--font-display); font-size: clamp(2rem, 5vw, 2.9rem); line-height: 1.1; margin: 14px 0 6px; color: var(--foreground); }
+      .ask-sentence { font-size: 16px; line-height: 1.55; margin: 0 0 14px; color: var(--slate-800); }
+      .ask-meta { display: grid; grid-template-columns: max-content 1fr; gap: 8px 16px; margin: 0; padding-top: 14px; border-top: 1px solid var(--border); font-size: 13px; }
+      .ask-meta dt { font: 600 11px var(--font-sans); text-transform: uppercase; letter-spacing: .08em; color: var(--slate-700); padding-top: 2px; }
+      .ask-meta dd { margin: 0; color: var(--slate-800); overflow-wrap: anywhere; }
+      .ask-meta code, .chat code { font-family: var(--font-code); font-size: 12.5px; }
+      .ask-arg { display: inline-block; margin-right: 10px; font-family: var(--font-code); font-size: 12.5px; }
+      .ask-arg .k { color: var(--slate-700); }
+      code.hash { color: var(--green-700); }
+      .chat { display: grid; gap: 10px; }
+      .chat .who { display: block; font: 600 11px var(--font-sans); text-transform: uppercase; letter-spacing: .08em; color: var(--slate-700); margin-bottom: 6px; }
+      .chat .msg { border-radius: 14px; padding: 12px 16px; max-width: 88%; }
+      .chat .msg p { margin: 0; line-height: 1.55; }
+      .chat .msg p + p { margin-top: 8px; }
+      .chat .msg.user { justify-self: end; background: var(--blue-900); color: var(--cream-50); }
+      .chat .msg.user .who { color: color-mix(in oklab, var(--cream-50) 60%, transparent); }
+      .chat .msg.agent { background: var(--surface); border: 1px solid var(--border); }
+      .chat .tool { border: 1px dashed var(--border-strong); border-radius: 12px; padding: 10px 14px; background: var(--cream-100); }
+      .chat .tool pre { margin: 0; background: transparent; border: 0; box-shadow: none; padding: 0; font-family: var(--font-code); font-size: 12px; white-space: pre-wrap; overflow-wrap: anywhere; color: var(--slate-800); }
+      .small { font-size: 12.5px; }
+      details.more { margin-top: 18px; }
+      details.more > summary { cursor: pointer; font: 600 13px var(--font-sans); color: var(--slate-800); }
+      details.more[hidden] { display: none; }
+      details.data > summary { cursor: pointer; font: 600 12px var(--font-sans); text-transform: uppercase; letter-spacing: .06em; color: var(--slate-700); margin-bottom: 12px; }
+
+      @media (max-width: 760px) { .hero { padding: 44px 0 20px; } .byo-grid { grid-template-columns: 1fr; } .ask-meta { grid-template-columns: 1fr; } .chat .msg { max-width: 100%; } }
     </style>
   </head>
   <body>
@@ -79,32 +121,92 @@
         <nav class="back">
           <a href="index.html">Overview</a>
           <span class="sep">·</span>
-          <a href="value.html">Why it matters</a>
+          <a href="index.html#two-ways">Skill or dashboard</a>
           <span class="sep">·</span>
-          <a href="controls.html">SOC&nbsp;2 panel</a>
+          <a href="value.html">Why it matters</a>
         </nav>
       </div>
     </header>
 
     <main class="wrap">
       <section class="hero wash guilloche">
-        <p class="kicker">Live demo · synthetic municipal ledger</p>
-        <h1>Run the Auditor yourself.</h1>
+        <p class="kicker">Live demo · runs in your browser</p>
+        <h1>Ask in plain English. Get a number you can prove.</h1>
         <p class="lede">
-          Pick a question about the Town of Sampleton's books. A named query runs through the
-          guarded, read-only pipeline <b>entirely in your browser</b>; you get the rows, the
-          automatic integrity checks, any findings, and a reproducible, tamper-evident provenance
-          chain. Never an unverified number.
+          Type a question about the expenditures below. You get one specific answer, the result
+          hash that lets anyone reproduce it, and an entry in a tamper-evident audit chain. Flip
+          the view to see the same answer as the agent skill returns it in Claude: same engine,
+          same hash.
         </p>
         <div class="disc" style="margin-top:20px">
           <b>Runs in your browser.</b> The engine, a WebAssembly SQLite database and the audit
-          chain all run on this page; nothing is sent to Civic-Chain or anyone else. The data is
-          fictional demo data for the Town of Sampleton. <b>This is not a professional audit
-          opinion</b> and produces no certification; it demonstrates the verification mechanism only.
+          chain all run on this page; nothing is sent to Civic-Chain or anyone else. There is no
+          language model on this page: a local phrase-matcher maps your question to one of nine
+          named queries and never writes SQL or does arithmetic. The data is yours or fictional.
+          <b>This is not a professional audit opinion</b>; it demonstrates the verification mechanism.
+        </div>
+      </section>
+
+      <section class="section" id="ask">
+        <div class="builder">
+          <form class="ask-form" id="ask-form" autocomplete="off">
+            <input id="ask-input" type="text" placeholder="e.g. How much did we pay North Fuel in April?" aria-label="Your question" />
+            <button class="btn" id="ask-btn" type="submit">Ask →</button>
+          </form>
+          <div id="ask-chips" aria-label="Example questions"></div>
+          <p id="byo-status" style="font-size:13px;color:var(--slate-700);margin:12px 0 0"></p>
+
+          <div class="views" id="ask-views" role="tablist" aria-label="View" hidden>
+            <button type="button" role="tab" data-ask-view="dashboard" class="active" aria-selected="true">Dashboard view</button>
+            <button type="button" role="tab" data-ask-view="agent" aria-selected="false">Agent skill view</button>
+          </div>
+          <div id="ask-out" aria-live="polite"></div>
+
+          <details class="more" id="ask-details" hidden>
+            <summary>Rows, automatic checks, executed SQL and provenance</summary>
+            <div id="byo-result" style="margin-top:14px"></div>
+          </details>
+
+          <div id="byo-verify-wrap" hidden style="margin-top:20px;display:flex;align-items:center;gap:14px;flex-wrap:wrap">
+            <button class="btn ghost" id="byo-verify-btn">Verify the audit chain →</button>
+            <button class="btn ghost" id="byo-tamper-btn">Tamper with an entry</button>
+            <button class="btn ghost" id="byo-reset-btn">Reset chain</button>
+            <div id="byo-verify-out" style="display:flex;align-items:center;gap:10px;font-size:13px"></div>
+          </div>
+        </div>
+
+        <div class="builder" style="margin-top:16px">
+          <details class="data" open>
+            <summary>The data being asked: edit it, paste your own</summary>
+            <div class="byo-grid">
+              <label class="field">
+                <span>Expenditures — date, vendor, category, amount, budget</span>
+                <textarea id="byo-data" rows="7" spellcheck="false">date, vendor, category, amount, budget
+2026-03-02, Acme Paving, roads, 42000, roads-26
+2026-03-09, Acme Paving, roads, 42000, roads-26
+2026-03-11, Bay Office Supply, admin, 1875, admin-26
+2026-04-01, North Fuel, fleet, 9100, fleet-26
+2026-04-04, North Fuel, fleet, 18200, fleet-26</textarea>
+              </label>
+              <label class="field">
+                <span>Budget caps — budget, cap</span>
+                <textarea id="byo-budgets" rows="7" spellcheck="false">budget, cap
+roads-26, 60000
+admin-26, 5000
+fleet-26, 30000</textarea>
+              </label>
+            </div>
+            <div class="byo-asks">
+              <button class="btn ghost" id="byo-restore" type="button">Restore sample</button>
+            </div>
+            <p class="muted" style="margin:10px 0 0">Parsed into a private SQLite database on each question. The schema is fixed, so the overspend, duplicate-payment and reconciliation checks fire on your own numbers.</p>
+          </details>
         </div>
       </section>
 
       <section class="section">
+        <h2>Explore a full municipal ledger</h2>
+        <p class="lede" style="margin-bottom:14px">The Town of Sampleton's fictional books: grants, drawdowns and budget lines, with named queries and their parameters exposed directly.</p>
         <div class="builder mat-blueprint">
           <div class="controls">
             <label class="field">
@@ -133,63 +235,16 @@
       </section>
 
       <section class="section">
-        <h2>Bring your own expenditures</h2>
-        <div class="disc" style="margin-bottom:14px">
-          Swap in your own numbers. Edit the two lists, then ask a question: the lines are parsed
-          into a private SQLite database <b>in your browser</b> and the same guarded, read-only
-          pipeline runs the question, checks the result and hash-chains the answer. Nothing is
-          uploaded. The schema is fixed (expenditures and budget caps), so the real overspend,
-          duplicate-payment and reconciliation checks fire on your own data. Still a demonstration
-          of the mechanism, not a professional audit opinion.
-        </div>
-        <div class="builder">
-          <div class="byo-grid">
-            <label class="field">
-              <span>Expenditures — date, vendor, category, amount, budget</span>
-              <textarea id="byo-data" rows="7" spellcheck="false">date, vendor, category, amount, budget
-2026-03-02, Acme Paving, roads, 42000, roads-26
-2026-03-09, Acme Paving, roads, 42000, roads-26
-2026-03-11, Bay Office Supply, admin, 1875, admin-26
-2026-04-01, North Fuel, fleet, 9100, fleet-26
-2026-04-04, North Fuel, fleet, 18200, fleet-26</textarea>
-            </label>
-            <label class="field">
-              <span>Budget caps — budget, cap</span>
-              <textarea id="byo-budgets" rows="7" spellcheck="false">budget, cap
-roads-26, 60000
-admin-26, 5000
-fleet-26, 30000</textarea>
-            </label>
-          </div>
-          <div class="byo-asks">
-            <button class="btn" data-byo-q="budget-overspend">Which budgets are overspent?</button>
-            <button class="btn ghost" data-byo-q="duplicate-invoices">Any duplicate invoices?</button>
-            <button class="btn ghost" data-byo-q="spend-by-category">Total spend by category?</button>
-            <button class="btn ghost" id="byo-restore" type="button">Restore sample</button>
-          </div>
-          <p id="byo-status" style="font-size:13px;color:var(--slate-700);margin:12px 0 0"></p>
-
-          <div id="byo-result"></div>
-
-          <div id="byo-verify-wrap" hidden style="margin-top:20px;display:flex;align-items:center;gap:14px;flex-wrap:wrap">
-            <button class="btn ghost" id="byo-verify-btn">Verify the audit chain →</button>
-            <button class="btn ghost" id="byo-tamper-btn">Tamper with an entry</button>
-            <button class="btn ghost" id="byo-reset-btn">Reset chain</button>
-            <div id="byo-verify-out" style="display:flex;align-items:center;gap:10px;font-size:13px"></div>
-          </div>
-        </div>
-      </section>
-
-      <section class="section">
         <h2>What just happened</h2>
         <div class="disc">
-          The model never saw a row: a named, pre-written query ran on a read-only connection, the
-          <b>integrity checks</b> confirmed the result is internally consistent (so it may be
-          presented as fact), and the <b>findings</b> surface data conditions worth a human's
-          attention, like grant cash drawn ahead of spending. The <b>result hash</b> lets an auditor
-          recompute and compare; the <b>audit entry</b> is appended to a hash-chained log, so
-          <em>Verify the audit chain</em> reports the first entry that was ever altered. Tamper-evident,
-          not an assertion.
+          Your question was mapped to <b>one named query</b> with parameters; the query ran through
+          the guard on a read-only connection; the <b>automatic checks</b> confirmed the result is
+          internally consistent; and the answer sentence was filled only from values the database
+          returned. The <b>result hash</b> lets an auditor re-run the query and compare; the
+          <b>audit entry</b> is appended to a hash-chained log, so <em>Verify the audit chain</em>
+          reports the first entry that was ever altered. In the agent skill, Claude does the mapping
+          step through <code>run_canonical</code>, and for open questions the guarded planner writes
+          the SQL; nothing after that step changes.
         </div>
       </section>
     </main>

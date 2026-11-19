@@ -5,7 +5,7 @@
     <link rel="icon" type="image/svg+xml" href="assets/civic-chain-logo.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Civic-Chain Grant & Budget Auditor, financial answers you can audit</title>
-    <meta name="description" content="Civic-Chain Auditor, a Civic-Chain product. The model writes SQL, the database produces the numbers, and every figure is verified against the data before you see it, or you get an honest refusal." />
+    <meta name="description" content="Civic-Chain Auditor: ask your budget and grant data in plain English, from Claude as an agent skill or in the dashboard, and get back a figure with a result hash anyone can reproduce, or an honest refusal." />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=DM+Serif+Text&family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet" />
@@ -30,6 +30,18 @@
       .split .card p{margin:0;font-size:15px;color:var(--slate-800)}
       .split .card.ink p,.split .card.slate p{color:var(--cream-100)}
       .split .card .go{margin-top:auto}
+      .ways{display:grid;grid-template-columns:1fr 1fr;gap:18px;margin-top:22px}
+      .ways .card{display:flex;flex-direction:column;gap:12px}
+      .ways .card h3{margin:0}
+      .ways .card p{margin:0;font-size:15px;line-height:1.55}
+      .ways .card ul{margin:0;padding-left:1.1em;display:flex;flex-direction:column;gap:6px;font-size:14px;line-height:1.45}
+      .ways .tag{align-self:flex-start;font:600 11px var(--font-sans);text-transform:uppercase;letter-spacing:.1em;opacity:.75}
+      .ways .card .go{margin-top:auto;padding-top:6px}
+      .ways .card.ink ul,.ways .card.ink p{color:var(--cream-100)}
+      .ways pre{margin:0;font-size:12.5px;white-space:pre-wrap;overflow-wrap:anywhere}
+      .bridge{margin-top:18px;display:flex;gap:14px;align-items:flex-start}
+      .bridge code{font-family:var(--font-code);font-size:13px}
+      .packs .flip-back a{margin-top:auto;font:600 12.5px var(--font-sans);color:inherit}
       .lead-figure{font-family:var(--font-display);font-size:clamp(2rem,4vw,2.8rem);line-height:1.1}
       .packs{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-top:22px}
       .packs .flip{perspective:1200px;cursor:pointer}
@@ -48,7 +60,7 @@
       .packs .flip-back ul{margin:0;padding-left:1.05em;display:flex;flex-direction:column;gap:5px}
       .packs .flip-back li{font-size:12.5px;line-height:1.38;opacity:.95}
       @media (max-width:900px){.packs{grid-template-columns:1fr 1fr}}
-      @media (max-width:760px){.guar,.split{grid-template-columns:1fr}.hero{padding:48px 0 28px}}
+      @media (max-width:760px){.guar,.split,.ways{grid-template-columns:1fr}.hero{padding:48px 0 28px}}
       @media (max-width:560px){
         .packs{grid-template-columns:1fr}
         .packs .flip-inner{min-height:0;transform:none!important}
@@ -70,11 +82,9 @@
         <nav class="back">
           <a href="demo.html">Live demo</a>
           <span class="sep">·</span>
+          <a href="#two-ways">Skill or dashboard</a>
+          <span class="sep">·</span>
           <a href="value.html">Why it matters</a>
-          <span class="sep">·</span>
-          <a href="enron.html">Enron case study</a>
-          <span class="sep">·</span>
-          <a href="controls.html">SOC&nbsp;2 panel</a>
         </nav>
       </div>
     </header>
@@ -84,13 +94,54 @@
         <p class="kicker">Civic-Chain · verified financial intelligence</p>
         <h1>Financial answers you can audit.</h1>
         <p class="lede">
-          The model writes the SQL. The database produces the numbers. Every figure in the
-          answer is checked against the data before you see it, or you get an honest refusal.
-          Never an unverified paragraph presented as fact.
+          Ask a budget, grant or ledger question in plain English, from Claude as an agent skill
+          or in the Civic-Chain dashboard. You get one specific figure and a result hash anyone can
+          recompute, or an honest refusal. Never an unverified paragraph presented as fact.
         </p>
         <div class="cta">
-          <a class="btn" href="demo.html">Try the live demo →</a>
-          <a class="btn ghost" href="enron.html">See the Enron reporting gap →</a>
+          <a class="btn" href="demo.html">Ask the live demo →</a>
+          <a class="btn ghost" href="#two-ways">Skill or dashboard? →</a>
+        </div>
+      </section>
+
+      <section class="section" id="two-ways">
+        <p class="kicker">Two ways to use it</p>
+        <h2>One engine. In your agent, or on your dashboard.</h2>
+        <p class="lede">
+          The guard, the read-only database, the checks and the audit chain are the same code in
+          both. Only the front door differs: who is asking, and where they already work.
+        </p>
+        <div class="ways">
+          <div class="card ink">
+            <span class="tag">Agent skill · MCP</span>
+            <h3>Ask from Claude</h3>
+            <p>For finance staff, auditors and analysts who already work with an AI assistant. Install the <code>civic-chain-auditor</code> skill, point it at your ledger, and ask in chat.</p>
+            <ul>
+              <li>Works in Claude, Cursor or any MCP host</li>
+              <li>The model picks a named query or writes guarded SQL; it never does the arithmetic</li>
+              <li>Every figure in the reply carries its result hash; <code>verify_answer</code> re-runs it</li>
+            </ul>
+<pre>you › How much did we pay North Fuel in April?
+  ↳ run_canonical  sandbox/vendor-total
+claude › $27,300.00 across 2 invoices.
+         result hash 871667b0…353b06a</pre>
+          </div>
+          <div class="card">
+            <span class="tag">Dashboard · SaaS</span>
+            <h3>Open the dashboard</h3>
+            <p>For clerks, council members and finance directors who want answers without an AI account. Load the ledger once; ask in plain English or run the standard controls.</p>
+            <ul>
+              <li>Plain-English questions over your own CSV or ledger</li>
+              <li>One-click controls: PASS or EXCEPTION with an evidence trail</li>
+              <li>An audit chain anyone can verify, exportable for the auditor</li>
+            </ul>
+            <div class="go"><a class="btn" href="demo.html">Try the dashboard preview →</a></div>
+          </div>
+        </div>
+        <div class="disc bridge">
+          <span><b>Same data, same hash.</b> An answer from the skill and an answer from the dashboard
+          over the same rows reproduce to the same result hash, so the two can't quietly disagree, and
+          an auditor can check either one without trusting the tool that produced it.</span>
         </div>
       </section>
 
@@ -177,15 +228,15 @@
 
       <section class="section wash guilloche">
         <p class="kicker">The domain packs</p>
-        <h2>One engine. Eight regulated domains.</h2>
+        <h2>Eight regulated domains, and the controls behind them.</h2>
         <p class="lede">
           Because the engine is schema-agnostic, a domain pack is just a <b>signed ruleset</b>,
           named queries and their PASS / EXCEPTION / FLAG checks, over a warehouse's column
           allow-list. No new code, no model free-writing arithmetic, and no PII: each pack ships a
           synthetic demo ledger and withholds the sensitive tables outright, so the guard refuses
           any query that reaches them. A PASS is evidence a licensed professional can recompute
-          against their own obligations, not a certification or an audit opinion. Each pack is
-          served to Claude, Cursor, or any agent over MCP.
+          against their own obligations, not a certification or an audit opinion. Every pack works
+          the same way through the skill and the dashboard.
         </p>
         <div class="packs">
           <div class="flip" tabindex="0" role="group" aria-label="Municipal grants and budgets pack">
@@ -339,32 +390,47 @@
               </div>
             </div>
           </div>
+          <div class="flip" tabindex="0" role="group" aria-label="SOC 2 evidence controls">
+            <div class="flip-inner">
+              <div class="flip-face card ink flip-front">
+                <h4>SOC&nbsp;2 evidence controls</h4>
+                <p>The checks that sit across every pack: do reported figures reconcile to source, does a past figure still reproduce, and is the audit chain intact. One click, PASS or EXCEPTION.</p>
+                <div class="flip-foot"><span class="pack-tag">controls · PI1 · CC7</span><span class="flip-hint">Hover or tap for the controls →</span></div>
+              </div>
+              <div class="flip-face card ink flip-back">
+                <span class="back-kicker">What it checks</span>
+                <ul>
+                  <li>Reported figures reconcile to source rows (PI1)</li>
+                  <li>A recorded figure re-runs to the same hash (CC7.3)</li>
+                  <li>The audit chain is unbroken (CC7.2)</li>
+                  <li>Evidence packet an auditor can recompute</li>
+                </ul>
+                <a href="controls.html">Open the evidence panel →</a>
+              </div>
+            </div>
+          </div>
         </div>
         <p class="lede" style="margin-top:22px">
-          The browser demo below runs the municipal pack; the other seven ship as signed rulesets
-          and synthetic ledgers you point an MCP host at. Bring your own ledger and allow-list and
-          the same guards apply, with no code changes.
+          The live demo runs a municipal sandbox on your own expenditures; the other packs ship as
+          signed rulesets and synthetic ledgers. Bring your own ledger and allow-list and the same
+          guards apply, with no code changes.
         </p>
       </section>
 
       <section class="section">
         <p class="kicker">See it for yourself</p>
-        <h2>Three ways in.</h2>
+        <h2>Ask it something.</h2>
         <div class="split">
           <div class="card ink">
             <h3>Run the live demo</h3>
-            <p>Ask a question of a synthetic municipal budget and watch the Auditor answer it live: rows, automatic integrity checks, findings, and a reproducible, tamper-evident provenance chain. No install.</p>
+            <p>Type a question about a small expenditure list, or paste your own, and get one figure with its result hash and audit entry. Flip between the dashboard view and the agent-skill view of the same answer. Runs in your browser; no install.</p>
             <div class="go"><a class="btn ghost" href="demo.html">Open the live demo →</a></div>
           </div>
           <div class="card">
-            <h3>The Enron reporting gap</h3>
-            <p>FY2000 reported figures set against what the underlying rows support; revenue booked gross versus the net margin actually earned, and reported debt versus the true total once the off-balance-sheet vehicles are included. Grounded and hash-chained.</p>
-            <div class="go"><a class="btn" href="enron.html">Open the case study →</a></div>
-          </div>
-          <div class="card">
-            <h3>SOC 2 evidence panel</h3>
-            <p>One-click controls that return PASS or EXCEPTION with a verifiable evidence trail, the same ground-or-refuse pipeline pointed at continuous compliance instead of a single number.</p>
-            <div class="go"><a class="btn ghost" href="controls.html">Open the panel →</a></div>
+            <h3>Install the skill</h3>
+            <p>Add the Civic-Chain Auditor to Claude or any MCP host and ask your own ledger from chat. Setup is one check script and one config block.</p>
+<pre class="pipe">node scripts/verify-setup.js --core ./vanguard-core
+# paste the printed mcpServers block, restart the host</pre>
           </div>
         </div>
       </section>
@@ -373,7 +439,7 @@
     <footer class="site">
       <div class="wrap">
         <span>Civic-Chain Grant & Budget Auditor, prototype. Figures are verified against the underlying data or refused.</span>
-        <span>Aggregates cite real filings; transaction-level rows are synthetic and labelled.</span>
+        <span>All demo data is synthetic and labelled.</span>
       </div>
     </footer>
   </body>

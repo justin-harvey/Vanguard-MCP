@@ -4,9 +4,10 @@
  *
  * Unlike the municipal demo (demo-entry.js), the *data* here is the visitor's:
  * two small, editable CSV "bricks" (a list of expenditures and a list of budget
- * caps) are parsed in the browser into a fresh WASM SQLite database, and three
- * fixed named queries run over it through the real guard / lineage / audit
- * pipeline. Because the schema is fixed and we own it, the actual integrity and
+ * caps) are parsed in the browser into a fresh WASM SQLite database, and a
+ * plain-English question (plain-english.js) picks one of the fixed named
+ * queries in sandbox-queries.js, which runs through the real guard / lineage /
+ * audit pipeline and comes back as one hashed answer (byod-ask.js). Because the schema is fixed and we own it, the actual integrity and
  * finding checks (overspend, duplicate payment, totals reconcile) fire on the
  * visitor's own numbers. Nothing is uploaded; everything runs on this page.
  *
@@ -16,6 +17,8 @@
 
 import { createDemoEngine } from './engine.js';
 import { sqljsAdapter } from './sqlite-adapter.js';
+import { SANDBOX_QUERIES } from './sandbox-queries.js';
+import { wireAsk } from './byod-ask.js';
 
 const STORE_KEY = 'civic-chain-byod-audit-v1';
 
@@ -31,34 +34,7 @@ const ALLOWLIST = {
         budgets: ['budget_code', 'cap_cents'],
     },
     notes: ['All money columns end in _cents and hold INTEGER CENTS.'],
-    queries: {
-        'budget-overspend': {
-            description: 'Each budget code: its cap, spend to date and remaining budget; flags any code over its cap.',
-            params: {},
-            sql: 'SELECT b.budget_code, b.cap_cents, COALESCE((SELECT SUM(e.amount_cents) FROM expenditures e WHERE e.budget_code = b.budget_code), 0) AS amount_cents, b.cap_cents - COALESCE((SELECT SUM(e.amount_cents) FROM expenditures e WHERE e.budget_code = b.budget_code), 0) AS remaining_cents FROM budgets b ORDER BY b.budget_code',
-            checks: [
-                { id: 'one-row-per-code', type: 'unique', columns: ['budget_code'] },
-                { id: 'within-budget', type: 'compare', left: 'amount_cents', op: '<=', right: 'cap_cents', key: 'budget_code', message: 'Spending against this budget code exceeds its cap.' },
-            ],
-        },
-        'duplicate-invoices': {
-            description: 'Exact-duplicate payments: the same vendor paid the same amount against the same budget code more than once.',
-            params: {},
-            sql: 'SELECT e.vendor, e.category, e.budget_code, e.amount_cents, COUNT(e.expenditure_id) AS copies FROM expenditures e GROUP BY e.vendor, e.category, e.budget_code, e.amount_cents HAVING COUNT(e.expenditure_id) > 1 ORDER BY e.amount_cents DESC, e.vendor',
-            checks: [
-                { id: 'no-duplicate-payments', type: 'empty', key: 'vendor', message: 'This vendor was paid the same amount against the same budget code more than once; confirm it is not a duplicate payment.' },
-            ],
-        },
-        'spend-by-category': {
-            description: 'Total spend and invoice count per category.',
-            params: {},
-            sql: 'SELECT e.category, COUNT(e.expenditure_id) AS invoice_count, SUM(e.amount_cents) AS amount_cents FROM expenditures e GROUP BY e.category ORDER BY SUM(e.amount_cents) DESC, e.category',
-            checks: [
-                { id: 'one-row-per-category', type: 'unique', columns: ['category'] },
-                { id: 'total-reconciles', type: 'total_matches', column: 'amount_cents', sql: 'SELECT COALESCE(SUM(e.amount_cents), 0) AS total FROM expenditures e' },
-            ],
-        },
-    },
+    queries: SANDBOX_QUERIES,
 };
 
 // Default bricks. Designed to tell a story: the two identical $42,000 Acme
@@ -217,7 +193,15 @@ function setStatus(msg) {
 let SQL = null;            // the loaded sql.js module
 const store = makeStore();
 
+function readData() {
+    return {
+        expenditures: parseExpenditures(document.getElementById('byo-data').value),
+        budgets: parseBudgets(document.getElementById('byo-budgets').value),
+    };
+}
+
 function buildEngine() {
+    if (!SQL) throw new ParseError('The in-browser engine is still loading; try again in a moment.');
     const expenditures = parseExpenditures(document.getElementById('byo-data').value);
     const budgets = parseBudgets(document.getElementById('byo-budgets').value);
     const seedSql = buildSeedSql(expenditures, budgets);
@@ -230,23 +214,8 @@ function buildEngine() {
     }
 }
 
-function ask(name) {
-    renderVerify(null);
-    document.getElementById('byo-verify-wrap').hidden = true;
-    try {
-        const engine = buildEngine();
-        setStatus('Ran through the guarded, read-only pipeline — locally.');
-        renderResult(engine.runNamed(name, {}));
-    } catch (e) {
-        setStatus(e instanceof ParseError ? e.message : ('Refused: ' + e.message));
-        document.getElementById('byo-result').innerHTML = '';
-    }
-}
-
 function wire() {
-    for (const btn of document.querySelectorAll('[data-byo-q]')) {
-        btn.addEventListener('click', () => ask(btn.getAttribute('data-byo-q')));
-    }
+    wireAsk({ buildEngine, readData, renderDetails: renderResult, setStatus });
     const verifyBtn = document.getElementById('byo-verify-btn');
     if (verifyBtn) verifyBtn.addEventListener('click', () => { try { renderVerify(buildEngine().verifyChain()); } catch { renderVerify(store ? { ok: true, entries: store.load().length } : null); } });
     const tamperBtn = document.getElementById('byo-tamper-btn');
@@ -275,10 +244,11 @@ async function boot() {
         if (typeof window.initSqlJs !== 'function') throw new Error('sql.js loader missing');
         const base = new URL('.', import.meta.url);
         SQL = await window.initSqlJs({ locateFile: (f) => new URL(f, base).href });
-        setStatus('Edit the lines, then ask a question.');
+        setStatus('Ready. Edit the lines if you like, then ask a question.');
     } catch (e) {
         setStatus('The in-browser engine could not start (' + e.message + ').');
-        for (const btn of document.querySelectorAll('[data-byo-q]')) btn.disabled = true;
+        const askBtn = document.getElementById('ask-btn');
+        if (askBtn) askBtn.disabled = true;
     }
 }
 
