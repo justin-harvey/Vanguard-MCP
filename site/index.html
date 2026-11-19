@@ -94,149 +94,24 @@
         <p class="kicker">Civic-Chain · verified financial intelligence</p>
         <h1>Financial answers you can audit.</h1>
         <p class="lede">
-          Ask a budget, grant or ledger question in plain English, from Claude as an agent skill
-          or in the Civic-Chain dashboard. You get one specific figure and a result hash anyone can
-          recompute, or an honest refusal. Never an unverified paragraph presented as fact.
+          Ask a budget, grant or ledger question in plain English, from Claude or the dashboard.
+          You get one figure and a result hash anyone can recompute, or an honest refusal, never
+          an unverified paragraph passed off as fact.
         </p>
         <div class="cta">
           <a class="btn" href="demo.html">Ask the live demo →</a>
-          <a class="btn ghost" href="#two-ways">Skill or dashboard? →</a>
+          <a class="btn ghost" href="#packs">See the eight domains ↓</a>
         </div>
       </section>
 
-      <section class="section" id="two-ways">
-        <p class="kicker">Two ways to use it</p>
-        <h2>One engine. In your agent, or on your dashboard.</h2>
-        <p class="lede">
-          The guard, the read-only database, the checks and the audit chain are the same code in
-          both. Only the front door differs: who is asking, and where they already work.
-        </p>
-        <div class="ways">
-          <div class="card ink">
-            <span class="tag">Agent skill · MCP</span>
-            <h3>Ask from Claude</h3>
-            <p>For finance staff, auditors and analysts who already work with an AI assistant. Install the <code>civic-chain-auditor</code> skill, point it at your ledger, and ask in chat.</p>
-            <ul>
-              <li>Works in Claude, Cursor or any MCP host</li>
-              <li>The model picks a named query or writes guarded SQL; it never does the arithmetic</li>
-              <li>Every figure in the reply carries its result hash; <code>verify_answer</code> re-runs it</li>
-            </ul>
-<pre>you › How much did we pay North Fuel in April?
-  ↳ run_canonical  sandbox/vendor-total
-claude › $27,300.00 across 2 invoices.
-         result hash 871667b0…353b06a</pre>
-          </div>
-          <div class="card">
-            <span class="tag">Dashboard · SaaS</span>
-            <h3>Open the dashboard</h3>
-            <p>For clerks, council members and finance directors who want answers without an AI account. Load the ledger once; ask in plain English or run the standard controls.</p>
-            <ul>
-              <li>Plain-English questions over your own CSV or ledger</li>
-              <li>One-click controls: PASS or EXCEPTION with an evidence trail</li>
-              <li>An audit chain anyone can verify, exportable for the auditor</li>
-            </ul>
-            <div class="go"><a class="btn" href="demo.html">Try the dashboard preview →</a></div>
-          </div>
-        </div>
-        <div class="disc bridge">
-          <span><b>Same data, same hash.</b> An answer from the skill and an answer from the dashboard
-          over the same rows reproduce to the same result hash, so the two can't quietly disagree, and
-          an auditor can check either one without trusting the tool that produced it.</span>
-        </div>
-      </section>
-
-      <section class="section wash blueprint">
-        <p class="kicker">The pipeline</p>
-        <h2>One query. A grounded answer, or a refusal.</h2>
-        <p class="lede">
-          A language model is excellent at turning a question into SQL, and should never be
-          trusted with the arithmetic. So it isn't. The model writes the query having never seen
-          a row; a read-only database returns the rows; a verifier confirms every number in the
-          prose actually came from them.
-        </p>
-        <div class="pipe-wrap">
-<pre class="pipe">question
-   ├─ <b>plan</b>      model writes SQL, having never seen a row of data
-   ├─ <b>guard</b>     parsed, SELECT-only, allow-listed, LIMIT enforced   <span class="ref">← refuses here</span>
-   ├─ <b>execute</b>   read-only connection                                <span class="ref">← refuses here</span>
-   ├─ <b>narrate</b>   prose written, then every number checked against the rows
-   ├─ <b>lineage</b>   SQL + tables + columns + row count + result hash
-   └─ <b>audit</b>     appended to a hash-chained log</pre>
-        </div>
-      </section>
-
-      <section class="section">
-        <p class="kicker">The four guarantees</p>
-        <h2>A claim is only worth what enforces it.</h2>
-        <p class="lede">Each guarantee is backed by a mechanism and a test that would fail if it broke, not by a promise.</p>
-        <div class="guar">
-          <div class="card sage">
-            <h4>The model can't write to the database</h4>
-            <p>A connection opened <span class="mono">readOnly: true</span>; the database refuses writes below anything the code can reach.</p>
-          </div>
-          <div class="card sky">
-            <h4>Only SELECT, only allow-listed, always bounded</h4>
-            <p><span class="mono">guard.js</span> parses SQL to an AST and inspects the full table list, including subqueries and CTE bodies.</p>
-          </div>
-          <div class="card gold">
-            <h4>Every figure came from the data</h4>
-            <p><span class="mono">grounding.js</span> extracts each number and matches it to a returned value, allowing only legitimate transforms.</p>
-          </div>
-          <div class="card slate">
-            <h4>A past answer can't be altered unnoticed</h4>
-            <p><span class="mono">audit.js</span> hash-chains each entry to the one before it; <span class="mono">verify()</span> reports the first index where the chain breaks. Optional Ed25519 signing and an external anchor extend this to a full rewrite of history.</p>
-          </div>
-        </div>
-      </section>
-
-      <section class="section wash blueprint">
-        <p class="kicker">How the proof works</p>
-        <h2>Two hashes, doing two different jobs.</h2>
-        <p class="lede">
-          Keeping them separate is the whole point. One proves the answer reproduces from the
-          data; the other proves the record of what was asked and answered hasn't been edited since.
-        </p>
-        <div class="split">
-          <div class="card">
-            <h3>The result hash</h3>
-            <p><b>Does the answer reproduce?</b> Computed over the rows the database returned, in a
-            canonical form (stable row order, stable formatting). Re-run the same SQL at the same
-            as-of date against the same snapshot and you get the same hash; a different hash means
-            the data, the query, or the as-of date changed. The question is deliberately not part of
-            it, because the same question can yield different SQL on different days. This is what an
-            auditor recomputes.</p>
-          </div>
-          <div class="card">
-            <h3>The entry hash</h3>
-            <p><b>Was anything edited?</b> Every query is written to an append-only log; each
-            entry records the question, the SQL, the result hash and the grounding verdict, and each
-            entry's hash includes the hash of the one before it. Edit or drop any past entry and its
-            hash changes, the next entry's link no longer matches, and every entry after it fails
-            verification. The log is tamper&#8209;<i>evident</i>, not immutable: it makes changes
-            detectable, not impossible.</p>
-          </div>
-        </div>
-        <p class="lede" style="margin-top:22px">
-          A plain chain has one gap: whoever can write the whole file could rewrite every entry from
-          an edit point onward. Two optional layers close it, <b>Ed25519 signing</b> (a rewrite now
-          needs the private key) and an <b>external anchor</b> that publishes each checkpoint hash
-          somewhere outside your control. The anchor need not be a blockchain: WORM storage, an
-          RFC&nbsp;3161 timestamp, or simply handing the checkpoint to the auditor all work; a public
-          chain is only for the trust&#8209;no&#8209;one case.
-        </p>
-      </section>
-
-      <section class="section wash guilloche">
+      <section class="section wash guilloche" id="packs">
         <p class="kicker">The domain packs</p>
         <h2>Eight regulated domains, and the controls behind them.</h2>
         <p class="lede">
-          Because the engine is schema-agnostic, a domain pack is just a <b>signed ruleset</b>,
-          named queries and their PASS / EXCEPTION / FLAG checks, over a warehouse's column
-          allow-list. No new code, no model free-writing arithmetic, and no PII: each pack ships a
-          synthetic demo ledger and withholds the sensitive tables outright, so the guard refuses
-          any query that reaches them. A PASS is evidence a licensed professional can recompute
-          against their own obligations, not a certification or an audit opinion. Every pack works
-          the same way through the skill and the dashboard.
+          Each domain ships as a signed pack of named checks over that field's own books, every
+          result a PASS, EXCEPTION or FLAG a licensed professional can recompute. No PII: each pack
+          withholds its sensitive tables and ships a synthetic demo ledger instead. Same engine,
+          same skill and dashboard, every one. Hover a card for the controls behind it.
         </p>
         <div class="packs">
           <div class="flip" tabindex="0" role="group" aria-label="Municipal grants and budgets pack">
@@ -411,10 +286,101 @@ claude › $27,300.00 across 2 invoices.
           </div>
         </div>
         <p class="lede" style="margin-top:22px">
-          The live demo runs a municipal sandbox on your own expenditures; the other packs ship as
-          signed rulesets and synthetic ledgers. Bring your own ledger and allow-list and the same
-          guards apply, with no code changes.
+          The live demo runs the municipal pack on your own expenditures; bring your own ledger and
+          allow-list and the same guards apply, with no code changes.
         </p>
+      </section>
+
+      <section class="section" id="two-ways">
+        <p class="kicker">Two ways to use it</p>
+        <h2>One engine. In your agent, or on your dashboard.</h2>
+        <p class="lede">
+          The guard, the read-only database, the checks and the audit chain are the same code in
+          both. Only the front door differs.
+        </p>
+        <div class="ways">
+          <div class="card ink">
+            <span class="tag">Agent skill · MCP</span>
+            <h3>Ask from Claude</h3>
+            <p>For finance staff, auditors and analysts who already work with an AI assistant. Install the <code>civic-chain-auditor</code> skill, point it at your ledger, and ask in chat.</p>
+            <ul>
+              <li>Works in Claude, Cursor or any MCP host</li>
+              <li>The model picks a named query or writes guarded SQL; it never does the arithmetic</li>
+              <li>Every figure in the reply carries its result hash; <code>verify_answer</code> re-runs it</li>
+            </ul>
+<pre>you › How much did we pay North Fuel in April?
+  ↳ run_canonical  sandbox/vendor-total
+claude › $27,300.00 across 2 invoices.
+         result hash 871667b0…353b06a</pre>
+          </div>
+          <div class="card">
+            <span class="tag">Dashboard · SaaS</span>
+            <h3>Open the dashboard</h3>
+            <p>For clerks, council members and finance directors who want answers without an AI account. Load the ledger once; ask in plain English or run the standard controls.</p>
+            <ul>
+              <li>Plain-English questions over your own CSV or ledger</li>
+              <li>One-click controls: PASS or EXCEPTION with an evidence trail</li>
+              <li>An audit chain anyone can verify, exportable for the auditor</li>
+            </ul>
+            <div class="go"><a class="btn" href="demo.html">Try the dashboard preview →</a></div>
+          </div>
+        </div>
+        <div class="disc bridge">
+          <span><b>Same data, same hash.</b> The skill and the dashboard, asked over the same rows,
+          reproduce the same result hash, so the two can't quietly disagree and an auditor can check
+          either one without trusting the tool that produced it.</span>
+        </div>
+      </section>
+
+      <section class="section wash blueprint">
+        <p class="kicker">The pipeline</p>
+        <h2>One query. A grounded answer, or a refusal.</h2>
+        <p class="lede">
+          A language model is excellent at turning a question into SQL, and should never be trusted
+          with the arithmetic, so it isn't. The model writes the query having never seen a row; a
+          read-only database returns the rows; a verifier confirms every number in the prose came
+          from them.
+        </p>
+        <div class="pipe-wrap">
+<pre class="pipe">question
+   ├─ <b>plan</b>      model writes SQL, having never seen a row of data
+   ├─ <b>guard</b>     parsed, SELECT-only, allow-listed, LIMIT enforced   <span class="ref">← refuses here</span>
+   ├─ <b>execute</b>   read-only connection                                <span class="ref">← refuses here</span>
+   ├─ <b>narrate</b>   prose written, then every number checked against the rows
+   ├─ <b>lineage</b>   SQL + tables + columns + row count + result hash
+   └─ <b>audit</b>     appended to a hash-chained log</pre>
+        </div>
+      </section>
+
+      <section class="section">
+        <p class="kicker">The four guarantees</p>
+        <h2>A claim is only worth what enforces it.</h2>
+        <p class="lede">Each guarantee is backed by a mechanism and a test that would fail if it broke, not by a promise.</p>
+        <div class="guar">
+          <div class="card sage">
+            <h4>The model can't write to the database</h4>
+            <p>A connection opened <span class="mono">readOnly: true</span>; the database refuses writes below anything the code can reach.</p>
+          </div>
+          <div class="card sky">
+            <h4>Only SELECT, only allow-listed, always bounded</h4>
+            <p><span class="mono">guard.js</span> parses SQL to an AST and inspects the full table list, including subqueries and CTE bodies.</p>
+          </div>
+          <div class="card gold">
+            <h4>Every figure came from the data</h4>
+            <p><span class="mono">grounding.js</span> extracts each number and matches it to a returned value, allowing only legitimate transforms.</p>
+          </div>
+          <div class="card slate">
+            <h4>A past answer can't be altered unnoticed</h4>
+            <p><span class="mono">audit.js</span> hash-chains each entry to the one before it; <span class="mono">verify()</span> reports the first index where the chain breaks. Optional Ed25519 signing and an external anchor extend this to a full rewrite of history.</p>
+          </div>
+        </div>
+        <div class="disc bridge" style="margin-top:22px">
+          <span><b>Two hashes, two jobs.</b> The <i>result hash</i> is computed over the rows the
+          query returned, so re-running the same query at the same as-of date reproduces it, that is
+          what an auditor recomputes. The <i>entry hash</i> chains each log entry to the one before
+          it, so any later edit to the record breaks the chain. One proves the answer; the other
+          proves the record.</span>
+        </div>
       </section>
 
       <section class="section">

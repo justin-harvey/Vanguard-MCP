@@ -93,6 +93,9 @@ nav.back .sep{color:var(--border-strong)}
 .card.sage{background:var(--green-300);color:var(--green-900);border-color:transparent}
 .card.slate{background:var(--slate-700);color:var(--cream-50);border-color:transparent}
 .card.ink{background:var(--blue-700);color:var(--cream-50);border-color:transparent}
+/* headings inherit the card's light ink on dark tones, so they aren't washed out by the navy */
+.card.slate h1,.card.slate h2,.card.slate h3,.card.slate h4,
+.card.ink h1,.card.ink h2,.card.ink h3,.card.ink h4{color:inherit}
 
 /* ---- badges + tags ---- */
 .badge{display:inline-flex;align-items:center;gap:8px;font:600 12px var(--font-sans);padding:4px 11px;border-radius:999px}
