@@ -38,13 +38,15 @@ const sqliteOnlyParser = require.resolve('node-sql-parser/build/sqlite.js');
 
 mkdirSync(siteAssets, { recursive: true });
 
-const result = await esbuild.build({
-    entryPoints: [join(core, 'src', 'browser', 'demo-entry.js')],
+// Shared esbuild options. Two entries are bundled the same way: the municipal
+// demo (demo-entry.js) and the bring-your-own-expenditures demo
+// (byod-entry.js). Both reuse the same engine, so both need the hash swap and
+// the SQLite-only parser.
+const common = {
     bundle: true,
     format: 'esm',
     platform: 'browser',
     target: ['es2020'],
-    outfile: join(siteAssets, 'demo-engine.js'),
     loader: { '.sql': 'text', '.json': 'json' },
     alias: { 'node-sql-parser': sqliteOnlyParser },
     plugins: [
@@ -57,7 +59,17 @@ const result = await esbuild.build({
     ],
     minify: true,
     legalComments: 'none',
-    metafile: true,
+};
+
+await esbuild.build({
+    ...common,
+    entryPoints: [join(core, 'src', 'browser', 'demo-entry.js')],
+    outfile: join(siteAssets, 'demo-engine.js'),
+});
+await esbuild.build({
+    ...common,
+    entryPoints: [join(core, 'src', 'browser', 'byod-entry.js')],
+    outfile: join(siteAssets, 'byod-engine.js'),
 });
 
 // Self-host the sql.js loader and WASM; no CDN, so the CSP can stay 'self'.
@@ -67,6 +79,7 @@ copyFileSync(join(sqljsDist, 'sql-wasm.wasm'), join(siteAssets, 'sql-wasm.wasm')
 const kb = (bytes) => `${(bytes / 1024).toFixed(1)} KB`;
 const files = [
     ['demo-engine.js', join(siteAssets, 'demo-engine.js')],
+    ['byod-engine.js', join(siteAssets, 'byod-engine.js')],
     ['sql-wasm.js', join(siteAssets, 'sql-wasm.js')],
     ['sql-wasm.wasm', join(siteAssets, 'sql-wasm.wasm')],
 ];

@@ -62,7 +62,11 @@
       #trysql-out { margin-top: 14px; display: grid; gap: 10px; }
       #trysql-out .verdict { justify-self: start; }
 
-      @media (max-width: 760px) { .hero { padding: 44px 0 20px; } }
+      .byo-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+      .byo-grid textarea { font: 500 13px var(--font-code); color: var(--foreground); background: var(--control-bg); border: 1px solid var(--border-strong); border-radius: 10px; padding: 11px 12px; resize: vertical; line-height: 1.55; white-space: pre; overflow-x: auto; }
+      .byo-asks { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 14px; }
+
+      @media (max-width: 760px) { .hero { padding: 44px 0 20px; } .byo-grid { grid-template-columns: 1fr; } }
     </style>
   </head>
   <body>
@@ -129,22 +133,50 @@
       </section>
 
       <section class="section">
-        <h2>Try your own SQL</h2>
+        <h2>Bring your own expenditures</h2>
         <div class="disc" style="margin-bottom:14px">
-          The same guard that protects a real ledger runs here. Only <code>SELECT</code>, only the
-          allow-listed tables and columns, named explicitly (no <code>SELECT *</code>). Try a write,
-          the <code>payroll</code> table, or <code>vendors.tax_id</code> and watch it get refused.
-          Nothing here is audited; it is the guard, exposed.
+          Swap in your own numbers. Edit the two lists, then ask a question: the lines are parsed
+          into a private SQLite database <b>in your browser</b> and the same guarded, read-only
+          pipeline runs the question, checks the result and hash-chains the answer. Nothing is
+          uploaded. The schema is fixed (expenditures and budget caps), so the real overspend,
+          duplicate-payment and reconciliation checks fire on your own data. Still a demonstration
+          of the mechanism, not a professional audit opinion.
         </div>
         <div class="builder">
-          <label class="field">
-            <span>SQL</span>
-            <textarea id="trysql-input" rows="3" placeholder="SELECT grant_id, award_cents FROM grants ORDER BY award_cents DESC"></textarea>
-          </label>
-          <div class="run-row">
-            <button class="btn ghost" id="trysql-btn">Run through the guard →</button>
+          <div class="byo-grid">
+            <label class="field">
+              <span>Expenditures — date, vendor, category, amount, budget</span>
+              <textarea id="byo-data" rows="7" spellcheck="false">date, vendor, category, amount, budget
+2026-03-02, Acme Paving, roads, 42000, roads-26
+2026-03-09, Acme Paving, roads, 42000, roads-26
+2026-03-11, Bay Office Supply, admin, 1875, admin-26
+2026-04-01, North Fuel, fleet, 9100, fleet-26
+2026-04-04, North Fuel, fleet, 18200, fleet-26</textarea>
+            </label>
+            <label class="field">
+              <span>Budget caps — budget, cap</span>
+              <textarea id="byo-budgets" rows="7" spellcheck="false">budget, cap
+roads-26, 60000
+admin-26, 5000
+fleet-26, 30000</textarea>
+            </label>
           </div>
-          <div id="trysql-out"></div>
+          <div class="byo-asks">
+            <button class="btn" data-byo-q="budget-overspend">Which budgets are overspent?</button>
+            <button class="btn ghost" data-byo-q="duplicate-invoices">Any duplicate invoices?</button>
+            <button class="btn ghost" data-byo-q="spend-by-category">Total spend by category?</button>
+            <button class="btn ghost" id="byo-restore" type="button">Restore sample</button>
+          </div>
+          <p id="byo-status" style="font-size:13px;color:var(--slate-700);margin:12px 0 0"></p>
+
+          <div id="byo-result"></div>
+
+          <div id="byo-verify-wrap" hidden style="margin-top:20px;display:flex;align-items:center;gap:14px;flex-wrap:wrap">
+            <button class="btn ghost" id="byo-verify-btn">Verify the audit chain →</button>
+            <button class="btn ghost" id="byo-tamper-btn">Tamper with an entry</button>
+            <button class="btn ghost" id="byo-reset-btn">Reset chain</button>
+            <div id="byo-verify-out" style="display:flex;align-items:center;gap:10px;font-size:13px"></div>
+          </div>
         </div>
       </section>
 
@@ -176,5 +208,6 @@
          token, no request leaves the page after these assets load. -->
     <script src="assets/sql-wasm.js"></script>
     <script type="module" src="assets/demo-engine.js"></script>
+    <script type="module" src="assets/byod-engine.js"></script>
   </body>
 </html>
