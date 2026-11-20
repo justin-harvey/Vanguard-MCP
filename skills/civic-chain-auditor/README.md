@@ -22,16 +22,17 @@ This skill teaches an AI agent (Claude Code, Claude Desktop, Cursor, or any MCP 
 
 ## Quick start
 
-Requires **Node.js 22+** and a checkout of the Civic-Chain Grant & Budget Auditor.
+Requires **Node.js 22+**. Install the engine from npm and let it check itself:
 
 ```bash
-git clone https://github.com/justin-harvey/Vanguard-MCP.git
-cd Vanguard-MCP/vanguard-core && npm install && cd -
-
-node path/to/civic-chain-auditor/scripts/verify-setup.js --core Vanguard-MCP/vanguard-core
+npx @civic-chain/auditor doctor
 ```
 
-The check prints an `mcpServers` block. Paste it into `.mcp.json` (Claude Code), `.cursor/mcp.json` (Cursor) or `claude_desktop_config.json` (Claude Desktop), add your Anthropic API key, and restart the client. (The API key is optional; see below.) Then try:
+`doctor` fetches the `@civic-chain/auditor` engine, verifies the runtime, builds the bundled municipal demo into a local data directory, and prints a ready-to-paste `mcpServers` block.
+
+> Working from a git checkout instead? Clone the repo, run `cd vanguard-core && npm install`, then `node path/to/civic-chain-auditor/scripts/verify-setup.js --core path/to/vanguard-core`. It prints the same config pointed at your local `bin/vanguard.js`.
+
+Paste the printed block into `.mcp.json` (Claude Code), `.cursor/mcp.json` (Cursor) or `claude_desktop_config.json` (Claude Desktop), add your Anthropic API key, and restart the client. (The API key is optional; see below.) Then try:
 
 > How much of the paving grant (G-402) has been spent so far, broken down by vendor? Include the result hash.
 

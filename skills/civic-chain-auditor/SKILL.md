@@ -13,12 +13,13 @@ Your job is to keep that guarantee intact on your side of the conversation. **Ev
 
 ## Setup (once)
 
-Run the bundled check, then paste the printed `mcpServers` block into your host and restart it:
+Install the engine from npm and let it print the MCP config, then paste the printed `mcpServers` block into your host and restart it:
 
 ```bash
-cd vanguard-core && npm install && cd -
-node scripts/verify-setup.js --core /path/to/vanguard-mcp/vanguard-core
+npx @civic-chain/auditor doctor
 ```
+
+This one install step is required and justified: the skill is instructions only, while the audit guarantee (the SQL guard, the grounding check, and the hash-chained log) runs in the `@civic-chain/auditor` engine package. `doctor` fetches that package from the npm registry, verifies the Node 22+ runtime, builds the bundled municipal demo into a local data directory (no network beyond the install, no subprocess, no credential read), and prints a ready-to-paste `mcpServers` block that launches the server with `npx @civic-chain/auditor mcp`.
 
 Needs Node 22+. Full environment variables, custom-ledger setup, and the complete warehouse and audit-log reference are in **`references/setup.md`**. In the host, tool names carry the server key as a prefix (e.g. `mcp__civic-chain-auditor__run_canonical`); below they're written bare.
 

@@ -221,7 +221,8 @@ async function checkCore(coreArg, dbPath, allowlistPath, doc) {
     } catch {
         /* reported below */
     }
-    if (pkg?.name !== 'vanguard-core') warn(`${core}/package.json does not identify as vanguard-core; continuing anyway.`);
+    const CORE_NAMES = ['@civic-chain/auditor', 'vanguard-core'];
+    if (!CORE_NAMES.includes(pkg?.name)) warn(`${core}/package.json does not identify as the Civic-Chain Auditor engine (@civic-chain/auditor); continuing anyway.`);
 
     const deps = ['@modelcontextprotocol/sdk', 'node-sql-parser', '@anthropic-ai/sdk'];
     const missing = deps.filter((d) => !fs.existsSync(path.join(core, 'node_modules', ...d.split('/'), 'package.json')));

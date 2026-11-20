@@ -1,6 +1,6 @@
-# vanguard-core
+# @civic-chain/auditor
 
-A working implementation of the Vanguard MCP thesis: **the model writes SQL,
+The engine behind the Civic-Chain Grant & Budget Auditor: **the model writes SQL,
 the database produces the numbers, and every figure in the answer is verified
 against the data before you see it.**
 

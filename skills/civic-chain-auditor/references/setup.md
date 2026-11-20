@@ -1,16 +1,16 @@
 # Setup and configuration
 
-Run the bundled check once. It is local-only: no network calls and no subprocesses, and the only file it writes is the demo database in `assets/`.
+Install the engine from npm and let it check itself:
 
 ```bash
-cd vanguard-core && npm install && cd -
-node scripts/verify-setup.js --core /path/to/vanguard-mcp/vanguard-core
+npx @civic-chain/auditor doctor
 ```
 
-The script:
+`doctor` is local once the package is fetched: no further network calls, no subprocesses, no credential read. It:
+- fetches the `@civic-chain/auditor` engine from the npm registry
 - checks Node 22+
-- builds `assets/sample_municipal_budget.sqlite` from the bundled `.sql` seed (the package ships no binaries)
-- validates `assets/sample_allowlist.json` against the database
+- builds the bundled municipal demo database into a local data directory (the package ships no binaries)
+- validates its allow-list against the database
 - loads the warehouse through the engine as a smoke test
 - prints the exact `mcpServers` JSON to paste into Claude Code (`.mcp.json`), Cursor (`.cursor/mcp.json`) or Claude Desktop
 
@@ -20,17 +20,19 @@ The printed config has this shape:
 {
   "mcpServers": {
     "civic-chain-auditor": {
-      "command": "/absolute/path/to/node",
-      "args": ["/path/to/vanguard-mcp/vanguard-core/bin/vanguard.js", "mcp"],
+      "command": "npx",
+      "args": ["-y", "@civic-chain/auditor", "mcp"],
       "env": {
-        "CIVIC_DB_PATH": "/path/to/assets/sample_municipal_budget.sqlite",
-        "CIVIC_ALLOWLIST_PATH": "/path/to/assets/sample_allowlist.json",
-        "ANTHROPIC_API_KEY": "<your-anthropic-api-key>"
+        "CIVIC_DB_PATH": "<printed by doctor: the demo db in your data directory>",
+        "CIVIC_ALLOWLIST_PATH": "<printed by doctor: the matching allow-list>",
+        "ANTHROPIC_API_KEY": "<optional: only for free-text questions>"
       }
     }
   }
 }
 ```
+
+Working from a git checkout instead of the registry? Run the clone-oriented check: `cd vanguard-core && npm install && cd -` then `node scripts/verify-setup.js --core /path/to/vanguard-mcp/vanguard-core`. It prints the same config but points `command`/`args` at your local `bin/vanguard.js`.
 
 | Variable | Needed for |
 |---|---|
@@ -206,4 +208,4 @@ If the user asks about "the audit log" in general, verify every log that applies
 - `ok: true` → **INTACT**, with the entry count.
 - `ok: false` → **BROKEN** at index `brokenAt`, with `reason` verbatim. Entries before that index still verify; that entry and every one after it are suspect.
 
-Over MCP, `verify_audit` checks the hash chain only. It does **not** check Ed25519 signatures. For signature checks, point the user to `node bin/vanguard.js audit` (or `enron audit`, `markets audit`, `lseg audit`) with the signing key configured. For a PASS / EXCEPTION evidence result, call `run_control` with `{ "id": "CC7.2-audit-chain-integrity" }`, which checks the markets log. Over MCP neither tool accepts a caller `logPath`: the log is chosen on the server, so a tool call cannot point the engine at an arbitrary file. It returns `provenance: null` because verifying a chain adds no new entry.
+Over MCP, `verify_audit` checks the hash chain only. It does **not** check Ed25519 signatures. For signature checks, point the user to `npx @civic-chain/auditor audit` (or `enron audit`, `markets audit`, `lseg audit`) with the signing key configured. For a PASS / EXCEPTION evidence result, call `run_control` with `{ "id": "CC7.2-audit-chain-integrity" }`, which checks the markets log. Over MCP neither tool accepts a caller `logPath`: the log is chosen on the server, so a tool call cannot point the engine at an arbitrary file. It returns `provenance: null` because verifying a chain adds no new entry.

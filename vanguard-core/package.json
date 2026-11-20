@@ -17,6 +17,7 @@
     "node": ">=22"
   },
   "bin": {
+    "auditor": "bin/vanguard.js",
     "cc-auditor": "bin/vanguard.js",
     "civic-chain-auditor": "bin/vanguard.js"
   },

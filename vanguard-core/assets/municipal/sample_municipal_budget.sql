@@ -1,6 +1,6 @@
 -- Town of Sampleton (FICTIONAL) budget, grant and spending ledger.
 --
--- Synthetic demo data for the vanguard-mcp-auditor skill. Every name, figure,
+-- Synthetic demo data for the Civic-Chain Auditor skill. Every name, figure,
 -- vendor and tax ID here is invented; Sampleton is not a real municipality.
 -- Fiscal years run July 1 to June 30 (FY2026 = 2025-07-01 .. 2026-06-30);
 -- FY2027 data runs through 2026-10-31. All money is INTEGER CENTS.
