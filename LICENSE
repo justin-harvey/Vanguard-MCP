@@ -1,25 +1,40 @@
 Civic-Chain Commercial Licence
 
-DRAFT — PENDING COUNSEL REVIEW. This text is a placeholder that states the
-intended terms. It is NOT yet legally reviewed and must be replaced with a
-counsel-approved licence before any public release, listing, or sale. See
-AUDITOR-COMMERCIAL-MILESTONES.md, milestone C1.
+DRAFT — PENDING COUNSEL REVIEW. This text states the intended terms and was
+revised 2026-11-19 to resolve a Section 2 / Section 8 conflict and to add
+AI-agent, breach-termination, and governing-law clauses. It is NOT yet legally
+reviewed and must be replaced with a counsel-approved licence before any public
+release, listing, or sale. See AUDITOR-COMMERCIAL-MILESTONES.md, milestone C1.
 
 Copyright (c) 2026 Civic-Chain. All rights reserved.
 
 1. What this covers.
    This licence covers the Civic-Chain Grant & Budget Auditor engine, its
    skill package, its rulesets, and all accompanying files in this repository
-   published on or after the cut-over commit recorded in CHANGELOG.md. Versions
-   published before that commit were offered under the MIT Licence and remain
-   available to anyone who already holds them under those MIT terms. This
-   licence does not revoke any MIT grant already made.
+   published at or after the v1.0.0 tag, which is the licence cut-over recorded
+   in CHANGELOG.md. Everything published before that tag (the 0.x history, up to
+   and including commit 88e08a3, the last version offered under MIT) was offered
+   under the MIT Licence and remains available to anyone who already holds it
+   under those MIT terms. This licence does not revoke any MIT grant already
+   made.
+
+   This licence governs the software however the licensee obtains it, including
+   when an AI agent installs it from a package registry (for example npm) or a
+   source repository at the direction of a skill, and whether or not that skill
+   was obtained through a third-party marketplace. A marketplace's own terms
+   govern the delivery of the skill text; this licence governs the installed
+   software itself.
 
 2. Grant.
-   While the licensee holds an active Civic-Chain subscription, Civic-Chain
-   grants a non-exclusive, non-transferable right to install and run the
-   software on the licensee's own systems, against the licensee's own data, for
-   the licensee's own auditing purposes.
+   Subject to an active Civic-Chain subscription, Civic-Chain grants a
+   non-exclusive, non-transferable right to install and run the software on the
+   licensee's own systems, for the licensee's auditing purposes, including
+   auditing the books of the licensee's clients under a professional engagement.
+   This right is perpetual as to any version of the software released to the
+   licensee while the subscription was active: the licensee may continue to run
+   those versions after the subscription lapses. An active subscription is
+   required to receive new versions, updates, and rulesets, and to use any
+   hosted or marketplace (MCP) delivery of the software.
 
 3. Source-available, not open source.
    The source is published so that the licensee may inspect it. Inspection does
@@ -28,8 +43,23 @@ Copyright (c) 2026 Civic-Chain. All rights reserved.
    description of this licence and must not be used for it.
 
 4. No redistribution or resale.
-   The licensee may not distribute, resell, rent, lease, or make the software
-   available to any third party, whether modified or unmodified.
+   (a) The licensee may not distribute, resell, rent, lease, or make the
+   software available to any third party, whether modified or unmodified. Under
+   a professional engagement (Section 2) the licensee may produce and share the
+   software's reports and findings with the client being audited, but may not
+   give the client the software itself.
+
+   (b) AI model providers. Nothing in this Section prevents the licensee from
+   transmitting the software's skill instructions, rulesets, prompts, queries,
+   or data to a third-party AI model provider (for example Anthropic, OpenAI, or
+   Google) solely to execute the licensee's own workflows with the software,
+   provided the provider is not permitted to train on, fine-tune from, or retain
+   the transmitted content beyond what is necessary to return a response.
+
+   (c) No AI training or competing use. The licensee may not use the software,
+   its skill package, rulesets, prompts, or outputs to train, fine-tune, or
+   evaluate any machine-learning model, or to build, train, or improve any
+   product or agent skill that competes with the software.
 
 5. No warranty.
    THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -48,6 +78,19 @@ Copyright (c) 2026 Civic-Chain. All rights reserved.
    for review by a qualified accountant or auditor.
 
 8. Termination.
-   The rights in Section 2 end when the subscription lapses. The licensee may
-   continue to run any copy already in their possession, but will not receive
-   further updates, rulesets, or support.
+   On lapse of the subscription, the licensee stops receiving new versions,
+   updates, rulesets, and support, and the rights that require an active
+   subscription under Section 2 end; the perpetual right to run versions already
+   received during an active subscription continues.
+
+   This licence terminates automatically, independent of subscription status, if
+   the licensee breaches Section 3 (source-available restrictions) or Section 4
+   (redistribution, resale, AI training, or competing use). On such termination
+   the licensee must cease all use of the software and delete all copies in their
+   possession or control.
+
+9. Governing law and venue.
+   This licence is governed by the laws of the State of Maine, without regard to
+   conflict-of-law principles. Any dispute arising out of this licence must be
+   brought exclusively in the state or federal courts located in Cumberland
+   County, Maine.
