@@ -2,20 +2,24 @@
 /**
  * verify-setup.js: check a Civic-Chain Auditor install and print the client config.
  *
- *   node scripts/verify-setup.js                  check everything, build the demo db if missing
- *   node scripts/verify-setup.js --rebuild        rebuild the demo db from its SQL seed
+ *   node scripts/verify-setup.js                  check everything, build the municipal demo if missing
+ *   node scripts/verify-setup.js --pack <name>    build and check a specific bundled pack instead
+ *   node scripts/verify-setup.js --list-packs     list the bundled packs you can pass to --pack
+ *   node scripts/verify-setup.js --rebuild        rebuild the chosen demo db from its SQL seed
  *   node scripts/verify-setup.js --core <dir>     path to your vanguard-core checkout
  *   node scripts/verify-setup.js --db <file> --allowlist <file>   check your own ledger instead
  *
  * What it does, all locally:
  *   1. Checks Node is 22 or newer and node:sqlite is available.
- *   2. Builds assets/sample_municipal_budget.sqlite from the SQL seed if it is
- *      missing (or with --rebuild). This is the only file it ever writes.
+ *   2. Builds the chosen pack's demo .sqlite from its SQL seed if it is missing
+ *      (or with --rebuild). Defaults to the municipal pack. The .sqlite files are
+ *      the only files it ever writes.
  *   3. Validates the allow-list and checks every table and column it names
  *      exists in the database (opened read-only).
  *   4. Finds vanguard-core, checks its dependencies are installed, and loads the
  *      warehouse through the engine itself as a smoke test.
- *   5. Prints the mcpServers JSON to paste into Claude Code, Cursor or Claude Desktop.
+ *   5. Prints the mcpServers JSON to paste into Claude Code, Cursor or Claude
+ *      Desktop, including CIVIC_RULESET_PATH for a signed pack.
  *
  * What it never does: make network requests, spawn processes, read any
  * credential or environment secret, or modify anything outside the assets/
@@ -55,12 +59,21 @@ const section = (title) => console.log(`\n${title}`);
 
 // ── arguments ─────────────────────────────────────────────────────────────
 function parseArgs(argv) {
-    const args = { rebuild: false, help: false, core: null, db: null, allowlist: null };
+    const args = { rebuild: false, help: false, listPacks: false, pack: null, core: null, db: null, allowlist: null };
     for (let i = 0; i < argv.length; i += 1) {
         const a = argv[i];
         if (a === '--rebuild') args.rebuild = true;
         else if (a === '--help' || a === '-h') args.help = true;
-        else if (a === '--core' || a === '--db' || a === '--allowlist') {
+        else if (a === '--list-packs') args.listPacks = true;
+        else if (a === '--pack') {
+            const value = argv[i + 1];
+            if (!value || value.startsWith('--')) {
+                console.error(`${a} needs a pack name (try --list-packs).`);
+                process.exit(2);
+            }
+            args.pack = value;
+            i += 1;
+        } else if (a === '--core' || a === '--db' || a === '--allowlist') {
             const value = argv[i + 1];
             if (!value || value.startsWith('--')) {
                 console.error(`${a} needs a path.`);
@@ -74,6 +87,30 @@ function parseArgs(argv) {
         }
     }
     return args;
+}
+
+// ── packs ─────────────────────────────────────────────────────────────────
+// The bundled packs, from the manifest mirrored from vanguard-core/assets/packs.json
+// (drift-tested). The skill copy is flat, so every file sits directly in ASSETS.
+function loadPacks() {
+    try {
+        return JSON.parse(fs.readFileSync(path.join(ASSETS, 'packs.json'), 'utf8')).packs ?? [];
+    } catch {
+        return [];
+    }
+}
+
+function resolvePack(name) {
+    const p = loadPacks().find((x) => x.pack === name || x.warehouse === name);
+    if (!p) return null;
+    return {
+        warehouse: p.warehouse,
+        label: p.label,
+        sqlPath: path.join(ASSETS, p.sql),
+        dbPath: path.join(ASSETS, p.sql.replace(/\.sql$/, '.sqlite')),
+        allowlistPath: path.join(ASSETS, p.allowlist),
+        rulesetPath: path.join(ASSETS, p.ruleset),
+    };
 }
 
 function usage() {
@@ -97,19 +134,19 @@ function checkNode() {
     }
 }
 
-function buildDemoDb(sqlite, dbPath, rebuild) {
+function buildDemoDb(sqlite, dbPath, sqlPath, rebuild) {
     section('Database');
-    const isDemo = dbPath === DEFAULT_DB;
     if (fs.existsSync(dbPath) && !rebuild) {
         ok(`found ${dbPath}`);
         return true;
     }
-    if (!isDemo) {
-        fail(`${dbPath} does not exist. (--rebuild only rebuilds the bundled demo database.)`);
+    // Only a bundled pack carries a SQL seed we can build from; a user --db must exist.
+    if (!sqlPath) {
+        fail(`${dbPath} does not exist. (--rebuild only rebuilds a bundled demo database.)`);
         return false;
     }
-    if (!fs.existsSync(DEFAULT_SQL)) {
-        fail(`the seed script ${DEFAULT_SQL} is missing, so the demo database cannot be built.`);
+    if (!fs.existsSync(sqlPath)) {
+        fail(`the seed script ${sqlPath} is missing, so the demo database cannot be built.`);
         return false;
     }
     // Build beside the target, then rename, so a failed build never leaves a half-written file.
@@ -117,10 +154,10 @@ function buildDemoDb(sqlite, dbPath, rebuild) {
     try {
         fs.rmSync(tmp, { force: true });
         const db = new sqlite.DatabaseSync(tmp);
-        db.exec(fs.readFileSync(DEFAULT_SQL, 'utf8'));
+        db.exec(fs.readFileSync(sqlPath, 'utf8'));
         db.close();
         fs.renameSync(tmp, dbPath);
-        ok(`${rebuild ? 'rebuilt' : 'built'} ${dbPath} from ${path.basename(DEFAULT_SQL)}`);
+        ok(`${rebuild ? 'rebuilt' : 'built'} ${dbPath} from ${path.basename(sqlPath)}`);
         return true;
     } catch (error) {
         fs.rmSync(tmp, { force: true });
@@ -206,7 +243,7 @@ function findCore(explicit) {
     return null;
 }
 
-async function checkCore(coreArg, dbPath, allowlistPath, doc) {
+async function checkCore(coreArg, dbPath, allowlistPath, doc, rulesetPath = null) {
     section('vanguard-core');
     const core = findCore(coreArg);
     if (!core) {
@@ -237,6 +274,9 @@ async function checkCore(coreArg, dbPath, allowlistPath, doc) {
         // Load the warehouse through the engine itself, exactly as the MCP server will.
         process.env.CIVIC_DB_PATH = dbPath;
         process.env.CIVIC_ALLOWLIST_PATH = allowlistPath;
+        // A signed pack serves its queries from the ruleset; pin it so the smoke
+        // test loads the pack the same way the config tells the server to.
+        if (rulesetPath) process.env.CIVIC_RULESET_PATH = rulesetPath;
         try {
             const { warehouseSchema } = await import(pathToFileURL(path.join(core, 'src', 'warehouses.js')).href);
             const schema = warehouseSchema(doc.name);
@@ -245,6 +285,7 @@ async function checkCore(coreArg, dbPath, allowlistPath, doc) {
             const custom = loadCustomWarehouse();
             const names = Object.keys(custom?.queries ?? {});
             if (names.length > 0) ok(`named queries compile: ${names.map((n) => `${custom.name}/${n}`).join(', ')}`);
+            if (rulesetPath && custom?.ruleset) ok(`ruleset ${custom.ruleset.name}/${custom.ruleset.version}: ${custom.ruleset.status}${custom.ruleset.signedBy ? ` (key ${custom.ruleset.signedBy})` : ''}`);
         } catch (error) {
             fail(`the engine could not load the warehouse: ${error.message}`);
         }
@@ -260,17 +301,21 @@ function credentialReminder() {
     console.log('  placeholder in the "env" block below with your key.');
 }
 
-function printConfig(core, dbPath, allowlistPath) {
+function printConfig(core, dbPath, allowlistPath, { rulesetPath = null, serverKey = 'civic-chain-auditor' } = {}) {
+    const env = {
+        CIVIC_DB_PATH: dbPath,
+        CIVIC_ALLOWLIST_PATH: allowlistPath,
+    };
+    // A signed pack serves through its ruleset, so the config pins it; its named
+    // queries replace the allow-list's and every result reports the signature.
+    if (rulesetPath) env.CIVIC_RULESET_PATH = rulesetPath;
+    env.ANTHROPIC_API_KEY = '<your-anthropic-api-key>';
     const config = {
         mcpServers: {
-            'civic-chain-auditor': {
+            [serverKey]: {
                 command: process.execPath,
                 args: [path.join(core ?? '/path/to/vanguard-mcp/vanguard-core', 'bin', 'vanguard.js'), 'mcp'],
-                env: {
-                    CIVIC_DB_PATH: dbPath,
-                    CIVIC_ALLOWLIST_PATH: allowlistPath,
-                    ANTHROPIC_API_KEY: '<your-anthropic-api-key>',
-                },
+                env,
             },
         },
     };
@@ -279,9 +324,20 @@ function printConfig(core, dbPath, allowlistPath) {
     console.log('    Claude Code     .mcp.json in your project root');
     console.log('    Cursor          .cursor/mcp.json (project) or ~/.cursor/mcp.json (global)');
     console.log('    Claude Desktop  claude_desktop_config.json');
-    console.log('  If the file already has an "mcpServers" object, add only the "civic-chain-auditor" entry to it.');
+    console.log(`  If the file already has an "mcpServers" object, add only the "${serverKey}" entry to it.`);
     console.log('  "command" is the absolute path of the Node that ran this check, so GUI apps find it.\n');
     console.log(JSON.stringify(config, null, 2));
+}
+
+function listPacks() {
+    const packs = loadPacks();
+    if (packs.length === 0) {
+        console.log('No packs.json manifest found beside this script.');
+        return;
+    }
+    console.log(`\nBundled packs (${packs.length}) — pass one to --pack:\n`);
+    for (const p of packs) console.log(`  ${p.warehouse.padEnd(13)} ${p.label}`);
+    console.log('\nExample: node scripts/verify-setup.js --pack construction');
 }
 
 // ── main ──────────────────────────────────────────────────────────────────
@@ -291,16 +347,40 @@ async function main() {
         usage();
         return;
     }
-    const dbPath = args.db ?? DEFAULT_DB;
-    const allowlistPath = args.allowlist ?? DEFAULT_ALLOWLIST;
+    if (args.listPacks) {
+        listPacks();
+        return;
+    }
+
+    // Default to the municipal demo; --pack picks another bundled pack; --db
+    // points at the user's own ledger (which must already exist).
+    let dbPath = args.db ?? DEFAULT_DB;
+    let allowlistPath = args.allowlist ?? DEFAULT_ALLOWLIST;
+    let sqlPath = dbPath === DEFAULT_DB ? DEFAULT_SQL : null;
+    let rulesetPath = null;
+    let serverKey = 'civic-chain-auditor';
+    if (args.pack) {
+        const p = resolvePack(args.pack);
+        if (!p) {
+            const names = loadPacks().map((x) => x.warehouse).join(', ');
+            console.error(`Unknown pack "${args.pack}". Available: ${names || '(no manifest found)'}`);
+            process.exit(2);
+        }
+        dbPath = p.dbPath;
+        allowlistPath = p.allowlistPath;
+        sqlPath = p.sqlPath;
+        rulesetPath = p.rulesetPath;
+        serverKey = `civic-chain-${p.warehouse}`;
+    }
+
     console.log('Civic-Chain Auditor setup check (local only: no network, no subprocesses)');
 
     const sqlite = checkNode();
     let doc = null;
-    if (sqlite && buildDemoDb(sqlite, dbPath, args.rebuild)) doc = checkAllowlist(sqlite, dbPath, allowlistPath);
-    const core = await checkCore(args.core, dbPath, allowlistPath, doc);
+    if (sqlite && buildDemoDb(sqlite, dbPath, sqlPath, args.rebuild)) doc = checkAllowlist(sqlite, dbPath, allowlistPath);
+    const core = await checkCore(args.core, dbPath, allowlistPath, doc, rulesetPath);
     credentialReminder();
-    printConfig(core, dbPath, allowlistPath);
+    printConfig(core, dbPath, allowlistPath, { rulesetPath, serverKey });
 
     section('Result');
     if (failures > 0) {
@@ -308,7 +388,8 @@ async function main() {
         process.exitCode = 1;
     } else {
         console.log(`  Ready${warnings ? `, with ${warnings} warning(s)` : ''}. Restart your MCP client after adding the config.`);
-        console.log('  Try: "How much of the paving grant (G-402) has been spent, by vendor? Include the result hash."');
+        if (rulesetPath) console.log(`  Try a ${doc?.name ?? args.pack} named query, e.g. run_canonical { "name": "${doc?.name ?? args.pack}/..." } (see references/setup.md).`);
+        else console.log('  Try: "How much of the paving grant (G-402) has been spent, by vendor? Include the result hash."');
     }
 }
 

@@ -1,0 +1,77 @@
+{
+  "comment": "Single source of truth for the bundled domain packs. Mirrored byte-for-byte into the skill's flat assets/ (drift-tested). Filenames are basenames: the package nests them under assets/<pack>/, the skill copy is flat.",
+  "packs": [
+    {
+      "pack": "municipal",
+      "warehouse": "municipal",
+      "label": "Municipal grants & budget",
+      "ruleset": "ruleset.municipal-v1.json",
+      "sql": "sample_municipal_budget.sql",
+      "allowlist": "sample_allowlist.json"
+    },
+    {
+      "pack": "insurance",
+      "warehouse": "insurance",
+      "label": "Insurance premium trust (Insurance & Fiduciary)",
+      "ruleset": "ruleset.insurance-v1.json",
+      "sql": "sample_insurance_trust.sql",
+      "allowlist": "sample_insurance_allowlist.json"
+    },
+    {
+      "pack": "iolta",
+      "warehouse": "iolta",
+      "label": "Law firm client trust (IOLTA)",
+      "ruleset": "ruleset.iolta-v1.json",
+      "sql": "sample_iolta_trust.sql",
+      "allowlist": "sample_iolta_allowlist.json"
+    },
+    {
+      "pack": "excise",
+      "warehouse": "excise",
+      "label": "Excise tax filings",
+      "ruleset": "ruleset.excise-v1.json",
+      "sql": "sample_excise_filings.sql",
+      "allowlist": "sample_excise_allowlist.json"
+    },
+    {
+      "pack": "property",
+      "warehouse": "property",
+      "label": "Broker & property-management trust",
+      "ruleset": "ruleset.property-trust-v1.json",
+      "sql": "sample_property_trust.sql",
+      "allowlist": "sample_property_allowlist.json"
+    },
+    {
+      "pack": "hoa",
+      "warehouse": "hoa",
+      "label": "HOA reserves & assessments",
+      "ruleset": "ruleset.hoa-v1.json",
+      "sql": "sample_hoa_ledger.sql",
+      "allowlist": "sample_hoa_allowlist.json"
+    },
+    {
+      "pack": "nonprofit",
+      "warehouse": "nonprofit",
+      "label": "Nonprofit restricted funds",
+      "ruleset": "ruleset.nonprofit-v1.json",
+      "sql": "sample_nonprofit_funds.sql",
+      "allowlist": "sample_nonprofit_allowlist.json"
+    },
+    {
+      "pack": "schools",
+      "warehouse": "schools",
+      "label": "School district activity funds",
+      "ruleset": "ruleset.schools-v1.json",
+      "sql": "sample_schools_ledger.sql",
+      "allowlist": "sample_schools_allowlist.json"
+    },
+    {
+      "pack": "construction",
+      "warehouse": "construction",
+      "label": "Construction work-in-progress",
+      "ruleset": "ruleset.construction-v1.json",
+      "sql": "sample_construction_ledger.sql",
+      "allowlist": "sample_construction_allowlist.json"
+    }
+  ]
+}

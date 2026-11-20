@@ -933,17 +933,19 @@ async function main() {
             // Inspect, sign and key-manage Civic-Chain rulesets (S9). Local only.
             const sub = rest[0];
             const { loadRuleset, writeRulesetSignature } = await import('../src/ruleset.js');
-            const { assetPath } = await import('../src/paths.js');
-            const bundled = assetPath('municipal', 'ruleset.municipal-v1.json');
             switch (sub) {
                 case 'list': {
-                    const r = loadRuleset(bundled);
-                    console.log('\nBundled rulesets\n');
-                    console.log(`  ${r.name}/${r.version}`);
-                    console.log(`    status      : ${r.signature.status}${r.signature.signedBy ? ` (key ${r.signature.signedBy})` : ''}`);
-                    console.log(`    contentHash : ${r.contentHash}`);
-                    console.log(`    queries     : ${Object.keys(r.queries).join(', ')}`);
-                    for (const line of r.changelog) console.log(`    - ${line}`);
+                    const { loadPacks } = await import('../src/packs.js');
+                    const packs = loadPacks();
+                    console.log(`\nBundled rulesets (${packs.length} packs)\n`);
+                    for (const pack of packs) {
+                        const r = loadRuleset(pack.rulesetPath);
+                        console.log(`  ${r.name}/${r.version}  —  ${pack.label} (warehouse "${pack.warehouse}")`);
+                        console.log(`    status      : ${r.signature.status}${r.signature.signedBy ? ` (key ${r.signature.signedBy})` : ''}`);
+                        console.log(`    contentHash : ${r.contentHash}`);
+                        console.log(`    queries     : ${Object.keys(r.queries).join(', ')}`);
+                    }
+                    console.log('\nStand one up from a checkout: node scripts/verify-setup.js --pack <warehouse>');
                     break;
                 }
                 case 'show': {
