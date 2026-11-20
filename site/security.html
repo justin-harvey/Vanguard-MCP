@@ -1,0 +1,191 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="assets/civic-chain-logo.svg" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Civic-Chain Auditor, vendor &amp; security</title>
+    <meta name="description" content="How the Civic-Chain Grant & Budget Auditor handles your data: local by construction, no telemetry, no servers in the data path, read-only queries, and a published signing key you can verify yourself." />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=DM+Serif+Text&family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="assets/civic.css" />
+    <style>
+      .hero{padding:72px 0 36px}
+      .hero h1{max-width:20ch}
+      .hero .lede{margin-top:6px;font-size:20px;max-width:64ch}
+      .section{padding:34px 0;border-top:1px solid var(--border)}
+      .section > .kicker{margin-bottom:10px}
+      .section h2{margin:0 0 14px;font-size:24px}
+      .section p{max-width:70ch;line-height:1.65;color:var(--slate-800)}
+      .grid{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:20px}
+      .grid .card h3{margin:0 0 8px;font-size:17px}
+      .grid .card p{margin:0;font-size:15px}
+      .fact{display:flex;gap:12px;align-items:baseline;margin:0 0 10px}
+      .fact b{min-width:12ch;color:var(--foreground)}
+      .keybox{margin-top:18px}
+      .keybox dl{display:grid;grid-template-columns:max-content 1fr;gap:6px 18px;margin:0 0 16px;font-size:14.5px}
+      .keybox dt{font-weight:700;color:var(--foreground)}
+      .keybox dd{margin:0;color:var(--slate-800);word-break:break-all}
+      .contact{margin-top:14px}
+      @media (max-width:760px){.grid{grid-template-columns:1fr}.hero{padding:48px 0 28px}.fact{flex-direction:column;gap:2px}.keybox dl{grid-template-columns:1fr}}
+    </style>
+  </head>
+  <body>
+    <header class="site">
+      <div class="wrap">
+        <a class="brand" href="index.html">
+          <img class="mark" src="assets/civic-logo-w-text-horizontal.svg" alt="Civic-Chain" />
+          <span class="product"><b>Civic-Chain Auditor</b><span>verified financial intelligence</span></span>
+        </a>
+        <nav class="back">
+          <a href="index.html">Overview</a>
+          <span class="sep">·</span>
+          <a href="value.html">Why it matters</a>
+          <span class="sep">·</span>
+          <a href="demo.html">Live demo</a>
+        </nav>
+      </div>
+    </header>
+
+    <main class="wrap">
+      <section class="hero wash blueprint">
+        <p class="kicker">Civic-Chain · vendor &amp; security</p>
+        <h1>Built so your ledger never leaves the machine you run it on.</h1>
+        <p class="lede">
+          The Auditor is a tool for proving where public money went. It would be a poor one if the
+          act of using it quietly shipped that money's records somewhere else. It does not. This page
+          is the procurement-ready account of what runs where, what leaves the machine and what never
+          does, and how you verify the parts you are asked to trust, yourself.
+        </p>
+      </section>
+
+      <section class="section">
+        <p class="kicker">Data residency</p>
+        <h2>What runs where</h2>
+        <p>
+          The engine, the database, and the audit log all live on the machine you run the Auditor
+          on. There is no Civic-Chain service in the data path.
+        </p>
+        <div class="grid">
+          <div class="card">
+            <h3>No telemetry</h3>
+            <p>The package phones no home, reports no usage, and sends no analytics. Installing or
+              running it opens no connection to Civic-Chain.</p>
+          </div>
+          <div class="card">
+            <h3>No servers in the data path</h3>
+            <p>The credential-free tools (<code class="inl">run_canonical</code>,
+              <code class="inl">run_query</code>, <code class="inl">verify_answer</code>,
+              <code class="inl">run_control</code>, <code class="inl">verify_audit</code>, CSV import)
+              make no network call at all.</p>
+          </div>
+          <div class="card">
+            <h3>You choose the only subprocessor</h3>
+            <p>A free-text question that needs a query planner calls the model provider you configure
+              with your own API key, and nothing else leaves the machine. No key, no model call.</p>
+          </div>
+          <div class="card">
+            <h3>Read-only by construction</h3>
+            <p>Every query is parsed, held to a per-warehouse table and column allow-list, and refused
+              unless it is a single read-only <code class="inl">SELECT</code>. The guard is the trust
+              boundary.</p>
+          </div>
+        </div>
+      </section>
+
+      <section class="section">
+        <p class="kicker">Sensitive data</p>
+        <h2>PII is withheld by the allow-list, not by good intentions</h2>
+        <p>
+          Each warehouse ships an allow-list that names the exact tables and columns a query may
+          read. Anything not on it, policyholder SSNs, client contacts, donor histories, student
+          records, employee payroll, is unreachable: a query that reaches for it is refused with
+          <code class="inl">table_not_allowed</code> or <code class="inl">column_not_allowed</code>
+          before it runs. The refusal is the feature. You can watch the guard turn down those requests
+          in the <a href="demo.html">live demo</a>.
+        </p>
+      </section>
+
+      <section class="section">
+        <p class="kicker">Supply chain</p>
+        <h2>How the package reaches you</h2>
+        <div class="grid">
+          <div class="card">
+            <h3>Published with provenance</h3>
+            <p>The engine ships as <code class="inl">@civic-chain/auditor</code> on the npm registry,
+              built with npm provenance so the published artifact ties back to the source commit and
+              the build that produced it.</p>
+          </div>
+          <div class="card">
+            <h3>Runtime</h3>
+            <p>Node.js 22+. The query path uses the built-in <code class="inl">node:sqlite</code>, so
+              the SQLite engine is the runtime's, not a bundled native binary. The package ships no
+              compiled binaries.</p>
+          </div>
+          <div class="card">
+            <h3>Local install check</h3>
+            <p><code class="inl">npx @civic-chain/auditor doctor</code> verifies the runtime, builds
+              the bundled demo locally, and prints the MCP config. After the install itself it makes
+              no network call, runs no subprocess, and reads no credential.</p>
+          </div>
+          <div class="card">
+            <h3>Source-available</h3>
+            <p>The source is published for inspection under the Civic-Chain Commercial Licence. You
+              can read every line that handles your data before you run it.</p>
+          </div>
+        </div>
+      </section>
+
+      <section class="section">
+        <p class="kicker">Verify, don't trust</p>
+        <h2>Confirm the ruleset signing key yourself</h2>
+        <p>
+          Signed rulesets are signed with an <b>Ed25519</b> key held offline. The matching public key
+          ships with the package so you can verify any ruleset's signature and pin the key you trust.
+          Recompute the fingerprint and confirm the key you have is the key we publish:
+        </p>
+        <div class="keybox">
+          <dl>
+            <dt>Public key</dt>
+            <dd><code>vanguard-core/assets/civic-chain-ruleset-pub.pem</code></dd>
+            <dt>Key id</dt>
+            <dd><code>acb80e87885da931</code> (first 16 hex of the SPKI DER SHA-256, recorded on every
+              signed entry as <code class="inl">signedBy</code>)</dd>
+            <dt>Fingerprint</dt>
+            <dd><code>acb80e87885da9317ae908d39f0f050a4da5ca6f72e8e547870cbed6e271a5bc</code></dd>
+          </dl>
+          <pre>openssl pkey -pubin -in vanguard-core/assets/civic-chain-ruleset-pub.pem \
+  -outform DER | openssl dgst -sha256</pre>
+        </div>
+        <p>
+          A ruleset whose <code class="inl">signedBy</code> does not match this key id was not signed
+          by Civic-Chain; treat it as untrusted. The private key is never committed and never leaves
+          an offline machine.
+        </p>
+      </section>
+
+      <section class="section">
+        <p class="kicker">Disclosure</p>
+        <h2>Reporting a vulnerability</h2>
+        <p class="contact">
+          Email <b>info@civic-chain.com</b> with &ldquo;SECURITY&rdquo; in the subject. Include what
+          you found, how to reproduce it, and the version or commit you were running. We acknowledge
+          every report and work with you on a fix. Please do not open a public issue for a security
+          problem. For encrypted disclosure, say so in your first message and we will arrange a key.
+        </p>
+        <div class="cta" style="margin-top:22px">
+          <a class="btn" href="demo.html">See the guard refuse a query →</a>
+          <a class="btn ghost" href="value.html">Why the evidence holds up →</a>
+        </div>
+      </section>
+    </main>
+
+    <footer class="site">
+      <div class="wrap">
+        <span>Civic-Chain Grant &amp; Budget Auditor, the evidence an audit rests on, reproducible and tamper-evident, at software cost.</span>
+        <span>All demo data is synthetic and labelled.</span>
+      </div>
+    </footer>
+  </body>
+</html>
