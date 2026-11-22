@@ -122,6 +122,41 @@ test('every tool-shaped name the skill names is a real tool', () => {
     }
 });
 
+test('the SKILL.md frontmatter is complete and tracks the engine', () => {
+    const { text } = doc('SKILL.md');
+    const fm = text.match(/^---\n([\s\S]*?)\n---/);
+    assert.ok(fm, 'SKILL.md must open with a YAML frontmatter block');
+    const front = fm[1];
+
+    // description stays within the Agent Skills 1024-char spec cap (Q1).
+    const desc = front.match(/^description:\s*(.+)$/m);
+    assert.ok(desc, 'frontmatter must declare a description');
+    assert.ok(desc[1].length <= 1024, `description is ${desc[1].length} chars, over the 1024 spec limit`);
+
+    // license is declared and points at the LICENSE (Q4 / G2).
+    assert.match(front, /^license:\s*\S/m, 'frontmatter must declare a license');
+
+    // metadata.version tracks the engine package so a stale skill is caught (Q4).
+    const pkg = JSON.parse(readFileSync(join(SRC, '..', 'package.json'), 'utf8'));
+    const ver = front.match(/\bversion:\s*([0-9][0-9.]*)/);
+    assert.ok(ver, 'frontmatter must declare metadata.version');
+    assert.equal(ver[1], pkg.version, 'skill metadata.version must match the engine package version');
+
+    // allowed-tools scopes to the real Auditor MCP tools (+ Read); no phantom tool (Q4).
+    // The CSV-import tools (propose_csv_mapping/import_csv) only advertise when an
+    // import folder is configured, so set one to see the engine's full tool surface.
+    const prevImport = process.env.CIVIC_IMPORT_DIR;
+    process.env.CIVIC_IMPORT_DIR = here;
+    const realTools = new Set(listTools().map((t) => `mcp__civic-chain-auditor__${t.name}`));
+    if (prevImport === undefined) delete process.env.CIVIC_IMPORT_DIR;
+    else process.env.CIVIC_IMPORT_DIR = prevImport;
+    const allowed = [...front.matchAll(/^\s*-\s*(mcp__civic-chain-auditor__[a-z_]+)\s*$/gm)].map((m) => m[1]);
+    assert.ok(allowed.length > 0, 'allowed-tools must list the Auditor MCP tools');
+    for (const name of allowed) {
+        assert.ok(realTools.has(name), `allowed-tools lists "${name}", which the server does not expose`);
+    }
+});
+
 test('every refusal reason the refusal table documents can actually be emitted', () => {
     const real = validReasons();
     const { text } = doc('references/refusals.md');

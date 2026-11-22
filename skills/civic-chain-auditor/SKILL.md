@@ -1,6 +1,20 @@
 ---
 name: civic-chain-auditor
 description: Use when the user asks to audit or reconcile a financial ledger and wants figures they can trust and reproduce, in any of these domains: municipal or public grant and budget spending (drawdowns, overruns, vendor breakdowns); an insurance agency's premium trust; a law firm's client trust (IOLTA three-way reconciliation); an excise licensee's filings (beer, alcohol, tobacco or cannabis); a real estate broker's or property manager's trust and an HOA's reserves and assessments; a nonprofit's donor-restricted funds and Single Audit threshold; a school district's student activity funds and federal program costs; or a construction contractor's work-in-progress schedule. Also verifies audit logs and SOC 2 evidence controls. Answers only through the Civic-Chain Auditor MCP server (required): every figure comes from a read-only SQL query checked against the source rows, with a result hash and a tamper-evident audit trail. Ships a synthetic demo ledger per domain.
+license: Civic-Chain Commercial Licence (see LICENSE)
+metadata:
+  version: 1.1.0
+allowed-tools:
+  - Read
+  - mcp__civic-chain-auditor__run_canonical
+  - mcp__civic-chain-auditor__run_query
+  - mcp__civic-chain-auditor__verify_answer
+  - mcp__civic-chain-auditor__execute_financial_query
+  - mcp__civic-chain-auditor__list_controls
+  - mcp__civic-chain-auditor__run_control
+  - mcp__civic-chain-auditor__verify_audit
+  - mcp__civic-chain-auditor__propose_csv_mapping
+  - mcp__civic-chain-auditor__import_csv
 ---
 
 # Civic-Chain Grant & Budget Auditor
