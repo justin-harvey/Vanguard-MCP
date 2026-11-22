@@ -12,7 +12,7 @@
  *
  * Pure: it takes the entries and the integrity result as inputs and returns
  * strings, with no `node:` imports, so the same renderer runs in the browser and
- * the CLI. bin/vanguard.js supplies the file-backed log and the verification;
+ * the CLI. bin/auditor.js supplies the file-backed log and the verification;
  * evidence.js is the equivalent split for a single-result packet.
  *
  * Claim discipline (same as the evidence packet): a report is *evidence*, not a

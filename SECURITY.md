@@ -35,7 +35,7 @@ Signed rulesets are signed with an **Ed25519** key held offline. The matching
 public key ships with the package so you can verify a ruleset's signature
 yourself, and pin the key you trust.
 
-- **Public key:** `vanguard-core/assets/civic-chain-ruleset-pub.pem`
+- **Public key:** `auditor-core/assets/civic-chain-ruleset-pub.pem`
 - **Key id** (first 16 hex of the SHA-256 of the SPKI DER, recorded on every
   signed entry as `signedBy`): `acb80e87885da931`
 - **Full SPKI DER SHA-256 fingerprint:**
@@ -44,7 +44,7 @@ yourself, and pin the key you trust.
 Recompute the fingerprint to confirm the key you have is the key we publish:
 
 ```sh
-openssl pkey -pubin -in vanguard-core/assets/civic-chain-ruleset-pub.pem \
+openssl pkey -pubin -in auditor-core/assets/civic-chain-ruleset-pub.pem \
   -outform DER | openssl dgst -sha256
 ```
 

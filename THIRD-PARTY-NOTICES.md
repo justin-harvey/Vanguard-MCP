@@ -1,10 +1,10 @@
 # Third-party notices
 
 The in-browser demo bundle (`site/assets/demo-engine.js`, `sql-wasm.js`,
-`sql-wasm.wasm`), built by `vanguard-core/scripts/build-demo.js`, includes the
+`sql-wasm.wasm`), built by `auditor-core/scripts/build-demo.js`, includes the
 following third-party components. Everything else in that bundle is
 Civic-Chain's own source (see `LICENSE`), including the SHA-256 implementation
-(`vanguard-core/src/platform/sha256.js`), which is original and depends on
+(`auditor-core/src/platform/sha256.js`), which is original and depends on
 nothing.
 
 | Component | Version | License | Use |

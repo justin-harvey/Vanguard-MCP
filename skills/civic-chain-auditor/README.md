@@ -30,7 +30,7 @@ npx @civic-chain/auditor doctor
 
 `doctor` fetches the `@civic-chain/auditor` engine, verifies the runtime, builds the bundled municipal demo into a local data directory, and prints a ready-to-paste `mcpServers` block.
 
-> Working from a git checkout instead? Clone the repo, run `cd vanguard-core && npm install`, then `node path/to/civic-chain-auditor/scripts/verify-setup.js --core path/to/vanguard-core`. It prints the same config pointed at your local `bin/vanguard.js`.
+> Working from a git checkout instead? Clone the repo, run `cd auditor-core && npm install`, then `node path/to/civic-chain-auditor/scripts/verify-setup.js --core path/to/auditor-core`. It prints the same config pointed at your local `bin/auditor.js`.
 
 Paste the printed block into `.mcp.json` (Claude Code), `.cursor/mcp.json` (Cursor) or `claude_desktop_config.json` (Claude Desktop), add your Anthropic API key, and restart the client. (The API key is optional; see below.) Then try:
 
@@ -66,7 +66,7 @@ node -e "const {DatabaseSync}=require('node:sqlite');const fs=require('fs');cons
 ```json
 "civic-chain-insurance": {
   "command": "node",
-  "args": ["<vanguard-core>/bin/vanguard.js", "mcp"],
+  "args": ["<auditor-core>/bin/auditor.js", "mcp"],
   "env": {
     "CIVIC_DB_PATH": "<assets>/sample_insurance_trust.sqlite",
     "CIVIC_ALLOWLIST_PATH": "<assets>/sample_insurance_allowlist.json",
@@ -111,7 +111,7 @@ node -e "const {DatabaseSync}=require('node:sqlite');const fs=require('fs');cons
 ```json
 "civic-chain-iolta": {
   "command": "node",
-  "args": ["<vanguard-core>/bin/vanguard.js", "mcp"],
+  "args": ["<auditor-core>/bin/auditor.js", "mcp"],
   "env": {
     "CIVIC_DB_PATH": "<assets>/sample_iolta_trust.sqlite",
     "CIVIC_ALLOWLIST_PATH": "<assets>/sample_iolta_allowlist.json",
@@ -160,7 +160,7 @@ node -e "const {DatabaseSync}=require('node:sqlite');const fs=require('fs');cons
 ```json
 "civic-chain-excise": {
   "command": "node",
-  "args": ["<vanguard-core>/bin/vanguard.js", "mcp"],
+  "args": ["<auditor-core>/bin/auditor.js", "mcp"],
   "env": {
     "CIVIC_DB_PATH": "<assets>/sample_excise_filings.sqlite",
     "CIVIC_ALLOWLIST_PATH": "<assets>/sample_excise_allowlist.json",
@@ -219,7 +219,7 @@ node -e "const {DatabaseSync}=require('node:sqlite');const fs=require('fs');cons
 ```json
 "civic-chain-property": {
   "command": "node",
-  "args": ["<vanguard-core>/bin/vanguard.js", "mcp"],
+  "args": ["<auditor-core>/bin/auditor.js", "mcp"],
   "env": {
     "CIVIC_DB_PATH": "<assets>/sample_property_trust.sqlite",
     "CIVIC_ALLOWLIST_PATH": "<assets>/sample_property_allowlist.json",
@@ -228,7 +228,7 @@ node -e "const {DatabaseSync}=require('node:sqlite');const fs=require('fs');cons
 },
 "civic-chain-hoa": {
   "command": "node",
-  "args": ["<vanguard-core>/bin/vanguard.js", "mcp"],
+  "args": ["<auditor-core>/bin/auditor.js", "mcp"],
   "env": {
     "CIVIC_DB_PATH": "<assets>/sample_hoa_ledger.sqlite",
     "CIVIC_ALLOWLIST_PATH": "<assets>/sample_hoa_allowlist.json",
@@ -277,7 +277,7 @@ node -e "const {DatabaseSync}=require('node:sqlite');const fs=require('fs');cons
 ```json
 "civic-chain-nonprofit": {
   "command": "node",
-  "args": ["<vanguard-core>/bin/vanguard.js", "mcp"],
+  "args": ["<auditor-core>/bin/auditor.js", "mcp"],
   "env": {
     "CIVIC_DB_PATH": "<assets>/sample_nonprofit_funds.sqlite",
     "CIVIC_ALLOWLIST_PATH": "<assets>/sample_nonprofit_allowlist.json",
@@ -326,7 +326,7 @@ node -e "const {DatabaseSync}=require('node:sqlite');const fs=require('fs');cons
 ```json
 "civic-chain-schools": {
   "command": "node",
-  "args": ["<vanguard-core>/bin/vanguard.js", "mcp"],
+  "args": ["<auditor-core>/bin/auditor.js", "mcp"],
   "env": {
     "CIVIC_DB_PATH": "<assets>/sample_schools_ledger.sqlite",
     "CIVIC_ALLOWLIST_PATH": "<assets>/sample_schools_allowlist.json",
@@ -376,7 +376,7 @@ node -e "const {DatabaseSync}=require('node:sqlite');const fs=require('fs');cons
 ```json
 "civic-chain-construction": {
   "command": "node",
-  "args": ["<vanguard-core>/bin/vanguard.js", "mcp"],
+  "args": ["<auditor-core>/bin/auditor.js", "mcp"],
   "env": {
     "CIVIC_DB_PATH": "<assets>/sample_construction_ledger.sqlite",
     "CIVIC_ALLOWLIST_PATH": "<assets>/sample_construction_allowlist.json",

@@ -4,7 +4,7 @@ From [civic-chain.com](https://civic-chain.com). Live demo: https://vanguard-mcp
 
 **Public money, verified.** Ask a plain-English question about a budget, a grant, or a line of spending and get an answer in which *every figure* has been checked against the source records before you see it, or an explicit refusal. Never an unverified number presented as fact.
 
-[![Core tests](https://img.shields.io/badge/core-436%20tests%2C%20offline-blue.svg)](vanguard-core/)
+[![Core tests](https://img.shields.io/badge/core-436%20tests%2C%20offline-blue.svg)](auditor-core/)
 [![Licence: Civic-Chain Commercial, source-available](https://img.shields.io/badge/licence-source--available-informational.svg)](LICENSE)
 
 The issue is that AI is excellent at turning a question into SQL, and terrible at being trusted with the math. So we took the AI out of the equation. The LLM (AI) writes a query, a read-only database returns the rows, and a verifier checks that every number in the prose actually came from those rows. What you get back is either a grounded answer with a full provenance trail, or an explicit refusal. Never an unverified paragraph presented as fact.
@@ -56,7 +56,7 @@ The external anchor **does not have to be a blockchain**, publishing each checkp
 
 | Path | What it is |
 |------|-----------|
-| [`vanguard-core/`](vanguard-core/) | **The working engine.** A Node.js CLI and library implementing the full pipeline above: guard, read-only warehouse, grounding verifier, lineage capture, a tamper-evident audit chain, a CSV importer that builds a guarded warehouse from a buyer's own ledger, signed domain rulesets, and a one-command shareable audit report. 436 tests, no API credential required to run them. |
+| [`auditor-core/`](auditor-core/) | **The working engine.** A Node.js CLI and library implementing the full pipeline above: guard, read-only warehouse, grounding verifier, lineage capture, a tamper-evident audit chain, a CSV importer that builds a guarded warehouse from a buyer's own ledger, signed domain rulesets, and a one-command shareable audit report. 436 tests, no API credential required to run them. |
 | [`site/`](site/) | **The web demo.** A static site: the thesis, the reporting-gap case study, and the evidence panel. |
 | [`site/enron.html`](site/enron.html) | **The reporting-gap case study**, reported figures set against what the underlying rows support, each grounded and hash-chained. |
 | [`site/controls.html`](site/controls.html) | **The evidence panel**, one-click controls that return PASS/EXCEPTION with a verifiable evidence trail. |
@@ -66,13 +66,13 @@ The external anchor **does not have to be a blockchain**, publishing each checkp
 | [`SECURITY.md`](SECURITY.md) | **The security policy**, how to report a vulnerability, what runs locally (no telemetry), and the ruleset signing key's published fingerprint so you can pin it. |
 | [`COMPARISON.md`](COMPARISON.md) | **The landscape**, how this relates to and differs from governed text-to-SQL, claim verifiers, and database ledgers. |
 
-The demo makes the case; the core makes it executable. Start with the [`vanguard-core/` README](vanguard-core/README.md) for the full technical account.
+The demo makes the case; the core makes it executable. Start with the [`auditor-core/` README](auditor-core/README.md) for the full technical account.
 
 ## Architecture and data flow
 
 One engine, two front doors. The pipeline at the top of this README (guard, execute, ground, lineage, audit) is the same code in both paths below; what differs is the transport in front of it and who is allowed to call what. The engine never trusts its caller: it enforces read-only access, the SELECT-only guard, grounding, and the hash chain regardless of how a request arrives.
 
-The engine speaks two protocols from the one `vanguard-core` codebase:
+The engine speaks two protocols from the one `auditor-core` codebase:
 
 - **stdio MCP**, the Model Context Protocol over a pipe, used by the agent skill below — the way a buyer runs the engine.
 - **HTTP** (`cc-auditor serve`), a token-guarded JSON API, kept for enterprise server-to-server use. It refuses to start without `ENGINE_SERVICE_TOKEN`.
@@ -87,7 +87,7 @@ The public demo at **https://vanguard-mcp.netlify.app/demo.html** reads a synthe
  browser (Netlify static site)
  site/demo.html
    ├─ sql-wasm.js + sql-wasm.wasm   WebAssembly SQLite (in-memory, read-only)
-   └─ demo-engine.js                the real engine, bundled from vanguard-core:
+   └─ demo-engine.js                the real engine, bundled from auditor-core:
                                     guard · named queries · lineage · audit chain
                                     audit chain persists in localStorage, per visitor
 ```
@@ -107,14 +107,14 @@ Because the engine is bundled, it is downloadable from the page. That is accepte
 [`skills/civic-chain-auditor/`](skills/civic-chain-auditor/SKILL.md) is an **Agent Skill**: an operating manual that teaches an MCP host (Claude Code, Claude Desktop, Cursor) to drive the Civic-Chain Auditor as a set of tools and to keep the no-unverified-number guarantee intact on the model's side of the conversation. There is no HTTP proxy here; the host launches the engine as a local MCP server over stdio and talks to it directly, with the operator's own warehouses and (if a warehouse allows free text) their own API key.
 
 ```
- you ──▶ MCP host (model)  ──stdio MCP──▶  vanguard mcp (MCP server)  ──▶  engine pipeline
+ you ──▶ MCP host (model)  ──stdio MCP──▶  cc-auditor mcp (MCP server)  ──▶  engine pipeline
          routes per SKILL.md                 same guard/ground/audit          operator's warehouses
          presents, never computes            as HTTP, different transport     + audit chain
 ```
 
 Step by step:
 
-1. **Setup (once).** `scripts/verify-setup.js` checks the core and prints an `mcpServers` block; pasting it into the host and restarting registers the server. The host then launches `node vanguard-core/bin/vanguard.js mcp`, a stdio MCP server exposing the same tools (`run_canonical`, `run_query` and `verify_answer` for credential-free open-ended SQL, `execute_financial_query`, `list_controls` / `run_control`, `verify_audit`, and `propose_csv_mapping` / `import_csv` when an import folder is configured) and the `civic-chain://warehouses` resource.
+1. **Setup (once).** `scripts/verify-setup.js` checks the core and prints an `mcpServers` block; pasting it into the host and restarting registers the server. The host then launches `node auditor-core/bin/auditor.js mcp`, a stdio MCP server exposing the same tools (`run_canonical`, `run_query` and `verify_answer` for credential-free open-ended SQL, `execute_financial_query`, `list_controls` / `run_control`, `verify_audit`, and `propose_csv_mapping` / `import_csv` when an import folder is configured) and the `civic-chain://warehouses` resource.
 2. **The host routes the question.** Guided by `SKILL.md`, the model reads `civic-chain://warehouses` to see what is connected, then prefers a named canonical query (`run_canonical` on `<warehouse>/<query>`, credential-free, operator-fixed definitions, and automatic integrity checks) and falls back to `execute_financial_query` only for free-text questions on a warehouse that permits them. It phrases the question so the SQL returns every figure it will quote, because a figure the query did not return cannot be grounded.
 3. **The MCP server runs the same pipeline** the HTTP path does: guard, read-only execute, grounding, lineage, hash-chained audit. A malformed or out-of-policy request is refused by the engine, not by the skill; the refusal is the system working.
 4. **The host presents the result in three parts** and does no arithmetic of its own: the grounded answer (figures exactly as returned), the provenance (executed SQL, tables and columns, row count), and the audit trail (result hash, audit sequence and entry hash, each check's verdict). For a named query it reads `integrity` before anything else: an `integrity: "flag"` result must not be presented as fact, and each `finding` is an audit observation about the ledger, not an error.
@@ -148,7 +148,7 @@ Because the engine is schema-agnostic, a domain pack is just a signed ruleset (n
 
 Each pack ships a synthetic demo ledger so the controls run out of the box, and the packs reach none of a ledger's sensitive fields: the municipal demo withholds `payroll` and vendor tax IDs, the insurance demo withholds an `insured_pii` table of SSNs and health notes, the IOLTA demo withholds a `client_contacts` table of client names and addresses, the excise demo withholds a `customer_accounts` table of wholesale-account names and addresses, the property and HOA demos withhold a `resident_pii` table of tenant and owner names, SSNs and bank accounts, the nonprofit demo withholds a `donor_pii` table of donor names, addresses and gift histories, the schools demo withholds a `student_records` table of student names, grade levels and meal-eligibility status under FERPA, and the construction demo withholds a `payroll_pii` table of employee names, SSNs, pay rates and certified-payroll classifications, and the guard refuses any query that reaches them. The excise rate lives in a `tax_rates` table so a rate change is data, not a new ruleset. A PASS is evidence a licensed professional can recompute and confirm against the entity's own obligations, not a certification or an audit opinion.
 
-To run the insurance, IOLTA, excise, property, HOA, nonprofit, schools or construction pack, serve `vanguard-core/assets/insurance/`, `vanguard-core/assets/iolta/`, `vanguard-core/assets/excise/`, `vanguard-core/assets/property/`, `vanguard-core/assets/hoa/`, `vanguard-core/assets/nonprofit/`, `vanguard-core/assets/schools/` or `vanguard-core/assets/construction/` as a custom warehouse with `CIVIC_RULESET_PATH` pointing at its signed ruleset; the agent skill's READMEs for the [Insurance & Fiduciary](skills/civic-chain-auditor/README.md#insurance--fiduciary-pack), [Law Firm Trust (IOLTA)](skills/civic-chain-auditor/README.md#law-firm-trust-iolta-pack), [Excise Tax](skills/civic-chain-auditor/README.md#excise-tax-pack), [Property Management & HOA](skills/civic-chain-auditor/README.md#property-management--hoa-pack), [Nonprofit Restricted Funds](skills/civic-chain-auditor/README.md#nonprofit-restricted-funds-pack), [School Districts](skills/civic-chain-auditor/README.md#school-districts-pack) and [Construction Contracts](skills/civic-chain-auditor/README.md#construction-contracts-pack) packs have the steps.
+To run the insurance, IOLTA, excise, property, HOA, nonprofit, schools or construction pack, serve `auditor-core/assets/insurance/`, `auditor-core/assets/iolta/`, `auditor-core/assets/excise/`, `auditor-core/assets/property/`, `auditor-core/assets/hoa/`, `auditor-core/assets/nonprofit/`, `auditor-core/assets/schools/` or `auditor-core/assets/construction/` as a custom warehouse with `CIVIC_RULESET_PATH` pointing at its signed ruleset; the agent skill's READMEs for the [Insurance & Fiduciary](skills/civic-chain-auditor/README.md#insurance--fiduciary-pack), [Law Firm Trust (IOLTA)](skills/civic-chain-auditor/README.md#law-firm-trust-iolta-pack), [Excise Tax](skills/civic-chain-auditor/README.md#excise-tax-pack), [Property Management & HOA](skills/civic-chain-auditor/README.md#property-management--hoa-pack), [Nonprofit Restricted Funds](skills/civic-chain-auditor/README.md#nonprofit-restricted-funds-pack), [School Districts](skills/civic-chain-auditor/README.md#school-districts-pack) and [Construction Contracts](skills/civic-chain-auditor/README.md#construction-contracts-pack) packs have the steps.
 
 ## Why this matters: Big-Four assurance on a municipal budget
 
@@ -170,42 +170,42 @@ None of the underlying parts are new, guarded text-to-SQL, verification of AI-ge
 ## Quick start
 
 ```bash
-cd vanguard-core
+cd auditor-core
 npm install
 npm run seed            # build the demo warehouse
 npm test                # 436 tests, no credential required
 
 # Reporting-gap case study (no credential, real 10-K anchors, synthetic rows)
-node bin/vanguard.js enron seed
-node bin/vanguard.js enron revenue     # reported (gross) vs margin actually earned (net)
-node bin/vanguard.js enron debt        # reported debt vs true debt incl. off-balance-sheet entities
+node bin/auditor.js enron seed
+node bin/auditor.js enron revenue     # reported (gross) vs margin actually earned (net)
+node bin/auditor.js enron debt        # reported debt vs true debt incl. off-balance-sheet entities
 
 # Evidence controls (PASS / EXCEPTION + provenance)
-node bin/vanguard.js controls list
-node bin/vanguard.js controls run PI1.2-enron-debt-reconciliation
+node bin/auditor.js controls list
+node bin/auditor.js controls run PI1.2-enron-debt-reconciliation
 
 # Verify the tamper-evident audit chain end to end
-node bin/vanguard.js audit
+node bin/auditor.js audit
 
 # Signed domain rulesets (the query packs: municipal, insurance, iolta, excise, property, hoa, nonprofit, schools, construction)
-node bin/vanguard.js ruleset list                  # the bundled municipal ruleset
-node bin/vanguard.js ruleset show assets/insurance/ruleset.insurance-v1.json   # signature status + content hash
-node bin/vanguard.js ruleset show assets/iolta/ruleset.iolta-v1.json           # the IOLTA pack
-node bin/vanguard.js ruleset show assets/excise/ruleset.excise-v1.json         # the Excise Tax pack
-node bin/vanguard.js ruleset show assets/property/ruleset.property-trust-v1.json  # the broker-trust pack
-node bin/vanguard.js ruleset show assets/hoa/ruleset.hoa-v1.json               # the HOA pack
-node bin/vanguard.js ruleset show assets/nonprofit/ruleset.nonprofit-v1.json   # the Nonprofit Restricted Funds pack
-node bin/vanguard.js ruleset show assets/schools/ruleset.schools-v1.json       # the School Districts pack
-node bin/vanguard.js ruleset show assets/construction/ruleset.construction-v1.json  # the Construction Contracts pack
+node bin/auditor.js ruleset list                  # the bundled municipal ruleset
+node bin/auditor.js ruleset show assets/insurance/ruleset.insurance-v1.json   # signature status + content hash
+node bin/auditor.js ruleset show assets/iolta/ruleset.iolta-v1.json           # the IOLTA pack
+node bin/auditor.js ruleset show assets/excise/ruleset.excise-v1.json         # the Excise Tax pack
+node bin/auditor.js ruleset show assets/property/ruleset.property-trust-v1.json  # the broker-trust pack
+node bin/auditor.js ruleset show assets/hoa/ruleset.hoa-v1.json               # the HOA pack
+node bin/auditor.js ruleset show assets/nonprofit/ruleset.nonprofit-v1.json   # the Nonprofit Restricted Funds pack
+node bin/auditor.js ruleset show assets/schools/ruleset.schools-v1.json       # the School Districts pack
+node bin/auditor.js ruleset show assets/construction/ruleset.construction-v1.json  # the Construction Contracts pack
 
 # Build a guarded warehouse from your own ledger (local only, no credential)
-node bin/vanguard.js import spending.csv                      # propose a column mapping, writes nothing
-node bin/vanguard.js import spending.csv --map mapping.json   # confirm the mapping and build
-node bin/vanguard.js report --warehouse municipal --out report.html   # a shareable evidence report
+node bin/auditor.js import spending.csv                      # propose a column mapping, writes nothing
+node bin/auditor.js import spending.csv --map mapping.json   # confirm the mapping and build
+node bin/auditor.js report --warehouse municipal --out report.html   # a shareable evidence report
 
 # Ask in plain English, planning and narration call a model (set the key first)
 export ANTHROPIC_API_KEY=...
-node bin/vanguard.js ask "your question about the seeded demo data"
+node bin/auditor.js ask "your question about the seeded demo data"
 ```
 
 The guard, the warehouse, the lineage record, and the audit chain all run with no credential; only the plan and narrate steps call the model. **Node 22+ is required** (`node:sqlite` is used).

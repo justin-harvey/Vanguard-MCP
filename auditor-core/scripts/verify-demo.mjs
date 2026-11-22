@@ -4,7 +4,7 @@
  * refuses out-of-bounds SQL, and — the privacy claim — no network request
  * leaves the page after its assets have loaded.
  *
- * Not part of `npm test` (it needs a browser); run manually from vanguard-core:
+ * Not part of `npm test` (it needs a browser); run manually from auditor-core:
  *   node scripts/verify-demo.mjs
  *
  * Playwright is not a dependency of this package. Point the script at any local

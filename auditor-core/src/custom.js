@@ -13,8 +13,6 @@
  *   CIVIC_ALLOWLIST_PATH   JSON naming the warehouse, its tables and columns
  *   CIVIC_AUDIT_LOG        optional; defaults to <name>-audit.jsonl beside the db
  *
- * The former VANGUARD_* names are still honoured as a fallback for one release.
- *
  * Nothing new is trusted. The allow-list is enforced by the existing guard
  * (tables *and* columns, so `SELECT *` is refused); the connection is the
  * existing read-only one. The allow-list is validated against the live database
@@ -59,20 +57,9 @@ export const CUSTOM_ENV = Object.freeze({
     dataHash: 'CIVIC_DATA_HASH',
 });
 
-/**
- * Deprecated VANGUARD_* names, honoured as a fallback for one release so that
- * existing configs keep working through the rebrand. Read only when the CIVIC_*
- * name is unset.
- */
-export const CUSTOM_ENV_ALIASES = Object.freeze({
-    db: 'VANGUARD_DB_PATH',
-    allowlist: 'VANGUARD_ALLOWLIST_PATH',
-    log: 'VANGUARD_AUDIT_LOG',
-});
-
-/** Read a custom-warehouse variable by its canonical name, falling back to the alias. */
+/** Read a custom-warehouse variable by its canonical name. */
 function readCustomEnv(env, key) {
-    return env[CUSTOM_ENV[key]] ?? env[CUSTOM_ENV_ALIASES[key]];
+    return env[CUSTOM_ENV[key]];
 }
 
 /**

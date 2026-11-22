@@ -63,8 +63,8 @@ test('the planner sees only allow-listed tables and columns, plus the notes', ()
     assert.equal(w.planSchema.domain, 'municipal budget, grant and spending data');
 });
 
-test('VANGUARD_AUDIT_LOG overrides the default log location', () => {
-    const logPath = join(mkdtempSync(join(tmpdir(), 'vanguard-log-')), 'custom.jsonl');
+test('CIVIC_AUDIT_LOG overrides the default log location', () => {
+    const logPath = join(mkdtempSync(join(tmpdir(), 'civic-log-')), 'custom.jsonl');
     const w = loadCustomWarehouse({ env: envFor(freshMunicipalDb(), MUNICIPAL_ALLOWLIST, { [CUSTOM_ENV.log]: logPath }) });
     assert.equal(w.logPath, logPath);
 });

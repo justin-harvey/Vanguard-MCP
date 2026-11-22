@@ -158,7 +158,7 @@ trading day, keyed by `quote_permid`) and is retrieved with `get_history`
 (SDate/EDate/interval), not `get_data`. The ingest seam enforces the split: a
 Pricing-category field is refused by `ingestFundamentals` and lands via
 `ingestPrices`; a non-pricing field is refused by `ingestPrices`. Read it with
-`priceCloseSeries` / `vanguard lseg prices`. `TR.CompanyMarketCap` (also a daily
+`priceCloseSeries` / `cc-auditor lseg prices`. `TR.CompanyMarketCap` (also a daily
 series in reality) is left in `fundamentals` for now, a candidate for the same
 treatment. The Python bridge (`scripts/lseg_fetch.py`) classifies failures into
 `permission_denied` / `not_found` / `transport` / `bad_request` / `dependency`,
@@ -167,7 +167,7 @@ opens one session, chunks a large universe, and retries transport with backoff.
 **Licensing / retention governance (finding #7).** The warehouse persists vendor
 data, so each source's terms are tagged once in `data_sources` (`usage_class`
 display/non-display, `retention_days` cache TTL, `redistribution`) rather than
-duplicated per row. `retentionReport` / `vanguard lseg retention` flag any source
+duplicated per row. `retentionReport` / `cc-auditor lseg retention` flag any source
 with no policy ("untagged"), any policy with no TTL, and any row held past its TTL
 (measured on `retrieved_at`); `--purge` deletes the stale rows; the
 `C1.1-lseg-data-retention` control turns all of that into PASS/EXCEPTION evidence.

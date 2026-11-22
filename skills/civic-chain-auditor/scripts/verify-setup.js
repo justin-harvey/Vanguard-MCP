@@ -6,7 +6,7 @@
  *   node scripts/verify-setup.js --pack <name>    build and check a specific bundled pack instead
  *   node scripts/verify-setup.js --list-packs     list the bundled packs you can pass to --pack
  *   node scripts/verify-setup.js --rebuild        rebuild the chosen demo db from its SQL seed
- *   node scripts/verify-setup.js --core <dir>     path to your vanguard-core checkout
+ *   node scripts/verify-setup.js --core <dir>     path to your auditor-core checkout
  *   node scripts/verify-setup.js --db <file> --allowlist <file>   check your own ledger instead
  *
  * What it does, all locally:
@@ -16,7 +16,7 @@
  *      the only files it ever writes.
  *   3. Validates the allow-list and checks every table and column it names
  *      exists in the database (opened read-only).
- *   4. Finds vanguard-core, checks its dependencies are installed, and loads the
+ *   4. Finds auditor-core, checks its dependencies are installed, and loads the
  *      warehouse through the engine itself as a smoke test.
  *   5. Prints the mcpServers JSON to paste into Claude Code, Cursor or Claude
  *      Desktop, including CIVIC_RULESET_PATH for a signed pack.
@@ -90,7 +90,7 @@ function parseArgs(argv) {
 }
 
 // ── packs ─────────────────────────────────────────────────────────────────
-// The bundled packs, from the manifest mirrored from vanguard-core/assets/packs.json
+// The bundled packs, from the manifest mirrored from auditor-core/assets/packs.json
 // (drift-tested). The skill copy is flat, so every file sits directly in ASSETS.
 function loadPacks() {
     try {
@@ -236,18 +236,18 @@ function checkAllowlist(sqlite, dbPath, allowlistPath) {
 }
 
 function findCore(explicit) {
-    const candidates = [explicit, process.env.CIVIC_CORE, process.env.VANGUARD_CORE, path.resolve(SKILL_DIR, '..', '..', 'vanguard-core')].filter(Boolean);
+    const candidates = [explicit, process.env.CIVIC_CORE, path.resolve(SKILL_DIR, '..', '..', 'auditor-core')].filter(Boolean);
     for (const dir of candidates) {
-        if (fs.existsSync(path.join(dir, 'bin', 'vanguard.js'))) return path.resolve(dir);
+        if (fs.existsSync(path.join(dir, 'bin', 'auditor.js'))) return path.resolve(dir);
     }
     return null;
 }
 
 async function checkCore(coreArg, dbPath, allowlistPath, doc, rulesetPath = null) {
-    section('vanguard-core');
+    section('auditor-core');
     const core = findCore(coreArg);
     if (!core) {
-        fail('vanguard-core not found. Pass --core /path/to/vanguard-mcp/vanguard-core (or set CIVIC_CORE).');
+        fail('auditor-core not found. Pass --core /path/to/vanguard-mcp/auditor-core (or set CIVIC_CORE).');
         return null;
     }
     ok(`found ${core}`);
@@ -258,7 +258,7 @@ async function checkCore(coreArg, dbPath, allowlistPath, doc, rulesetPath = null
     } catch {
         /* reported below */
     }
-    const CORE_NAMES = ['@civic-chain/auditor', 'vanguard-core'];
+    const CORE_NAMES = ['@civic-chain/auditor'];
     if (!CORE_NAMES.includes(pkg?.name)) warn(`${core}/package.json does not identify as the Civic-Chain Auditor engine (@civic-chain/auditor); continuing anyway.`);
 
     const deps = ['@modelcontextprotocol/sdk', 'node-sql-parser', '@anthropic-ai/sdk'];
@@ -268,7 +268,7 @@ async function checkCore(coreArg, dbPath, allowlistPath, doc, rulesetPath = null
 
     const supportsCustom = fs.existsSync(path.join(core, 'src', 'custom.js'));
     if (supportsCustom) ok('custom warehouses supported (CIVIC_DB_PATH / CIVIC_ALLOWLIST_PATH)');
-    else fail('this vanguard-core predates custom warehouse support (no src/custom.js). Update your checkout.');
+    else fail('this auditor-core predates custom warehouse support (no src/custom.js). Update your checkout.');
 
     if (supportsCustom && missing.length === 0 && doc) {
         // Load the warehouse through the engine itself, exactly as the MCP server will.
@@ -314,7 +314,7 @@ function printConfig(core, dbPath, allowlistPath, { rulesetPath = null, serverKe
         mcpServers: {
             [serverKey]: {
                 command: process.execPath,
-                args: [path.join(core ?? '/path/to/vanguard-mcp/vanguard-core', 'bin', 'vanguard.js'), 'mcp'],
+                args: [path.join(core ?? '/path/to/vanguard-mcp/auditor-core', 'bin', 'auditor.js'), 'mcp'],
                 env,
             },
         },

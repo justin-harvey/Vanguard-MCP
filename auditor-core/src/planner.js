@@ -136,7 +136,7 @@ export async function plan(question, { client = new Anthropic(), model = MODEL, 
         if (/Could not resolve authentication|apiKey or authToken/i.test(error?.message ?? '')) {
             throw new PlanningFailed(
                 'No Anthropic credential found. Set ANTHROPIC_API_KEY, or run `ant auth login`. ' +
-                    'Everything except planning and narration works without one, try `vanguard explain "SELECT ..."`.',
+                    'Everything except planning and narration works without one, try `cc-auditor explain "SELECT ..."`.',
                 error,
             );
         }

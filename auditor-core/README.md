@@ -47,22 +47,22 @@ npm run seed                      # build the demo warehouse
 npm test                          # full suite, no credential required
 
 export ANTHROPIC_API_KEY=...      # or: ant auth login
-node bin/vanguard.js ask "How has MRR trended over the period?"
-node bin/vanguard.js audit
-node bin/vanguard.js audit --export audit-package.json
-node bin/vanguard.js report --out report.md    # shareable report over the log (.md or .html)
+node bin/auditor.js ask "How has MRR trended over the period?"
+node bin/auditor.js audit
+node bin/auditor.js audit --export audit-package.json
+node bin/auditor.js report --out report.md    # shareable report over the log (.md or .html)
 
 # run SOC 2 controls, or serve the engine over MCP (stdio) or HTTP (for the web proxy)
-node bin/vanguard.js controls run PI1.2-enron-debt-reconciliation --export packet.json
-node bin/vanguard.js mcp
-ENGINE_SERVICE_TOKEN=secret node bin/vanguard.js serve   # HTTP API behind a bearer token
+node bin/auditor.js controls run PI1.2-enron-debt-reconciliation --export packet.json
+node bin/auditor.js mcp
+ENGINE_SERVICE_TOKEN=secret node bin/auditor.js serve   # HTTP API behind a bearer token
 ```
 
 The guard, the database, the lineage record, and the audit chain all work with
 no credential. Only planning and narration call a model:
 
 ```bash
-node bin/vanguard.js explain "SELECT name FROM sqlite_master"
+node bin/auditor.js explain "SELECT name FROM sqlite_master"
 # REJECTED
 #   reason : table_not_allowed
 ```
@@ -150,10 +150,10 @@ chain are pointed at a different schema and allow-list, the boundary is
 identical, only the domain changes.
 
 ```bash
-node bin/vanguard.js markets seed                    # orders, executions, prices, positions
-node bin/vanguard.js markets net-position ACME       # net position at close, pinned as-of and hashed
-node bin/vanguard.js markets surveillance            # flag rapid place-and-cancel accounts
-node bin/vanguard.js markets audit                   # verify the surveillance/position audit chain
+node bin/auditor.js markets seed                    # orders, executions, prices, positions
+node bin/auditor.js markets net-position ACME       # net position at close, pinned as-of and hashed
+node bin/auditor.js markets surveillance            # flag rapid place-and-cancel accounts
+node bin/auditor.js markets audit                   # verify the surveillance/position audit chain
 ```
 
 Three scenarios, framed against real regimes:
@@ -184,10 +184,10 @@ distance between them is a grounded, hash-chained, tamper-evident result rather
 than an assertion.
 
 ```bash
-node bin/vanguard.js enron seed       # entities, revenue deals, debt instruments, reported line items
-node bin/vanguard.js enron revenue    # revenue as reported (gross) vs merchant margin (net)
-node bin/vanguard.js enron debt       # reported debt vs true debt incl. off-balance-sheet SPEs
-node bin/vanguard.js enron audit      # verify the Enron audit chain
+node bin/auditor.js enron seed       # entities, revenue deals, debt instruments, reported line items
+node bin/auditor.js enron revenue    # revenue as reported (gross) vs merchant margin (net)
+node bin/auditor.js enron debt       # reported debt vs true debt incl. off-balance-sheet SPEs
+node bin/auditor.js enron audit      # verify the Enron audit chain
 ```
 
 | Scenario | What it shows | The real anchor |
@@ -222,9 +222,7 @@ without a code change, set these environment variables on the MCP server:
 | `CIVIC_AUDIT_LOG` | Optional. Defaults to `<name>-audit.jsonl` beside the database. |
 | `CIVIC_RULESET_PATH` | Optional. A signed Civic-Chain ruleset (such as `assets/insurance/ruleset.insurance-v1.json`). Its named queries replace the allow-list's, and every result reports the ruleset's signature status. |
 
-The former `VANGUARD_DB_PATH` / `VANGUARD_ALLOWLIST_PATH` / `VANGUARD_AUDIT_LOG`
-names are still read as a fallback for one release. One custom warehouse is
-served per server process.
+One custom warehouse is served per server process.
 
 The warehouse then appears in `civic-chain://warehouses`, gets a
 `civic-chain://schema/<name>` resource, and accepts free text through
@@ -341,13 +339,13 @@ metric registry the scenarios resolve against, lineage capture and hashing, the
 hash-chained audit log with Ed25519 signing and a pluggable external-anchoring
 hook, grounding verification (unit-aware, and able to check derived figures the
 query returns), a control-result shape and an offline-verifiable evidence packet
-(intent → SQL → CSV → hash + signature, `vanguard enron … --export`), a SOC 2
+(intent → SQL → CSV → hash + signature, `cc-auditor enron … --export`), a SOC 2
 control catalog whose entries assert PASS/EXCEPTION and emit that packet
-(`vanguard controls run …`; six controls across all three warehouses, reconciliation,
+(`cc-auditor controls run …`; six controls across all three warehouses, reconciliation,
 reproducibility, and audit-chain integrity), an MCP server that exposes the
 controls, canonical queries and audit verification as tools and each warehouse's
-live schema as a resource (`vanguard mcp`, stdio) plus a token-guarded HTTP API for a
-web proxy (`vanguard serve`), the CLI, and 436 tests that run offline.
+live schema as a resource (`cc-auditor mcp`, stdio) plus a token-guarded HTTP API for a
+web proxy (`cc-auditor serve`), the CLI, and 436 tests that run offline.
 
 **Synthetic:** the data. 416 customers over six months, generated
 deterministically from a fixed seed so that the same question always produces
@@ -416,7 +414,7 @@ src/mcp.js             MCP tools + resources (pure, transport-free)
 src/mcp-server.js      the stdio MCP transport (the only file that imports the SDK)
 src/http-server.js     HTTP JSON API over the same handlers (what the web proxy calls)
 src/ask.js             the pipeline
-bin/vanguard.js          CLI
+bin/auditor.js          CLI
 test/                  436 tests, none requiring a credential
 ```
 

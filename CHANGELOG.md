@@ -5,6 +5,22 @@ The project follows [Semantic Versioning](https://semver.org/): MAJOR.MINOR.PATC
 
 ## [Unreleased]
 
+### Changed — finished the de-brand (G4 residue)
+- Renamed the package directory `vanguard-core/` → `auditor-core/` and the CLI
+  entrypoint `bin/vanguard.js` → `bin/auditor.js`. The npm package name is
+  unchanged (`@civic-chain/auditor`); `repository.directory` and every bin/script
+  path now point at the new names. The `auditor` / `cc-auditor` /
+  `civic-chain-auditor` bins and `npx @civic-chain/auditor` are unaffected.
+- The LSEG client example registers the server under `civic-chain-auditor`
+  (was `vanguard-mcp`).
+
+### Removed
+- The deprecated `VANGUARD_*` environment-variable aliases
+  (`VANGUARD_DB_PATH`, `VANGUARD_ALLOWLIST_PATH`, `VANGUARD_AUDIT_LOG`,
+  `VANGUARD_SIGNING_KEY[_FILE]`) and the `VANGUARD_CORE` skill-setup fallback.
+  Use the `CIVIC_*` / `CIVIC_CORE` names (primary since 1.0.0). These aliases
+  were never published, so no subscriber release ever carried them.
+
 ### Added — Construction Contracts ruleset pack (eighth signed pack)
 - An eighth domain pack beside the municipal, insurance, IOLTA, excise,
   property/HOA, nonprofit and schools ones, on the same signed-ruleset +

@@ -724,7 +724,7 @@ async function main() {
                         console.log(`  - ${s.source}`);
                         console.log(`      usage: ${s.usageClass ?? 'UNTAGGED'}   cache TTL: ${s.ttlSet ? s.retentionDays + ' days' : 'NOT SET'}   redistribution: ${s.redistribution ?? ', '}`);
                     }
-                    console.log('\n  Full sign-off checklist: vanguard-core/db/lseg-licensing.md');
+                    console.log('\n  Full sign-off checklist: auditor-core/db/lseg-licensing.md');
                     console.log('  These tags encode a policy; they do not grant a right, confirm terms against the LSEG agreement.');
                     break;
                 }

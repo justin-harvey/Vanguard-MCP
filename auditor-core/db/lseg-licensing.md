@@ -28,7 +28,7 @@ re-licensed.
 
 ### 2. Caching / retention window (TTL)
 Persisting a vendor value is caching, and caching windows are contractual. Each
-source carries a `retention_days` TTL; `vanguard lseg retention` reports any row
+source carries a `retention_days` TTL; `cc-auditor lseg retention` reports any row
 held past it and `--purge` deletes them; the `C1.1` control fails if anything is
 stale or if a source has no TTL set. Confirm the permitted cache duration per
 dataset and set `retention_days` to match (a shorter contractual window wins).
@@ -55,9 +55,9 @@ real, validated quote/instrument PermIDs before landing live pricing.
 
 | Concern | Encoded in | Checked by |
 |---|---|---|
-| Usage class (display/non-display) | `data_sources.usage_class` | `vanguard lseg license`; `C1.1` control (untagged → EXCEPTION) |
-| Cache TTL / retention | `data_sources.retention_days` + rows' `retrieved_at` | `vanguard lseg retention [--purge]`; `C1.1` control (stale / no-TTL → EXCEPTION) |
-| Redistribution terms | `data_sources.redistribution` | `vanguard lseg license` |
+| Usage class (display/non-display) | `data_sources.usage_class` | `cc-auditor lseg license`; `C1.1` control (untagged → EXCEPTION) |
+| Cache TTL / retention | `data_sources.retention_days` + rows' `retrieved_at` | `cc-auditor lseg retention [--purge]`; `C1.1` control (stale / no-TTL → EXCEPTION) |
+| Redistribution terms | `data_sources.redistribution` | `cc-auditor lseg license` |
 | Entitlement scope | `scripts/lseg_fetch.py` error `kind` | surfaced on `RealLsegSession` errors |
 | Identifier validity | lseg-mcp `validate_lseg_formula` | `mcp/README.md` workflow |
 

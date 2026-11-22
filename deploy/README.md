@@ -21,7 +21,7 @@ live cloud resources that still need to be destroyed once this is deployed.
 
 ## 1. Build the bundle
 
-From `vanguard-core/` (Node ≥ 22):
+From `auditor-core/` (Node ≥ 22):
 
 ```sh
 npm install           # dev deps: esbuild, sql.js
@@ -48,7 +48,7 @@ asserted in copy. `demo.html` loads `sql-wasm.js` then `demo-engine.js`.
 
 ## 3. End-to-end check (as the public sees it)
 
-Either open the deployed site, or locally from `vanguard-core/`:
+Either open the deployed site, or locally from `auditor-core/`:
 
 ```sh
 node scripts/verify-demo.mjs   # headless Chromium; needs a local playwright
@@ -77,4 +77,4 @@ is deployed and verified:
 
 `cc-auditor serve` (the HTTP API) stays in the engine for enterprise use; it
 already refuses to start without `ENGINE_SERVICE_TOKEN` (verified in
-`bin/vanguard.js`), so there is no open unauthenticated port to leave behind.
+`bin/auditor.js`), so there is no open unauthenticated port to leave behind.

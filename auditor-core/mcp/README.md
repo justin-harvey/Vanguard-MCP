@@ -1,7 +1,7 @@
-# Vanguard MCP + lseg-mcp
+# Civic-Chain Auditor + lseg-mcp
 
 Wiring the open-source [`lseg-mcp`](https://github.com/GreenGrassBlueOcean/lseg_mcp)
-server together with Vanguard MCP's own MCP server so a single agent can go from
+server together with Civic-Chain Auditor's own MCP server so a single agent can go from
 *"what's the right LSEG field for gross profit?"* all the way to *"here is that
 figure, verified against its components and cryptographically attested."*
 
@@ -9,19 +9,19 @@ figure, verified against its components and cryptographically attested."*
 
 The two servers do different jobs, and that is the whole point of pairing them:
 
-| | `lseg-mcp` | Vanguard MCP (`vanguard mcp`) |
+| | `lseg-mcp` | Civic-Chain Auditor (`civic-chain-auditor mcp`) |
 |---|---|---|
 | **Role** | Resolve LSEG `TR.*` field codes and **draft** the retrieval code | **Verify** and **attest** figures over a read-only warehouse |
 | **Returns** | Field mappings, validations, runnable `lseg-data` / R boilerplate | Grounded results, PASS/EXCEPTION controls, hash-chained evidence |
 | **Touches market data?** | No, *"never connects to LSEG, only resolves fields and drafts code"* | No, reads the warehouse the data was landed into |
 | **Needs an LSEG entitlement?** | No | No (a paid entitlement is only needed to *execute* the drafted call) |
 
-`lseg-mcp` gets the field mapping right; Vanguard MCP makes the resulting number
+`lseg-mcp` gets the field mapping right; Civic-Chain Auditor makes the resulting number
 auditable. The join point is **ingestion** (see `src/lseg-ingest.js`), not runtime.
 
 ## Prerequisites
 
-- **Node ≥ 22** (Vanguard MCP core; `node:sqlite`).
+- **Node ≥ 22** (Civic-Chain Auditor core; `node:sqlite`).
 - **`uv` / `uvx`** for lseg-mcp: `curl -LsSf https://astral.sh/uv/install.sh | sh`
   (Python 3.11+; lseg-mcp's first launch takes 1–3 min to build its indexes).
 - **Pin `mcp<2` when launching lseg-mcp.** It is written for MCP SDK v1; without
@@ -48,7 +48,7 @@ node mcp/lseg_probe.mjs validate   # drives validate_lseg_formula + search_data_
 
 Copy the `mcpServers` block from [`clients.example.json`](./clients.example.json)
 into your client config (Claude Desktop, Claude Code, Cursor, VS Code). Set the
-`vanguard-mcp` server's `cwd` to your `vanguard-core` checkout.
+`civic-chain-auditor` server's `cwd` to your `auditor-core` checkout.
 
 ## The end-to-end workflow
 
@@ -62,20 +62,20 @@ into your client config (Claude Desktop, Claude Code, Cursor, VS Code). Set the
 4. **Execute + land** (the entitlement step). Run the drafted call against a live
    LSEG Workspace session and land the result through the ingest seam:
    - **With an entitlement:** provide an LSEG app key and run
-     `node bin/vanguard.js lseg ingest IBM.N --period FY2023 --live` (reads
+     `node bin/auditor.js lseg ingest IBM.N --period FY2023 --live` (reads
      `$LSEG_APP_KEY`, or pass `--app-key <KEY>`). `RealLsegSession` shells out to
      `scripts/lseg_fetch.py`, which opens an `lseg-data` session, runs `get_data`,
      and returns wide rows, no other code changes. Requires `pip install lseg-data`
      and a running Workspace/entitlement. Point `$LSEG_PYTHON` at the interpreter
      that has `lseg-data` if it is not the default `python3`.
-   - **Without one (demo):** `node bin/vanguard.js lseg ingest IBM.N --period FY2024`
+   - **Without one (demo):** `node bin/auditor.js lseg ingest IBM.N --period FY2024`
      uses the deterministic `FakeLsegSession`. Same code path, synthetic data.
 
    **The credential is the only thing that changes to go live.** `RealLsegSession`
    refuses to run without `LSEG_APP_KEY`/`--app-key` rather than returning nothing;
    `FakeLsegSession` needs no credential. Set the key once and `--live` works.
-5. **Verify + attest.** Vanguard MCP runs over the landed snapshot:
-   - `node bin/vanguard.js lseg reconcile IBM.N FY2024`, asserts Gross Profit =
+5. **Verify + attest.** Civic-Chain Auditor runs over the landed snapshot:
+   - `node bin/auditor.js lseg reconcile IBM.N FY2024`, asserts Gross Profit =
      Revenue − Cost of Revenue and hash-chains the result.
    - or via MCP: `run_control PI1.1-lseg-gross-profit-reconciliation`.
 

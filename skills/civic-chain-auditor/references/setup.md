@@ -32,7 +32,7 @@ The printed config has this shape:
 }
 ```
 
-Working from a git checkout instead of the registry? Run the clone-oriented check: `cd vanguard-core && npm install && cd -` then `node scripts/verify-setup.js --core /path/to/vanguard-mcp/vanguard-core`. It prints the same config but points `command`/`args` at your local `bin/vanguard.js`.
+Working from a git checkout instead of the registry? Run the clone-oriented check: `cd auditor-core && npm install && cd -` then `node scripts/verify-setup.js --core /path/to/vanguard-mcp/auditor-core`. It prints the same config but points `command`/`args` at your local `bin/auditor.js`.
 
 | Variable | Needed for |
 |---|---|
@@ -41,8 +41,6 @@ Working from a git checkout instead of the registry? Run the clone-oriented chec
 | `CIVIC_AUDIT_LOG` | Optional. Defaults to `<name>-audit.jsonl` beside the database. |
 | `ANTHROPIC_API_KEY` | `execute_financial_query` only. Everything else runs without a credential. |
 | `CIVIC_SIGNING_KEY_FILE` (or `CIVIC_SIGNING_KEY`) | Optional Ed25519 signing of audit entries. |
-
-The former `VANGUARD_*` names are still read as a fallback for one release.
 
 To use their own ledger, the user points the two paths at their SQLite file and an allow-list in the same format as `assets/sample_allowlist.json`, then re-runs the check with `--db` and `--allowlist`. If the allow-list names a table or column that isn't in the database, the server exits at startup with the problem on stderr.
 

@@ -8,7 +8,7 @@
   "repository": {
     "type": "git",
     "url": "git+https://github.com/justin-harvey/Vanguard-MCP.git",
-    "directory": "vanguard-core"
+    "directory": "auditor-core"
   },
   "bugs": {
     "url": "https://github.com/justin-harvey/Vanguard-MCP/issues"
@@ -17,9 +17,9 @@
     "node": ">=22"
   },
   "bin": {
-    "auditor": "bin/vanguard.js",
-    "cc-auditor": "bin/vanguard.js",
-    "civic-chain-auditor": "bin/vanguard.js"
+    "auditor": "bin/auditor.js",
+    "cc-auditor": "bin/auditor.js",
+    "civic-chain-auditor": "bin/auditor.js"
   },
   "files": [
     "bin/",
@@ -36,11 +36,11 @@
     "provenance": true
   },
   "scripts": {
-    "seed": "node bin/vanguard.js seed",
-    "ask": "node bin/vanguard.js ask",
-    "audit": "node bin/vanguard.js audit",
-    "doctor": "node bin/vanguard.js doctor",
-    "mcp": "node bin/vanguard.js mcp",
+    "seed": "node bin/auditor.js seed",
+    "ask": "node bin/auditor.js ask",
+    "audit": "node bin/auditor.js audit",
+    "doctor": "node bin/auditor.js doctor",
+    "mcp": "node bin/auditor.js mcp",
     "build:demo": "node scripts/build-demo.js",
     "eval": "node --test test/skill-eval.test.js",
     "test": "node --test",
