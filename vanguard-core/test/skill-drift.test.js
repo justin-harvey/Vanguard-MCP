@@ -15,7 +15,9 @@
 
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { readFileSync, readdirSync } from 'node:fs';
+import { readFileSync, readdirSync, existsSync, mkdtempSync } from 'node:fs';
+import { execFileSync } from 'node:child_process';
+import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { controlCatalog } from '../src/controls.js';
@@ -166,5 +168,102 @@ test('every refusal reason the refusal table documents can actually be emitted',
     assert.ok(documented.length >= 10, 'expected the refusal table to list the reason codes');
     for (const reason of documented) {
         assert.ok(real.has(reason), `refusals.md documents reason "${reason}", which no source emits`);
+    }
+});
+
+// ── per-pack skill generation (Q6: one skill per pack) ───────────────────────
+// scripts/build-pack-skills.js composes one single-domain skill per packs.json
+// skills[] entry from the shared core + the pack reference. These guard that the
+// split stays correct: each emitted skill is named for its pack, its description
+// is single-domain and within spec, and it never names or ships another pack.
+const MANIFEST = JSON.parse(readFileSync(join(SKILL, 'assets', 'packs.json'), 'utf8'));
+const PACK_WAREHOUSES = new Set(MANIFEST.packs.map((p) => p.warehouse));
+const GENERATOR = join(SKILL, 'scripts', 'build-pack-skills.js');
+
+// Generate once into a temp dir; every test below reads from it.
+const PACK_OUT = mkdtempSync(join(tmpdir(), 'pack-skills-'));
+execFileSync(process.execPath, [GENERATOR, PACK_OUT], { stdio: 'pipe' });
+
+test('the generator emits exactly one skill folder per skills[] entry', () => {
+    assert.ok(Array.isArray(MANIFEST.skills) && MANIFEST.skills.length >= 8, 'packs.json must define skills[]');
+    const dirs = readdirSync(PACK_OUT).filter((d) => d.endsWith('-auditor'));
+    assert.equal(dirs.length, MANIFEST.skills.length, 'one folder per skills[] entry');
+    for (const s of MANIFEST.skills) {
+        assert.ok(existsSync(join(PACK_OUT, `${s.skill}-auditor`, 'SKILL.md')), `${s.skill}: missing SKILL.md`);
+    }
+});
+
+test('each pack skill frontmatter is named for its pack and within the description cap', () => {
+    for (const s of MANIFEST.skills) {
+        const text = readFileSync(join(PACK_OUT, `${s.skill}-auditor`, 'SKILL.md'), 'utf8');
+        const fm = text.match(/^---\n([\s\S]*?)\n---/);
+        assert.ok(fm, `${s.skill}: no frontmatter`);
+        const name = fm[1].match(/^name:\s*(.+)$/m);
+        assert.equal(name?.[1].trim(), `${s.skill}-auditor`, `${s.skill}: wrong skill name`);
+        const desc = fm[1].match(/^description:\s*(.+)$/m);
+        assert.ok(desc, `${s.skill}: no description`);
+        assert.ok(desc[1].length <= 1024, `${s.skill} description is ${desc[1].length} chars, over the 1024 spec limit`);
+        // license + version carry over from the core skill.
+        assert.match(fm[1], /^license:\s*\S/m, `${s.skill}: missing license`);
+        assert.match(fm[1], /\bversion:\s*[0-9]/m, `${s.skill}: missing metadata.version`);
+    }
+});
+
+test('each pack skill is single-domain: it never names another pack\'s warehouse query', () => {
+    // A warehouse-prefixed query (wh/slug) whose wh is a bundled pack must be one of
+    // this skill's own warehouses; generic saas/enron/markets/lseg are not packs, so
+    // they are not matched by PACK_WAREHOUSES and stay allowed.
+    const re = /\b([a-z][a-z-]*)\/[a-z][a-z-]+/g;
+    for (const s of MANIFEST.skills) {
+        const own = new Set(s.packs);
+        const dir = join(PACK_OUT, `${s.skill}-auditor`);
+        for (const rel of ['SKILL.md', join('references', 'pack.md')]) {
+            const text = readFileSync(join(dir, rel), 'utf8');
+            for (const m of text.matchAll(re)) {
+                if (PACK_WAREHOUSES.has(m[1])) {
+                    assert.ok(own.has(m[1]), `${s.skill}/${rel} names foreign pack query "${m[0]}"`);
+                }
+            }
+        }
+    }
+});
+
+test('each pack skill ships exactly its own pack assets and a scoped packs.json', () => {
+    for (const s of MANIFEST.skills) {
+        const dir = join(PACK_OUT, `${s.skill}-auditor`);
+        const assets = new Set(readdirSync(join(dir, 'assets')));
+        const expected = new Set(['civic-chain-ruleset-pub.pem', 'packs.json']);
+        for (const name of s.packs) {
+            const p = MANIFEST.packs.find((x) => x.pack === name);
+            for (const f of [p.ruleset, `${p.ruleset}.sig`, p.sql, p.allowlist]) expected.add(f);
+        }
+        assert.deepEqual(assets, expected, `${s.skill}: assets/ should hold only its own pack files`);
+        // No other pack's signed ruleset leaked in.
+        for (const p of MANIFEST.packs) {
+            if (!s.packs.includes(p.pack)) assert.ok(!assets.has(p.ruleset), `${s.skill}: leaked ${p.ruleset}`);
+        }
+        // The scoped manifest lists only this skill's packs.
+        const scoped = JSON.parse(readFileSync(join(dir, 'assets', 'packs.json'), 'utf8'));
+        assert.deepEqual(scoped.packs.map((p) => p.pack).sort(), [...s.packs].sort(), `${s.skill}: scoped packs.json mismatch`);
+    }
+});
+
+test('each pack skill names only queries the engine actually serves', () => {
+    // The generated skill text is a subset of the core references, but assert the
+    // pack's own queries resolve from its signed ruleset so a renamed query is caught.
+    const re = /\b([a-z][a-z-]*)\/([a-z][a-z-]+)/g;
+    for (const s of MANIFEST.skills) {
+        const served = new Set();
+        for (const name of s.packs) {
+            const p = MANIFEST.packs.find((x) => x.pack === name);
+            const r = loadRuleset(join(SKILL, 'assets', p.ruleset));
+            for (const q of Object.keys(r.queries)) served.add(`${p.warehouse}/${q}`);
+        }
+        const text = readFileSync(join(PACK_OUT, `${s.skill}-auditor`, 'references', 'pack.md'), 'utf8');
+        for (const m of text.matchAll(re)) {
+            if (PACK_WAREHOUSES.has(m[1])) {
+                assert.ok(served.has(m[0]), `${s.skill}/pack.md names query "${m[0]}", which its ruleset does not define`);
+            }
+        }
     }
 });

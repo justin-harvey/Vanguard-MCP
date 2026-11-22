@@ -1,5 +1,5 @@
 {
-  "comment": "Single source of truth for the bundled domain packs. Mirrored byte-for-byte into the skill's flat assets/ (drift-tested). Filenames are basenames: the package nests them under assets/<pack>/, the skill copy is flat.",
+  "comment": "Single source of truth for the bundled domain packs. Mirrored byte-for-byte into the skill's flat assets/ (drift-tested). Filenames are basenames: the package nests them under assets/<pack>/, the skill copy is flat. The skills[] array below groups packs into one shippable Agent Skill each (one skill per domain); scripts/build-pack-skills.js reads it to emit a single-domain skill per entry. src/packs.js and the skill's verify-setup.js read only .packs and ignore .skills.",
   "packs": [
     {
       "pack": "municipal",
@@ -72,6 +72,72 @@
       "ruleset": "ruleset.construction-v1.json",
       "sql": "sample_construction_ledger.sql",
       "allowlist": "sample_construction_allowlist.json"
+    }
+  ],
+  "skills": [
+    {
+      "skill": "municipal",
+      "title": "Municipal Grants & Budgets",
+      "packs": ["municipal"],
+      "reference": "municipal.md",
+      "examples": ["01-grant-status-finding.md", "02-refused-tax-id.md"],
+      "description": "Use when the user asks to audit or reconcile municipal or public-sector grant and budget spending and wants figures they can trust and reproduce: how much of a grant has been spent, spending broken down by vendor, grant drawdowns against expenditures, budget lines that overran their amended budget, or cash drawn ahead of spending. Answers only through the Civic-Chain Auditor MCP server: every figure is a read-only SQL result checked against the source rows, returned with a result hash and a tamper-evident audit log. Ships a synthetic demo ledger."
+    },
+    {
+      "skill": "insurance",
+      "title": "Insurance Premium Trust",
+      "packs": ["insurance"],
+      "reference": "insurance.md",
+      "examples": ["04-insurance-trust-shortfall.md"],
+      "description": "Use when the user asks to audit or reconcile an insurance agency's premium trust account and wants figures they can trust and reproduce: whether the premium trust is solvent, carrier commission variances or underpayments, or errors-and-omissions exposure from client premium held on unbound policies. Answers only through the Civic-Chain Auditor MCP server: every figure is a read-only SQL result checked against the source rows, returned with a result hash and a tamper-evident audit log. Ships a synthetic demo ledger."
+    },
+    {
+      "skill": "iolta",
+      "title": "Law Firm Client Trust (IOLTA)",
+      "packs": ["iolta"],
+      "reference": "iolta.md",
+      "examples": ["05-iolta-overdrawn-client-ledger.md"],
+      "description": "Use when the user asks to audit or reconcile a law firm's client trust account (IOLTA, ABA Model Rule 1.15) and wants figures they can trust and reproduce: three-way reconciliation, overdrawn client ledgers, fee transfers out of trust with no supporting invoice, firm money commingled in trust, or dormant client balances. Answers only through the Civic-Chain Auditor MCP server: every figure is a read-only SQL result checked against the source rows, returned with a result hash and a tamper-evident audit log. Ships a synthetic demo ledger."
+    },
+    {
+      "skill": "excise",
+      "title": "Excise Tax Filings",
+      "packs": ["excise"],
+      "reference": "excise.md",
+      "examples": ["06-excise-underpaid-return.md"],
+      "description": "Use when the user asks to audit or reconcile an excise licensee's filings (beer, alcohol, tobacco or cannabis; TTB 27 CFR part 25 and state rules) and wants figures they can trust and reproduce: returns short of the tax due, inventory rollforward breaks, operations-report-versus-return disagreements, missing or late filings, or losses over tolerance. Answers only through the Civic-Chain Auditor MCP server: every figure is a read-only SQL result checked against the source rows, returned with a result hash and a tamper-evident audit log. Ships a synthetic demo ledger."
+    },
+    {
+      "skill": "property-hoa",
+      "title": "Property Management & HOA",
+      "packs": ["property", "hoa"],
+      "reference": "property-hoa.md",
+      "examples": ["07-property-trust-shortfall.md", "08-hoa-reserve-unapproved.md"],
+      "description": "Use when the user asks to audit or reconcile a real estate broker's or property manager's trust account, or a homeowners-association's reserves and budget, and wants figures they can trust and reproduce: broker trust shortfalls, overdrawn owner ledgers, security deposits not held or returned late, unapproved HOA reserve transfers, HOA budget overruns, or delinquent assessments. Answers only through the Civic-Chain Auditor MCP server: every figure is a read-only SQL result checked against the source rows, returned with a result hash and a tamper-evident audit log. Ships synthetic demo ledgers."
+    },
+    {
+      "skill": "nonprofit",
+      "title": "Nonprofit Restricted Funds",
+      "packs": ["nonprofit"],
+      "reference": "nonprofit.md",
+      "examples": ["09-nonprofit-restricted-spending.md"],
+      "description": "Use when the user asks to audit or reconcile a nonprofit's donor-restricted funds and federal awards (ASC 958, Single Audit under 2 CFR 200) and wants figures they can trust and reproduce: restricted money spent outside its purpose or window, restriction released ahead of spending, functional-expense tie-out, restricted-cash coverage, or whether federal spending reached the Single Audit threshold. Answers only through the Civic-Chain Auditor MCP server: every figure is a read-only SQL result checked against the source rows, returned with a result hash and a tamper-evident audit log. Ships a synthetic demo ledger."
+    },
+    {
+      "skill": "schools",
+      "title": "School District Activity Funds",
+      "packs": ["schools"],
+      "reference": "schools.md",
+      "examples": ["10-schools-activity-unapproved-disbursement.md"],
+      "description": "Use when the user asks to audit or reconcile a school district's student activity funds and federal program costs (GASB Statement No. 84, 2 CFR 200) and wants figures they can trust and reproduce: overdrawn activity accounts, activity cash deposited late, disbursements missing the required approvals, federal costs charged outside the award period, or overspent budget lines. Answers only through the Civic-Chain Auditor MCP server: every figure is a read-only SQL result checked against the source rows, returned with a result hash and a tamper-evident audit log. Ships a synthetic demo ledger."
+    },
+    {
+      "skill": "construction",
+      "title": "Construction Work-in-Progress",
+      "packs": ["construction"],
+      "reference": "construction.md",
+      "examples": ["11-construction-loss-job.md"],
+      "description": "Use when the user asks to audit or reconcile a construction contractor's work-in-progress (WIP) schedule under ASC 606 cost-to-cost revenue recognition, and wants figures they can trust and reproduce: the WIP schedule and its tie to the general ledger, over- and underbillings tied to the balance sheet, loss jobs, margin fade, retainage, or subcontractor payments without a lien waiver. Answers only through the Civic-Chain Auditor MCP server: every figure is a read-only SQL result checked against the source rows, returned with a result hash and a tamper-evident audit log. Ships a synthetic demo ledger."
     }
   ]
 }
