@@ -33,14 +33,17 @@ function doc(rel) {
     return { rel, text: readFileSync(join(SKILL, rel), 'utf8') };
 }
 
-/** Every markdown file in the skill package. */
+/** Every markdown file in the skill package, recursing into subfolders. */
 function skillDocs() {
     const docs = [doc('SKILL.md'), doc('README.md')];
-    for (const sub of ['references', 'examples']) {
-        for (const f of readdirSync(join(SKILL, sub)).filter((f) => f.endsWith('.md'))) {
-            docs.push(doc(join(sub, f)));
+    const walk = (sub) => {
+        for (const e of readdirSync(join(SKILL, sub), { withFileTypes: true })) {
+            const rel = join(sub, e.name);
+            if (e.isDirectory()) walk(rel);
+            else if (e.name.endsWith('.md')) docs.push(doc(rel));
         }
-    }
+    };
+    for (const sub of ['references', 'examples']) walk(sub);
     return docs;
 }
 
