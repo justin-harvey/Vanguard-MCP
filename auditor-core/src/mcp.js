@@ -155,16 +155,20 @@ function importTools() {
             name: 'propose_csv_mapping',
             description:
                 'Read the headers (and a sample of rows) of a CSV in the import folder and propose a column mapping ' +
-                'onto the canonical municipal schema. Reads only; writes nothing. The human confirms the mapping before import_csv. ' +
-                'Pass grantFile to also propose a mapping for a grant-register CSV (award amounts, grantor type, status) imported ' +
-                'alongside the expenditures; its proposal is returned under grantRegister. Pass drawdownFile to also propose a ' +
-                'mapping for a grant-drawdowns CSV (cash drawn from each grantor); its proposal is returned under grantDrawdowns.',
+                'onto a pack\'s canonical schema. Reads only; writes nothing. The human confirms the mapping before import_csv. ' +
+                'pack selects the warehouse (default "municipal"). For municipal: pass grantFile to also propose a grant-register ' +
+                'mapping (returned under grantRegister) and drawdownFile for a grant-drawdowns mapping (returned under grantDrawdowns). ' +
+                'For iolta (law firm client trust): the main file is the trust journal; pass bankFile to also propose a bank-snapshots ' +
+                'mapping (returned under bankSnapshots) and invoicesFile for a fee-invoices mapping (returned under feeInvoices).',
             inputSchema: {
                 type: 'object',
                 properties: {
-                    file: { type: 'string', description: 'expenditure CSV file name within the import folder' },
-                    grantFile: { type: 'string', description: 'optional grant-register CSV file name within the import folder, to propose its mapping too' },
-                    drawdownFile: { type: 'string', description: 'optional grant-drawdowns CSV file name within the import folder, to propose its mapping too' },
+                    file: { type: 'string', description: 'main CSV file name within the import folder (expenditures for municipal, trust journal for iolta)' },
+                    pack: { type: 'string', description: 'warehouse to map onto: "municipal" (default) or "iolta"' },
+                    grantFile: { type: 'string', description: 'municipal: optional grant-register CSV file name, to propose its mapping too' },
+                    drawdownFile: { type: 'string', description: 'municipal: optional grant-drawdowns CSV file name, to propose its mapping too' },
+                    bankFile: { type: 'string', description: 'iolta: optional bank-snapshots CSV file name, to propose its mapping too' },
+                    invoicesFile: { type: 'string', description: 'iolta: optional fee-invoices CSV file name, to propose its mapping too' },
                 },
                 required: ['file'],
                 additionalProperties: false,
@@ -173,22 +177,28 @@ function importTools() {
         {
             name: 'import_csv',
             description:
-                'Import a CSV from the import folder with a confirmed column mapping: builds a canonical ledger, records the ' +
-                "source file's SHA-256 as an audit entry, and runs the three named queries. Local only. The file is read by name " +
-                'from the configured import folder; pasted data and absolute paths are refused. ' +
-                'Pass grantFile + grantMapping to apply a grant register onto the ledger in the same import, so municipal/grant-status ' +
-                'measures spending against real award amounts; the register records its own source-SHA-256 audit entry. ' +
-                'Pass drawdownFile + drawdownMapping to also apply a grant-drawdowns file, so grant-status measures cash drawn ' +
-                'against cash spent; it records its own source-SHA-256 audit entry too.',
+                'Import a CSV from the import folder with a confirmed column mapping: builds a pack\'s canonical ledger, records the ' +
+                "source file's SHA-256 as an audit entry, and runs that pack's named-query gate. Local only. The file is read by name " +
+                'from the configured import folder; pasted data and absolute paths are refused. pack selects the warehouse (default "municipal"). ' +
+                'municipal: pass grantFile + grantMapping to apply a grant register (so municipal/grant-status measures spending against real ' +
+                'awards) and drawdownFile + drawdownMapping for grant drawdowns (so grant-status measures cash drawn vs spent). ' +
+                'iolta: the main file is the trust journal; pass bankFile + bankMapping for bank-reconciliation snapshots (so three-way-reconciliation ' +
+                'can tie) and invoicesFile + invoicesMapping for fee invoices (so unsupported-fee-transfers can check each transfer). ' +
+                'Each companion file records its own source-SHA-256 audit entry.',
             inputSchema: {
                 type: 'object',
                 properties: {
-                    file: { type: 'string', description: 'expenditure CSV file name within the import folder' },
+                    file: { type: 'string', description: 'main CSV file name within the import folder (expenditures for municipal, trust journal for iolta)' },
                     mapping: { type: 'object', description: 'confirmed mapping, canonical field -> CSV column (from propose_csv_mapping)' },
-                    grantFile: { type: 'string', description: 'optional grant-register CSV file name within the import folder' },
-                    grantMapping: { type: 'object', description: 'confirmed grant-register mapping (from propose_csv_mapping grantRegister); required when grantFile is given' },
-                    drawdownFile: { type: 'string', description: 'optional grant-drawdowns CSV file name within the import folder' },
-                    drawdownMapping: { type: 'object', description: 'confirmed grant-drawdowns mapping (from propose_csv_mapping grantDrawdowns); required when drawdownFile is given' },
+                    pack: { type: 'string', description: 'warehouse to import into: "municipal" (default) or "iolta"' },
+                    grantFile: { type: 'string', description: 'municipal: optional grant-register CSV file name within the import folder' },
+                    grantMapping: { type: 'object', description: 'municipal: confirmed grant-register mapping; required when grantFile is given' },
+                    drawdownFile: { type: 'string', description: 'municipal: optional grant-drawdowns CSV file name within the import folder' },
+                    drawdownMapping: { type: 'object', description: 'municipal: confirmed grant-drawdowns mapping; required when drawdownFile is given' },
+                    bankFile: { type: 'string', description: 'iolta: optional bank-snapshots CSV file name within the import folder' },
+                    bankMapping: { type: 'object', description: 'iolta: confirmed bank-snapshots mapping; required when bankFile is given' },
+                    invoicesFile: { type: 'string', description: 'iolta: optional fee-invoices CSV file name within the import folder' },
+                    invoicesMapping: { type: 'object', description: 'iolta: confirmed fee-invoices mapping; required when invoicesFile is given' },
                 },
                 required: ['file', 'mapping'],
                 additionalProperties: false,
@@ -394,6 +404,25 @@ export async function callTool(name, args = {}, { client, overrides = {} } = {})
             // file name is confined to the import folder inside runImport. A
             // grantFile proposes the grant-register mapping in the same pass.
             if (!importDir()) throw new Error('No import folder is configured (set CIVIC_IMPORT_DIR).');
+            if (args.pack === 'iolta') {
+                const { runIoltaImport } = await import('./import-iolta-run.js');
+                const r = await runIoltaImport({
+                    file: args.file,
+                    mapping: null,
+                    bankSnapshots: args.bankFile ? { file: args.bankFile, mapping: null } : null,
+                    feeInvoices: args.invoicesFile ? { file: args.invoicesFile, mapping: null } : null,
+                });
+                const out = { pack: 'iolta', file: r.file, mapping: r.mapping, fields: r.fields, unmappedHeaders: r.unmappedHeaders, missingRequired: r.missingRequired };
+                if (r.bankSnapshots) {
+                    const b = r.bankSnapshots;
+                    out.bankSnapshots = { file: b.file, mapping: b.mapping, fields: b.fields, unmappedHeaders: b.unmappedHeaders, missingRequired: b.missingRequired };
+                }
+                if (r.feeInvoices) {
+                    const i = r.feeInvoices;
+                    out.feeInvoices = { file: i.file, mapping: i.mapping, fields: i.fields, unmappedHeaders: i.unmappedHeaders, missingRequired: i.missingRequired };
+                }
+                return out;
+            }
             const { runImport } = await import('./import.js');
             const r = await runImport({
                 file: args.file,
@@ -418,6 +447,31 @@ export async function callTool(name, args = {}, { client, overrides = {} } = {})
             // import folder and supplies the confirmed mapping; the ledger, log
             // and mapping paths are server-derived (data dir), never from the wire.
             if (!importDir()) throw new Error('No import folder is configured (set CIVIC_IMPORT_DIR).');
+            if (args.pack === 'iolta') {
+                const { runIoltaImport } = await import('./import-iolta-run.js');
+                const r = await runIoltaImport({
+                    file: args.file,
+                    mapping: args.mapping,
+                    bankSnapshots: args.bankFile ? { file: args.bankFile, mapping: args.bankMapping ?? null } : null,
+                    feeInvoices: args.invoicesFile ? { file: args.invoicesFile, mapping: args.invoicesMapping ?? null } : null,
+                    signer: loadSigner(),
+                });
+                return {
+                    pack: 'iolta',
+                    file: r.file,
+                    counts: r.counts,
+                    sourceFileSha256: r.sourceFileSha256,
+                    byteLength: r.byteLength,
+                    canonicalSchemaVersion: r.canonicalSchemaVersion,
+                    mapping: r.mapping,
+                    audit: r.audit,
+                    bankSnapshots: r.bankSnapshots,
+                    feeInvoices: r.feeInvoices,
+                    gate: r.gate,
+                    dbPath: r.paths.dbPath,
+                    allowlistPath: r.paths.allowlistPath,
+                };
+            }
             const { runImport } = await import('./import.js');
             const r = await runImport({
                 file: args.file,

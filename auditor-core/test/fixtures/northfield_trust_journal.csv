@@ -1,0 +1,9 @@
+Entry ID,Date,Client ID,Matter ID,Transaction Type,Amount,Invoice,Bank Status
+T-0001,02/10/2026,C-100,M-100A,Client Deposit,"$5,000.00",,Cleared
+T-0002,03/05/2026,C-100,M-100A,Disbursement,"$2,000.00",,Cleared
+T-0003,04/20/2026,C-100,M-100A,Earned Fee Transfer,"$1,000.00",INV-1,Cleared
+T-0010,05/01/2026,C-200,M-200A,Client Deposit,"$3,000.00",,Cleared
+T-0011,06/15/2026,C-200,M-200A,Earned Fee Transfer,"$500.00",INV-2,Cleared
+T-0020,01/08/2026,C-300,M-300A,Client Deposit,"$1,500.00",,Cleared
+T-0021,01/20/2026,C-300,M-300A,Disbursement,"$500.00",,Outstanding
+T-0030,02/01/2026,FIRM-BUFFER,,Firm Buffer,"$200.00",,Cleared

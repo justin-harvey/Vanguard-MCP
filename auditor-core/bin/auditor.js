@@ -864,26 +864,13 @@ async function main() {
             const { runImport, formatImport } = await import('../src/import.js');
             const { ImportPathError } = await import('../src/paths.js');
             const { ImportError } = await import('../src/import-csv.js');
-            // The first non-flag argument is the CSV file name within CIVIC_IMPORT_DIR.
-            // The first non-flag argument is the expenditure CSV; --grants names
-            // an optional grant-register CSV applied onto the same ledger.
-            const grantsIdx = rest.indexOf('--grants');
-            const grantsFile = grantsIdx !== -1 ? rest[grantsIdx + 1] : null;
-            const drawdownsIdx = rest.indexOf('--drawdowns');
-            const drawdownsFile = drawdownsIdx !== -1 ? rest[drawdownsIdx + 1] : null;
-            const flagValues = new Set(
-                ['--map', '--grants', '--grants-map', '--drawdowns', '--drawdowns-map']
-                    .map((f) => rest.indexOf(f))
-                    .filter((i) => i !== -1)
-                    .map((i) => rest[i + 1])
-                    .filter(Boolean),
-            );
-            const file = rest.find((a) => !a.startsWith('--') && !flagValues.has(a));
-            if (!file) {
-                console.error('Usage: cc-auditor import <file.csv> [--map mapping.json] [--grants register.csv --grants-map grants.json] [--drawdowns draws.csv --drawdowns-map draws.json]');
-                console.error('  Set CIVIC_IMPORT_DIR to the folder your CSV lives in. Without --map, prints a proposed mapping.');
-                console.error('  --grants adds a grant register (award amounts) so grant-status is meaningful.');
-                console.error('  --drawdowns adds grant cash drawn down, so grant-status measures drawn vs spent.');
+            // --pack selects the warehouse the CSV is imported into (default
+            // municipal). Each pack has its own canonical schema and its own
+            // optional companion files; iolta is routed to its own runner.
+            const packIdx = rest.indexOf('--pack');
+            const pack = packIdx !== -1 ? rest[packIdx + 1] : 'municipal';
+            if (pack !== 'municipal' && pack !== 'iolta') {
+                console.error(`cc-auditor import: unknown --pack "${pack}" (known: municipal, iolta).`);
                 process.exitCode = 2;
                 return;
             }
@@ -906,6 +893,75 @@ async function main() {
                     return null;
                 }
             };
+
+            if (pack === 'iolta') {
+                const { runIoltaImport, formatIoltaImport } = await import('../src/import-iolta-run.js');
+                const bankIdx = rest.indexOf('--bank');
+                const bankFile = bankIdx !== -1 ? rest[bankIdx + 1] : null;
+                const invoicesIdx = rest.indexOf('--invoices');
+                const invoicesFile = invoicesIdx !== -1 ? rest[invoicesIdx + 1] : null;
+                const ioltaFlagValues = new Set(
+                    ['--pack', '--map', '--bank', '--bank-map', '--invoices', '--invoices-map']
+                        .map((f) => rest.indexOf(f))
+                        .filter((i) => i !== -1)
+                        .map((i) => rest[i + 1])
+                        .filter(Boolean),
+                );
+                const journalFile = rest.find((a) => !a.startsWith('--') && !ioltaFlagValues.has(a));
+                if (!journalFile) {
+                    console.error('Usage: cc-auditor import --pack iolta <journal.csv> [--map mapping.json] [--bank bank.csv --bank-map bank.json] [--invoices inv.csv --invoices-map inv.json]');
+                    console.error('  Set CIVIC_IMPORT_DIR to the folder your CSV lives in. Without --map, prints a proposed mapping.');
+                    console.error('  --bank adds bank reconciliation snapshots so three-way-reconciliation can tie.');
+                    console.error('  --invoices adds fee invoices so unsupported-fee-transfers can check each transfer.');
+                    process.exitCode = 2;
+                    return;
+                }
+                const mapping = readMapping('--map') ?? null;
+                if (process.exitCode === 2) return;
+                const bankMapping = readMapping('--bank-map');
+                if (process.exitCode === 2) return;
+                const bankSnapshots = bankFile ? { file: bankFile, mapping: bankMapping ?? null } : null;
+                const invoicesMapping = readMapping('--invoices-map');
+                if (process.exitCode === 2) return;
+                const feeInvoices = invoicesFile ? { file: invoicesFile, mapping: invoicesMapping ?? null } : null;
+                try {
+                    const result = await runIoltaImport({ file: journalFile, mapping, bankSnapshots, feeInvoices, signer: loadSigner() });
+                    console.log(formatIoltaImport(result));
+                    if (result.stage === 'imported' && result.gate && !result.gate.ok) process.exitCode = 1;
+                } catch (error) {
+                    if (error instanceof ImportPathError || error instanceof ImportError) {
+                        console.error(`cc-auditor import: ${error.message}`);
+                        process.exitCode = 1;
+                        return;
+                    }
+                    throw error;
+                }
+                break;
+            }
+
+            // The first non-flag argument is the CSV file name within CIVIC_IMPORT_DIR.
+            // The first non-flag argument is the expenditure CSV; --grants names
+            // an optional grant-register CSV applied onto the same ledger.
+            const grantsIdx = rest.indexOf('--grants');
+            const grantsFile = grantsIdx !== -1 ? rest[grantsIdx + 1] : null;
+            const drawdownsIdx = rest.indexOf('--drawdowns');
+            const drawdownsFile = drawdownsIdx !== -1 ? rest[drawdownsIdx + 1] : null;
+            const flagValues = new Set(
+                ['--pack', '--map', '--grants', '--grants-map', '--drawdowns', '--drawdowns-map']
+                    .map((f) => rest.indexOf(f))
+                    .filter((i) => i !== -1)
+                    .map((i) => rest[i + 1])
+                    .filter(Boolean),
+            );
+            const file = rest.find((a) => !a.startsWith('--') && !flagValues.has(a));
+            if (!file) {
+                console.error('Usage: cc-auditor import <file.csv> [--pack municipal|iolta] [--map mapping.json] [--grants register.csv --grants-map grants.json] [--drawdowns draws.csv --drawdowns-map draws.json]');
+                console.error('  Set CIVIC_IMPORT_DIR to the folder your CSV lives in. Without --map, prints a proposed mapping.');
+                console.error('  --grants adds a grant register (award amounts) so grant-status is meaningful.');
+                console.error('  --drawdowns adds grant cash drawn down, so grant-status measures drawn vs spent.');
+                process.exitCode = 2;
+                return;
+            }
             const mapping = readMapping('--map') ?? null;
             if (process.exitCode === 2) return;
             const grantsMapping = readMapping('--grants-map');
@@ -1065,7 +1121,7 @@ async function main() {
             console.log('  cc-auditor lseg <sub>                LSEG fundamentals warehouse + ingest seam');
             console.log('  cc-auditor controls <sub>            run SOC 2 controls (PASS/EXCEPTION + evidence)');
             console.log('  cc-auditor doctor                    check the install, print the MCP client config');
-            console.log('  cc-auditor import <file.csv>         import a buyer CSV from CIVIC_IMPORT_DIR (--map to confirm)');
+            console.log('  cc-auditor import <file.csv>         import a buyer CSV from CIVIC_IMPORT_DIR (--map to confirm; --pack municipal|iolta)');
             console.log('  cc-auditor ruleset <sub>             inspect/sign Civic-Chain rulesets (list, show, keygen, sign)');
             console.log('  cc-auditor mcp                       serve the engine over MCP (stdio)');
             console.log('  cc-auditor serve [--port N]          serve the engine over HTTP (needs ENGINE_SERVICE_TOKEN)');

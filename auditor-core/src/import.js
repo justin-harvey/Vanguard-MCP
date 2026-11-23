@@ -292,9 +292,10 @@ export async function runImport({ file, mapping = null, grantRegister = null, gr
  * @param {object} [options]
  * @param {string} [options.rulesetPath] the Civic-Chain ruleset to run under
  * @param {string} [options.dataHash]    the data fingerprint to record (the CSV's SHA-256)
+ * @param {string[]} [options.queries]   the named queries to run as the gate (defaults to the municipal three)
  * @returns {Promise<{ ok: boolean, queries: object[] }>}
  */
-export async function runGateQueries(paths, signer = null, { rulesetPath = null, dataHash = null } = {}) {
+export async function runGateQueries(paths, signer = null, { rulesetPath = null, dataHash = null, queries: gateQueries = GATE_QUERIES } = {}) {
     const { loadCustomWarehouse } = await import('./custom.js');
     const { guard } = await import('./guard.js');
     const { runNamedQuery } = await import('./named-run.js');
@@ -308,7 +309,7 @@ export async function runGateQueries(paths, signer = null, { rulesetPath = null,
         },
     });
     const queries = [];
-    for (const name of GATE_QUERIES) {
+    for (const name of gateQueries) {
         const out = runNamedQuery(warehouse, name, {}, { guard, signer });
         queries.push({ name, rowCount: out.rows.length, integrity: out.integrity, findings: out.findings });
     }
