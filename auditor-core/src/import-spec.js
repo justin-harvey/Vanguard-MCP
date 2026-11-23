@@ -68,6 +68,19 @@ import {
     CANONICAL_NONPROFIT_NET_ASSET_FIELDS,
     CANONICAL_NONPROFIT_FEDERAL_FIELDS,
 } from './import-nonprofit.js';
+import {
+    buildInsuranceLedgerFromCsv,
+    applyPoliciesToLedger,
+    applyCommissionReceiptsToLedger,
+    applyBindersToLedger,
+    applyBankSnapshotsToLedger as applyInsuranceBankSnapshotsToLedger,
+    INSURANCE_SCHEMA_VERSION,
+    CANONICAL_INSURANCE_LEDGER_FIELDS,
+    CANONICAL_INSURANCE_POLICY_FIELDS,
+    CANONICAL_INSURANCE_RECEIPT_FIELDS,
+    CANONICAL_INSURANCE_BINDER_FIELDS,
+    CANONICAL_INSURANCE_SNAPSHOT_FIELDS,
+} from './import-insurance.js';
 
 /** @type {ImportSpec} */
 export const MUNICIPAL_SPEC = Object.freeze({
@@ -331,12 +344,86 @@ export const NONPROFIT_SPEC = Object.freeze({
     ],
 });
 
+/** @type {ImportSpec} */
+export const INSURANCE_SPEC = Object.freeze({
+    pack: 'insurance',
+    emitPackField: true,
+    schemaVersion: INSURANCE_SCHEMA_VERSION,
+    rulesetPath: assetPath('insurance', 'ruleset.insurance-v1.json'),
+    gateQueries: ['trust-account-solvency', 'commission-variance-audit', 'eo-unbound-exposure'],
+    primary: {
+        fields: CANONICAL_INSURANCE_LEDGER_FIELDS,
+        build: buildInsuranceLedgerFromCsv,
+        tables: ['trust_ledger'],
+        proposeTitle: (file) => `Proposed premium-trust ledger mapping for ${file} (nothing written yet)`,
+        importQuestion: (counts, file) => `Imported ${counts.rowCount} trust-ledger entr(y/ies) from ${file}`,
+        headerNoun: () => 'trust-ledger entr(y/ies)',
+        derived: null,
+    },
+    // policies must precede commissionReceipts and binders, which reference it.
+    companions: [
+        {
+            resultKey: 'policies',
+            fields: CANONICAL_INSURANCE_POLICY_FIELDS,
+            apply: applyPoliciesToLedger,
+            mapFlag: '--policies-map',
+            kind: 'import-policies',
+            tables: ['policies'],
+            missingMapError: (file) => `a policies file (${file}) was given without a confirmed --policies-map; run without --map to see a proposed policies mapping.`,
+            proposeTitle: (file) => `Proposed policies mapping for ${file} (nothing written yet)`,
+            question: (counts, file) => `Applied ${counts.policies} polic(y/ies) from ${file}`,
+            rowCount: (counts) => counts.policies,
+            summaryLine: (counts, file) => `Policies ${file}: ${counts.policies} polic(y/ies)`,
+        },
+        {
+            resultKey: 'commissionReceipts',
+            fields: CANONICAL_INSURANCE_RECEIPT_FIELDS,
+            apply: applyCommissionReceiptsToLedger,
+            mapFlag: '--commissions-map',
+            kind: 'import-commission-receipts',
+            tables: ['commission_receipts'],
+            missingMapError: (file) => `a commission receipts file (${file}) was given without a confirmed --commissions-map; run without --map to see a proposed receipts mapping.`,
+            proposeTitle: (file) => `Proposed commission-receipts mapping for ${file} (nothing written yet)`,
+            question: (counts, file) => `Applied ${counts.receipts} commission receipt(s) from ${file}`,
+            rowCount: (counts) => counts.receipts,
+            summaryLine: (counts, file) => `Commission receipts ${file}: ${counts.receipts} receipt(s)`,
+        },
+        {
+            resultKey: 'binders',
+            fields: CANONICAL_INSURANCE_BINDER_FIELDS,
+            apply: applyBindersToLedger,
+            mapFlag: '--binders-map',
+            kind: 'import-binders',
+            tables: ['binders'],
+            missingMapError: (file) => `a binders file (${file}) was given without a confirmed --binders-map; run without --map to see a proposed binders mapping.`,
+            proposeTitle: (file) => `Proposed binders mapping for ${file} (nothing written yet)`,
+            question: (counts, file) => `Applied ${counts.binders} binder(s) from ${file}`,
+            rowCount: (counts) => counts.binders,
+            summaryLine: (counts, file) => `Binders ${file}: ${counts.binders} binder(s)`,
+        },
+        {
+            resultKey: 'bankSnapshots',
+            fields: CANONICAL_INSURANCE_SNAPSHOT_FIELDS,
+            apply: applyInsuranceBankSnapshotsToLedger,
+            mapFlag: '--bank-map',
+            kind: 'import-bank-snapshots',
+            tables: ['trust_bank_snapshots'],
+            missingMapError: (file) => `a bank snapshots file (${file}) was given without a confirmed --bank-map; run without --map to see a proposed bank mapping.`,
+            proposeTitle: (file) => `Proposed trust bank-snapshots mapping for ${file} (nothing written yet)`,
+            question: (counts, file) => `Applied ${counts.snapshots} trust bank snapshot(s) from ${file}`,
+            rowCount: (counts) => counts.snapshots,
+            summaryLine: (counts, file) => `Trust bank snapshots ${file}: ${counts.snapshots} snapshot(s)`,
+        },
+    ],
+});
+
 /** All packs that support `cc-auditor import --pack <name>`, keyed by pack id. */
 export const IMPORT_SPECS = Object.freeze({
     municipal: MUNICIPAL_SPEC,
     iolta: IOLTA_SPEC,
     construction: CONSTRUCTION_SPEC,
     nonprofit: NONPROFIT_SPEC,
+    insurance: INSURANCE_SPEC,
 });
 
 /** The pack ids that support CSV import, for help text and the `--pack` guard. */

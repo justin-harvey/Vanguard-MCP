@@ -866,8 +866,8 @@ async function main() {
             const { ImportError } = await import('../src/import-csv.js');
             // --pack selects the warehouse the CSV is imported into (default
             // municipal). Each pack has its own canonical schema and its own
-            // optional companion files; iolta, construction and nonprofit route
-            // to their own runners.
+            // optional companion files; iolta, construction, nonprofit and
+            // insurance route to their own runners.
             const { IMPORT_PACKS } = await import('../src/import-spec.js');
             const packIdx = rest.indexOf('--pack');
             const pack = packIdx !== -1 ? rest[packIdx + 1] : 'municipal';
@@ -1051,6 +1051,60 @@ async function main() {
                 break;
             }
 
+            if (pack === 'insurance') {
+                // The premium-trust ledger is the primary file; the four companion
+                // files (policies, commission receipts, binders, trust bank
+                // snapshots) are driven generically from the spec: each companion's
+                // file flag is its map flag minus "-map" (--policies-map →
+                // --policies, etc.). policies must precede the receipts and binders.
+                const { INSURANCE_SPEC } = await import('../src/import-spec.js');
+                const { runInsuranceImport, formatInsuranceImport } = await import('../src/import-insurance-run.js');
+                const companionFlags = INSURANCE_SPEC.companions.map((c) => ({
+                    key: c.resultKey,
+                    fileFlag: c.mapFlag.replace(/-map$/, ''),
+                    mapFlag: c.mapFlag,
+                }));
+                const valueFlags = ['--pack', '--map', ...companionFlags.flatMap((c) => [c.fileFlag, c.mapFlag])];
+                const flagValues = new Set(
+                    valueFlags.map((f) => rest.indexOf(f)).filter((i) => i !== -1).map((i) => rest[i + 1]).filter(Boolean),
+                );
+                const file = rest.find((a) => !a.startsWith('--') && !flagValues.has(a));
+                if (!file) {
+                    console.error('Usage: cc-auditor import --pack insurance <trust-ledger.csv> [--map mapping.json] \\');
+                    console.error('         [--policies pol.csv --policies-map pol.json] [--commissions rec.csv --commissions-map rec.json] \\');
+                    console.error('         [--binders bnd.csv --binders-map bnd.json] [--bank bank.csv --bank-map bank.json]');
+                    console.error('  Set CIVIC_IMPORT_DIR to the folder your CSV lives in. Without --map, prints a proposed mapping.');
+                    console.error('  The trust-ledger file is the premium-trust ledger; each companion fills one more table so a control can read:');
+                    console.error('  --policies + --commissions (commission-variance-audit), --binders (eo-unbound-exposure),');
+                    console.error('  --bank (trust-account-solvency). Import --policies before --commissions / --binders (they reference it).');
+                    process.exitCode = 2;
+                    return;
+                }
+                const mapping = readMapping('--map') ?? null;
+                if (process.exitCode === 2) return;
+                const companionArgs = {};
+                for (const c of companionFlags) {
+                    const fi = rest.indexOf(c.fileFlag);
+                    const companionFile = fi !== -1 ? rest[fi + 1] : null;
+                    const companionMap = readMapping(c.mapFlag);
+                    if (process.exitCode === 2) return;
+                    companionArgs[c.key] = companionFile ? { file: companionFile, mapping: companionMap ?? null } : null;
+                }
+                try {
+                    const result = await runInsuranceImport({ file, mapping, ...companionArgs, signer: loadSigner() });
+                    console.log(formatInsuranceImport(result));
+                    if (result.stage === 'imported' && result.gate && !result.gate.ok) process.exitCode = 1;
+                } catch (error) {
+                    if (error instanceof ImportPathError || error instanceof ImportError) {
+                        console.error(`cc-auditor import: ${error.message}`);
+                        process.exitCode = 1;
+                        return;
+                    }
+                    throw error;
+                }
+                break;
+            }
+
             // The first non-flag argument is the CSV file name within CIVIC_IMPORT_DIR.
             // The first non-flag argument is the expenditure CSV; --grants names
             // an optional grant-register CSV applied onto the same ledger.
@@ -1067,7 +1121,7 @@ async function main() {
             );
             const file = rest.find((a) => !a.startsWith('--') && !flagValues.has(a));
             if (!file) {
-                console.error('Usage: cc-auditor import <file.csv> [--pack municipal|iolta|construction|nonprofit] [--map mapping.json] [--grants register.csv --grants-map grants.json] [--drawdowns draws.csv --drawdowns-map draws.json]');
+                console.error('Usage: cc-auditor import <file.csv> [--pack municipal|iolta|construction|nonprofit|insurance] [--map mapping.json] [--grants register.csv --grants-map grants.json] [--drawdowns draws.csv --drawdowns-map draws.json]');
                 console.error('  Set CIVIC_IMPORT_DIR to the folder your CSV lives in. Without --map, prints a proposed mapping.');
                 console.error('  --grants adds a grant register (award amounts) so grant-status is meaningful.');
                 console.error('  --drawdowns adds grant cash drawn down, so grant-status measures drawn vs spent.');

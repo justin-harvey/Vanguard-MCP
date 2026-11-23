@@ -1,0 +1,11 @@
+Entry ID,Policy,Carrier,Entry Type,Amount,Reconciled Status,Entry Date
+T-0001,P-1001,CARR-ATLAS,Client Premium In,"$12,000.00",Posted,2026-01-06
+T-0002,P-1002,CARR-ORION,Client Premium In,"$8,000.00",Posted,2026-01-13
+T-0003,P-1003,CARR-ATLAS,Client Premium In,"$20,000.00",Posted,2026-02-02
+T-0004,P-1004,CARR-VERTEX,Client Premium In,"$5,000.00",Posted,2026-02-16
+T-0010,P-1001,CARR-ATLAS,Carrier Remit Out,"$10,200.00",Posted,2026-01-20
+T-0011,P-1002,CARR-ORION,Carrier Remit Out,"$7,000.00",Posted,2026-01-25
+T-0012,P-1003,CARR-ATLAS,Carrier Remit Out,"$18,000.00",Posted,2026-02-10
+T-0013,P-1004,CARR-VERTEX,Carrier Remit Out,"$4,125.00",Posted,2026-02-20
+T-0020,,,Agency Commission Draw,"$5,000.00",Posted,2026-02-25
+T-0030,P-1001,CARR-ATLAS,Client Premium In,"$9,999.99",Pending,2026-03-01

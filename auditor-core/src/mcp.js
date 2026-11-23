@@ -163,19 +163,21 @@ function importTools() {
                 'For construction: the main file is the jobs / WIP schedule; pass a companions object naming any of glRevenue, balances, ' +
                 'wipSnapshots, retainage, subPayments ({ file }) to propose their mappings too (returned under the same keys). ' +
                 'For nonprofit (restricted funds): the main file is the fund register; pass a companions object naming any of expenses, ' +
-                'releases, accountBalances, netAssets, federalAwards ({ file }) to propose their mappings too (returned under the same keys).',
+                'releases, accountBalances, netAssets, federalAwards ({ file }) to propose their mappings too (returned under the same keys). ' +
+                'For insurance (agency premium trust): the main file is the premium-trust ledger; pass a companions object naming any of ' +
+                'policies, commissionReceipts, binders, bankSnapshots ({ file }) to propose their mappings too (returned under the same keys).',
             inputSchema: {
                 type: 'object',
                 properties: {
-                    file: { type: 'string', description: 'main CSV file name within the import folder (expenditures for municipal, trust journal for iolta, jobs/WIP schedule for construction, fund register for nonprofit)' },
-                    pack: { type: 'string', description: 'warehouse to map onto: "municipal" (default), "iolta", "construction" or "nonprofit"' },
+                    file: { type: 'string', description: 'main CSV file name within the import folder (expenditures for municipal, trust journal for iolta, jobs/WIP schedule for construction, fund register for nonprofit, premium-trust ledger for insurance)' },
+                    pack: { type: 'string', description: 'warehouse to map onto: "municipal" (default), "iolta", "construction", "nonprofit" or "insurance"' },
                     grantFile: { type: 'string', description: 'municipal: optional grant-register CSV file name, to propose its mapping too' },
                     drawdownFile: { type: 'string', description: 'municipal: optional grant-drawdowns CSV file name, to propose its mapping too' },
                     bankFile: { type: 'string', description: 'iolta: optional bank-snapshots CSV file name, to propose its mapping too' },
                     invoicesFile: { type: 'string', description: 'iolta: optional fee-invoices CSV file name, to propose its mapping too' },
                     companions: {
                         type: 'object',
-                        description: 'construction: companion files keyed by glRevenue / balances / wipSnapshots / retainage / subPayments; nonprofit: expenses / releases / accountBalances / netAssets / federalAwards. Each { file }, to propose their mappings too',
+                        description: 'construction: companion files keyed by glRevenue / balances / wipSnapshots / retainage / subPayments; nonprofit: expenses / releases / accountBalances / netAssets / federalAwards; insurance: policies / commissionReceipts / binders / bankSnapshots. Each { file }, to propose their mappings too',
                         additionalProperties: false,
                         properties: {
                             glRevenue: { type: 'object', properties: { file: { type: 'string' } }, additionalProperties: false },
@@ -188,6 +190,10 @@ function importTools() {
                             accountBalances: { type: 'object', properties: { file: { type: 'string' } }, additionalProperties: false },
                             netAssets: { type: 'object', properties: { file: { type: 'string' } }, additionalProperties: false },
                             federalAwards: { type: 'object', properties: { file: { type: 'string' } }, additionalProperties: false },
+                            policies: { type: 'object', properties: { file: { type: 'string' } }, additionalProperties: false },
+                            commissionReceipts: { type: 'object', properties: { file: { type: 'string' } }, additionalProperties: false },
+                            binders: { type: 'object', properties: { file: { type: 'string' } }, additionalProperties: false },
+                            bankSnapshots: { type: 'object', properties: { file: { type: 'string' } }, additionalProperties: false },
                         },
                     },
                 },
@@ -209,13 +215,15 @@ function importTools() {
                 'retainage / subPayments, each { file, mapping }, to fill the tables the other five controls tie to. ' +
                 'nonprofit: the main file is the fund register; pass a companions object keyed by expenses / releases / accountBalances / netAssets / ' +
                 'federalAwards, each { file, mapping }, to fill the tables the five controls read. ' +
+                'insurance: the main file is the premium-trust ledger; pass a companions object keyed by policies / commissionReceipts / binders / ' +
+                'bankSnapshots, each { file, mapping }, to fill the tables the three controls read (import policies before commissionReceipts / binders). ' +
                 'Each companion file records its own source-SHA-256 audit entry.',
             inputSchema: {
                 type: 'object',
                 properties: {
-                    file: { type: 'string', description: 'main CSV file name within the import folder (expenditures for municipal, trust journal for iolta, jobs/WIP schedule for construction, fund register for nonprofit)' },
+                    file: { type: 'string', description: 'main CSV file name within the import folder (expenditures for municipal, trust journal for iolta, jobs/WIP schedule for construction, fund register for nonprofit, premium-trust ledger for insurance)' },
                     mapping: { type: 'object', description: 'confirmed mapping, canonical field -> CSV column (from propose_csv_mapping)' },
-                    pack: { type: 'string', description: 'warehouse to import into: "municipal" (default), "iolta", "construction" or "nonprofit"' },
+                    pack: { type: 'string', description: 'warehouse to import into: "municipal" (default), "iolta", "construction", "nonprofit" or "insurance"' },
                     grantFile: { type: 'string', description: 'municipal: optional grant-register CSV file name within the import folder' },
                     grantMapping: { type: 'object', description: 'municipal: confirmed grant-register mapping; required when grantFile is given' },
                     drawdownFile: { type: 'string', description: 'municipal: optional grant-drawdowns CSV file name within the import folder' },
@@ -226,7 +234,7 @@ function importTools() {
                     invoicesMapping: { type: 'object', description: 'iolta: confirmed fee-invoices mapping; required when invoicesFile is given' },
                     companions: {
                         type: 'object',
-                        description: 'construction: companion files keyed by glRevenue / balances / wipSnapshots / retainage / subPayments; nonprofit: expenses / releases / accountBalances / netAssets / federalAwards. Each { file, mapping }',
+                        description: 'construction: companion files keyed by glRevenue / balances / wipSnapshots / retainage / subPayments; nonprofit: expenses / releases / accountBalances / netAssets / federalAwards; insurance: policies / commissionReceipts / binders / bankSnapshots. Each { file, mapping }',
                         additionalProperties: false,
                         properties: {
                             glRevenue: { type: 'object', properties: { file: { type: 'string' }, mapping: { type: 'object' } }, additionalProperties: false },
@@ -239,6 +247,10 @@ function importTools() {
                             accountBalances: { type: 'object', properties: { file: { type: 'string' }, mapping: { type: 'object' } }, additionalProperties: false },
                             netAssets: { type: 'object', properties: { file: { type: 'string' }, mapping: { type: 'object' } }, additionalProperties: false },
                             federalAwards: { type: 'object', properties: { file: { type: 'string' }, mapping: { type: 'object' } }, additionalProperties: false },
+                            policies: { type: 'object', properties: { file: { type: 'string' }, mapping: { type: 'object' } }, additionalProperties: false },
+                            commissionReceipts: { type: 'object', properties: { file: { type: 'string' }, mapping: { type: 'object' } }, additionalProperties: false },
+                            binders: { type: 'object', properties: { file: { type: 'string' }, mapping: { type: 'object' } }, additionalProperties: false },
+                            bankSnapshots: { type: 'object', properties: { file: { type: 'string' }, mapping: { type: 'object' } }, additionalProperties: false },
                         },
                     },
                 },
@@ -495,6 +507,21 @@ export async function callTool(name, args = {}, { client, overrides = {} } = {})
                 }
                 return out;
             }
+            if (args.pack === 'insurance') {
+                const { runInsuranceImport, INSURANCE_COMPANION_KEYS } = await import('./import-insurance-run.js');
+                const given = args.companions ?? {};
+                const companionArgs = {};
+                for (const key of INSURANCE_COMPANION_KEYS) {
+                    companionArgs[key] = given[key]?.file ? { file: given[key].file, mapping: null } : null;
+                }
+                const r = await runInsuranceImport({ file: args.file, mapping: null, ...companionArgs });
+                const out = { pack: 'insurance', file: r.file, mapping: r.mapping, fields: r.fields, unmappedHeaders: r.unmappedHeaders, missingRequired: r.missingRequired };
+                for (const key of INSURANCE_COMPANION_KEYS) {
+                    const b = r[key];
+                    if (b) out[key] = { file: b.file, mapping: b.mapping, fields: b.fields, unmappedHeaders: b.unmappedHeaders, missingRequired: b.missingRequired };
+                }
+                return out;
+            }
             const { runImport } = await import('./import.js');
             const r = await runImport({
                 file: args.file,
@@ -590,6 +617,30 @@ export async function callTool(name, args = {}, { client, overrides = {} } = {})
                     allowlistPath: r.paths.allowlistPath,
                 };
                 for (const key of NONPROFIT_COMPANION_KEYS) out[key] = r[key];
+                return out;
+            }
+            if (args.pack === 'insurance') {
+                const { runInsuranceImport, INSURANCE_COMPANION_KEYS } = await import('./import-insurance-run.js');
+                const given = args.companions ?? {};
+                const companionArgs = {};
+                for (const key of INSURANCE_COMPANION_KEYS) {
+                    companionArgs[key] = given[key]?.file ? { file: given[key].file, mapping: given[key].mapping ?? null } : null;
+                }
+                const r = await runInsuranceImport({ file: args.file, mapping: args.mapping, ...companionArgs, signer: loadSigner() });
+                const out = {
+                    pack: 'insurance',
+                    file: r.file,
+                    counts: r.counts,
+                    sourceFileSha256: r.sourceFileSha256,
+                    byteLength: r.byteLength,
+                    canonicalSchemaVersion: r.canonicalSchemaVersion,
+                    mapping: r.mapping,
+                    audit: r.audit,
+                    gate: r.gate,
+                    dbPath: r.paths.dbPath,
+                    allowlistPath: r.paths.allowlistPath,
+                };
+                for (const key of INSURANCE_COMPANION_KEYS) out[key] = r[key];
                 return out;
             }
             const { runImport } = await import('./import.js');

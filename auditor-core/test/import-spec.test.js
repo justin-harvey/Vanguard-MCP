@@ -16,7 +16,7 @@ import { IMPORT_SPECS, IMPORT_PACKS, getImportSpec } from '../src/import-spec.js
 import { loadRuleset } from '../src/ruleset.js';
 
 test('the registry lists exactly the packs that support CSV import', () => {
-    assert.deepEqual([...IMPORT_PACKS].sort(), ['construction', 'iolta', 'municipal', 'nonprofit']);
+    assert.deepEqual([...IMPORT_PACKS].sort(), ['construction', 'insurance', 'iolta', 'municipal', 'nonprofit']);
 });
 
 test('getImportSpec resolves known packs and throws on an unknown one', () => {
@@ -24,6 +24,7 @@ test('getImportSpec resolves known packs and throws on an unknown one', () => {
     assert.equal(getImportSpec('iolta').pack, 'iolta');
     assert.equal(getImportSpec('construction').pack, 'construction');
     assert.equal(getImportSpec('nonprofit').pack, 'nonprofit');
+    assert.equal(getImportSpec('insurance').pack, 'insurance');
     assert.throws(() => getImportSpec('nope'), /unknown import pack "nope"/);
 });
 
@@ -90,9 +91,14 @@ test('the shipped packs pin the companion result keys callers depend on', () => 
         getImportSpec('nonprofit').companions.map((c) => c.resultKey),
         ['expenses', 'releases', 'accountBalances', 'netAssets', 'federalAwards'],
     );
+    assert.deepEqual(
+        getImportSpec('insurance').companions.map((c) => c.resultKey),
+        ['policies', 'commissionReceipts', 'binders', 'bankSnapshots'],
+    );
     // Byte-identical with the original municipal runner: no top-level `pack` key.
     assert.equal(getImportSpec('municipal').emitPackField, false);
     assert.equal(getImportSpec('iolta').emitPackField, true);
     assert.equal(getImportSpec('construction').emitPackField, true);
     assert.equal(getImportSpec('nonprofit').emitPackField, true);
+    assert.equal(getImportSpec('insurance').emitPackField, true);
 });
