@@ -53,6 +53,21 @@ import {
     CANONICAL_CONSTRUCTION_RETAINAGE_FIELDS,
     CANONICAL_CONSTRUCTION_SUBPAYMENT_FIELDS,
 } from './import-construction.js';
+import {
+    buildNonprofitLedgerFromCsv,
+    applyExpensesToLedger,
+    applyReleasesToLedger,
+    applyAccountBalancesToLedger,
+    applyNetAssetsToLedger,
+    applyFederalAwardsToLedger,
+    NONPROFIT_SCHEMA_VERSION,
+    CANONICAL_NONPROFIT_FUND_FIELDS,
+    CANONICAL_NONPROFIT_EXPENSE_FIELDS,
+    CANONICAL_NONPROFIT_RELEASE_FIELDS,
+    CANONICAL_NONPROFIT_BALANCE_FIELDS,
+    CANONICAL_NONPROFIT_NET_ASSET_FIELDS,
+    CANONICAL_NONPROFIT_FEDERAL_FIELDS,
+} from './import-nonprofit.js';
 
 /** @type {ImportSpec} */
 export const MUNICIPAL_SPEC = Object.freeze({
@@ -231,11 +246,97 @@ export const CONSTRUCTION_SPEC = Object.freeze({
     ],
 });
 
+/** @type {ImportSpec} */
+export const NONPROFIT_SPEC = Object.freeze({
+    pack: 'nonprofit',
+    emitPackField: true,
+    schemaVersion: NONPROFIT_SCHEMA_VERSION,
+    rulesetPath: assetPath('nonprofit', 'ruleset.nonprofit-v1.json'),
+    gateQueries: ['restricted-spending', 'releases-vs-spending', 'functional-expense-tie', 'restricted-cash-coverage', 'single-audit-threshold'],
+    primary: {
+        fields: CANONICAL_NONPROFIT_FUND_FIELDS,
+        build: buildNonprofitLedgerFromCsv,
+        tables: ['funds'],
+        proposeTitle: (file) => `Proposed fund-register mapping for ${file} (nothing written yet)`,
+        importQuestion: (counts, file) => `Imported ${counts.rowCount} fund(s) from ${file}`,
+        headerNoun: () => 'fund(s)',
+        derived: null,
+    },
+    companions: [
+        {
+            resultKey: 'expenses',
+            fields: CANONICAL_NONPROFIT_EXPENSE_FIELDS,
+            apply: applyExpensesToLedger,
+            mapFlag: '--expenses-map',
+            kind: 'import-expenses',
+            tables: ['expenses'],
+            missingMapError: (file) => `an expenses file (${file}) was given without a confirmed --expenses-map; run without --map to see a proposed expenses mapping.`,
+            proposeTitle: (file) => `Proposed expenses / general-ledger mapping for ${file} (nothing written yet)`,
+            question: (counts, file) => `Applied ${counts.expenses} expense(s) from ${file}`,
+            rowCount: (counts) => counts.expenses,
+            summaryLine: (counts, file) => `Expenses ${file}: ${counts.expenses} expense(s)`,
+        },
+        {
+            resultKey: 'releases',
+            fields: CANONICAL_NONPROFIT_RELEASE_FIELDS,
+            apply: applyReleasesToLedger,
+            mapFlag: '--releases-map',
+            kind: 'import-releases',
+            tables: ['restriction_releases'],
+            missingMapError: (file) => `a restriction-releases file (${file}) was given without a confirmed --releases-map; run without --map to see a proposed releases mapping.`,
+            proposeTitle: (file) => `Proposed restriction-releases mapping for ${file} (nothing written yet)`,
+            question: (counts, file) => `Applied ${counts.releases} restriction release(s) from ${file}`,
+            rowCount: (counts) => counts.releases,
+            summaryLine: (counts, file) => `Restriction releases ${file}: ${counts.releases} release(s)`,
+        },
+        {
+            resultKey: 'accountBalances',
+            fields: CANONICAL_NONPROFIT_BALANCE_FIELDS,
+            apply: applyAccountBalancesToLedger,
+            mapFlag: '--balances-map',
+            kind: 'import-account-balances',
+            tables: ['account_balances'],
+            missingMapError: (file) => `an account-balances file (${file}) was given without a confirmed --balances-map; run without --map to see a proposed balances mapping.`,
+            proposeTitle: (file) => `Proposed balance-sheet account-balances mapping for ${file} (nothing written yet)`,
+            question: (counts, file) => `Applied ${counts.balances} account balance(s) from ${file}`,
+            rowCount: (counts) => counts.balances,
+            summaryLine: (counts, file) => `Account balances ${file}: ${counts.balances} balance(s)`,
+        },
+        {
+            resultKey: 'netAssets',
+            fields: CANONICAL_NONPROFIT_NET_ASSET_FIELDS,
+            apply: applyNetAssetsToLedger,
+            mapFlag: '--net-assets-map',
+            kind: 'import-net-assets',
+            tables: ['net_assets'],
+            missingMapError: (file) => `a net-assets file (${file}) was given without a confirmed --net-assets-map; run without --map to see a proposed net-assets mapping.`,
+            proposeTitle: (file) => `Proposed net-assets mapping for ${file} (nothing written yet)`,
+            question: (counts, file) => `Applied ${counts.netAssets} net-asset balance(s) from ${file}`,
+            rowCount: (counts) => counts.netAssets,
+            summaryLine: (counts, file) => `Net assets ${file}: ${counts.netAssets} balance(s)`,
+        },
+        {
+            resultKey: 'federalAwards',
+            fields: CANONICAL_NONPROFIT_FEDERAL_FIELDS,
+            apply: applyFederalAwardsToLedger,
+            mapFlag: '--federal-awards-map',
+            kind: 'import-federal-awards',
+            tables: ['federal_awards'],
+            missingMapError: (file) => `a federal-awards file (${file}) was given without a confirmed --federal-awards-map; run without --map to see a proposed federal-awards mapping.`,
+            proposeTitle: (file) => `Proposed federal-awards mapping for ${file} (nothing written yet)`,
+            question: (counts, file) => `Applied ${counts.awards} federal award(s) from ${file}`,
+            rowCount: (counts) => counts.awards,
+            summaryLine: (counts, file) => `Federal awards ${file}: ${counts.awards} award(s)`,
+        },
+    ],
+});
+
 /** All packs that support `cc-auditor import --pack <name>`, keyed by pack id. */
 export const IMPORT_SPECS = Object.freeze({
     municipal: MUNICIPAL_SPEC,
     iolta: IOLTA_SPEC,
     construction: CONSTRUCTION_SPEC,
+    nonprofit: NONPROFIT_SPEC,
 });
 
 /** The pack ids that support CSV import, for help text and the `--pack` guard. */
