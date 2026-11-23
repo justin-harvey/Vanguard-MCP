@@ -81,6 +81,17 @@ import {
     CANONICAL_INSURANCE_BINDER_FIELDS,
     CANONICAL_INSURANCE_SNAPSHOT_FIELDS,
 } from './import-insurance.js';
+import {
+    buildExciseLedgerFromCsv,
+    applyRatesToLedger,
+    applyOperationsToLedger,
+    applyReturnsToLedger,
+    EXCISE_SCHEMA_VERSION,
+    CANONICAL_EXCISE_REMOVAL_FIELDS,
+    CANONICAL_EXCISE_RATE_FIELDS,
+    CANONICAL_EXCISE_OPERATIONS_FIELDS,
+    CANONICAL_EXCISE_RETURN_FIELDS,
+} from './import-excise.js';
 
 /** @type {ImportSpec} */
 export const MUNICIPAL_SPEC = Object.freeze({
@@ -417,6 +428,65 @@ export const INSURANCE_SPEC = Object.freeze({
     ],
 });
 
+/** @type {ImportSpec} */
+export const EXCISE_SPEC = Object.freeze({
+    pack: 'excise',
+    emitPackField: true,
+    schemaVersion: EXCISE_SCHEMA_VERSION,
+    rulesetPath: assetPath('excise', 'ruleset.excise-v1.json'),
+    gateQueries: ['liability-vs-remitted', 'inventory-rollforward', 'report-vs-return', 'missing-or-late-filings', 'loss-variance'],
+    primary: {
+        fields: CANONICAL_EXCISE_REMOVAL_FIELDS,
+        build: buildExciseLedgerFromCsv,
+        tables: ['removals'],
+        proposeTitle: (file) => `Proposed taxable-removals mapping for ${file} (nothing written yet)`,
+        importQuestion: (counts, file) => `Imported ${counts.rowCount} taxable removal(s) from ${file}`,
+        headerNoun: (c) => `taxable removal(s) across ${c.periods} period(s)`,
+        derived: (c) => `${c.barrels} taxable barrel(s)`,
+    },
+    companions: [
+        {
+            resultKey: 'rates',
+            fields: CANONICAL_EXCISE_RATE_FIELDS,
+            apply: applyRatesToLedger,
+            mapFlag: '--rates-map',
+            kind: 'import-rates',
+            tables: ['tax_rates'],
+            missingMapError: (file) => `a rate schedule (${file}) was given without a confirmed --rates-map; run without --map to see a proposed rate mapping.`,
+            proposeTitle: (file) => `Proposed rate-schedule mapping for ${file} (nothing written yet)`,
+            question: (counts, file) => `Applied ${counts.rates} rate(s) from ${file}`,
+            rowCount: (counts) => counts.rates,
+            summaryLine: (counts, file) => `Rate schedule ${file}: ${counts.rates} rate(s)`,
+        },
+        {
+            resultKey: 'operationsReports',
+            fields: CANONICAL_EXCISE_OPERATIONS_FIELDS,
+            apply: applyOperationsToLedger,
+            mapFlag: '--operations-map',
+            kind: 'import-operations-reports',
+            tables: ['operations_reports'],
+            missingMapError: (file) => `an operations reports file (${file}) was given without a confirmed --operations-map; run without --map to see a proposed operations mapping.`,
+            proposeTitle: (file) => `Proposed operations-reports mapping for ${file} (nothing written yet)`,
+            question: (counts, file) => `Applied ${counts.reports} operations report(s) from ${file}`,
+            rowCount: (counts) => counts.reports,
+            summaryLine: (counts, file) => `Operations reports ${file}: ${counts.reports} report(s)`,
+        },
+        {
+            resultKey: 'returns',
+            fields: CANONICAL_EXCISE_RETURN_FIELDS,
+            apply: applyReturnsToLedger,
+            mapFlag: '--returns-map',
+            kind: 'import-returns',
+            tables: ['tax_returns'],
+            missingMapError: (file) => `an excise returns file (${file}) was given without a confirmed --returns-map; run without --map to see a proposed returns mapping.`,
+            proposeTitle: (file) => `Proposed excise-returns mapping for ${file} (nothing written yet)`,
+            question: (counts, file) => `Applied ${counts.returns} excise return(s) from ${file}`,
+            rowCount: (counts) => counts.returns,
+            summaryLine: (counts, file) => `Excise returns ${file}: ${counts.returns} return(s)`,
+        },
+    ],
+});
+
 /** All packs that support `cc-auditor import --pack <name>`, keyed by pack id. */
 export const IMPORT_SPECS = Object.freeze({
     municipal: MUNICIPAL_SPEC,
@@ -424,6 +494,7 @@ export const IMPORT_SPECS = Object.freeze({
     construction: CONSTRUCTION_SPEC,
     nonprofit: NONPROFIT_SPEC,
     insurance: INSURANCE_SPEC,
+    excise: EXCISE_SPEC,
 });
 
 /** The pack ids that support CSV import, for help text and the `--pack` guard. */

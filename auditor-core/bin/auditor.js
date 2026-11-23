@@ -1105,6 +1105,59 @@ async function main() {
                 break;
             }
 
+            if (pack === 'excise') {
+                // The taxable removals are the primary file; the three companion
+                // files (rate schedule, operations reports, excise returns) are
+                // driven generically from the spec: each companion's file flag is
+                // its map flag minus "-map" (--rates-map → --rates, etc.).
+                const { EXCISE_SPEC } = await import('../src/import-spec.js');
+                const { runExciseImport, formatExciseImport } = await import('../src/import-excise-run.js');
+                const companionFlags = EXCISE_SPEC.companions.map((c) => ({
+                    key: c.resultKey,
+                    fileFlag: c.mapFlag.replace(/-map$/, ''),
+                    mapFlag: c.mapFlag,
+                }));
+                const valueFlags = ['--pack', '--map', ...companionFlags.flatMap((c) => [c.fileFlag, c.mapFlag])];
+                const flagValues = new Set(
+                    valueFlags.map((f) => rest.indexOf(f)).filter((i) => i !== -1).map((i) => rest[i + 1]).filter(Boolean),
+                );
+                const file = rest.find((a) => !a.startsWith('--') && !flagValues.has(a));
+                if (!file) {
+                    console.error('Usage: cc-auditor import --pack excise <removals.csv> [--map mapping.json] \\');
+                    console.error('         [--rates rates.csv --rates-map rates.json] [--operations ops.csv --operations-map ops.json] \\');
+                    console.error('         [--returns ret.csv --returns-map ret.json]');
+                    console.error('  Set CIVIC_IMPORT_DIR to the folder your CSV lives in. Without --map, prints a proposed mapping.');
+                    console.error('  The removals file is the taxable removals from bond; each companion fills one more table so a control can tie:');
+                    console.error('  --rates (liability-vs-remitted reads the per-barrel rate), --operations (inventory-rollforward,');
+                    console.error('  report-vs-return, loss-variance), --returns (liability-vs-remitted, report-vs-return, missing-or-late-filings).');
+                    process.exitCode = 2;
+                    return;
+                }
+                const mapping = readMapping('--map') ?? null;
+                if (process.exitCode === 2) return;
+                const companionArgs = {};
+                for (const c of companionFlags) {
+                    const fi = rest.indexOf(c.fileFlag);
+                    const companionFile = fi !== -1 ? rest[fi + 1] : null;
+                    const companionMap = readMapping(c.mapFlag);
+                    if (process.exitCode === 2) return;
+                    companionArgs[c.key] = companionFile ? { file: companionFile, mapping: companionMap ?? null } : null;
+                }
+                try {
+                    const result = await runExciseImport({ file, mapping, ...companionArgs, signer: loadSigner() });
+                    console.log(formatExciseImport(result));
+                    if (result.stage === 'imported' && result.gate && !result.gate.ok) process.exitCode = 1;
+                } catch (error) {
+                    if (error instanceof ImportPathError || error instanceof ImportError) {
+                        console.error(`cc-auditor import: ${error.message}`);
+                        process.exitCode = 1;
+                        return;
+                    }
+                    throw error;
+                }
+                break;
+            }
+
             // The first non-flag argument is the CSV file name within CIVIC_IMPORT_DIR.
             // The first non-flag argument is the expenditure CSV; --grants names
             // an optional grant-register CSV applied onto the same ledger.
