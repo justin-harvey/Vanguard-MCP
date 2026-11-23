@@ -159,16 +159,30 @@ function importTools() {
                 'pack selects the warehouse (default "municipal"). For municipal: pass grantFile to also propose a grant-register ' +
                 'mapping (returned under grantRegister) and drawdownFile for a grant-drawdowns mapping (returned under grantDrawdowns). ' +
                 'For iolta (law firm client trust): the main file is the trust journal; pass bankFile to also propose a bank-snapshots ' +
-                'mapping (returned under bankSnapshots) and invoicesFile for a fee-invoices mapping (returned under feeInvoices).',
+                'mapping (returned under bankSnapshots) and invoicesFile for a fee-invoices mapping (returned under feeInvoices). ' +
+                'For construction: the main file is the jobs / WIP schedule; pass a companions object naming any of glRevenue, balances, ' +
+                'wipSnapshots, retainage, subPayments ({ file }) to propose their mappings too (returned under the same keys).',
             inputSchema: {
                 type: 'object',
                 properties: {
-                    file: { type: 'string', description: 'main CSV file name within the import folder (expenditures for municipal, trust journal for iolta)' },
-                    pack: { type: 'string', description: 'warehouse to map onto: "municipal" (default) or "iolta"' },
+                    file: { type: 'string', description: 'main CSV file name within the import folder (expenditures for municipal, trust journal for iolta, jobs/WIP schedule for construction)' },
+                    pack: { type: 'string', description: 'warehouse to map onto: "municipal" (default), "iolta" or "construction"' },
                     grantFile: { type: 'string', description: 'municipal: optional grant-register CSV file name, to propose its mapping too' },
                     drawdownFile: { type: 'string', description: 'municipal: optional grant-drawdowns CSV file name, to propose its mapping too' },
                     bankFile: { type: 'string', description: 'iolta: optional bank-snapshots CSV file name, to propose its mapping too' },
                     invoicesFile: { type: 'string', description: 'iolta: optional fee-invoices CSV file name, to propose its mapping too' },
+                    companions: {
+                        type: 'object',
+                        description: 'construction: optional companion files keyed by glRevenue / balances / wipSnapshots / retainage / subPayments, each { file }, to propose their mappings too',
+                        additionalProperties: false,
+                        properties: {
+                            glRevenue: { type: 'object', properties: { file: { type: 'string' } }, additionalProperties: false },
+                            balances: { type: 'object', properties: { file: { type: 'string' } }, additionalProperties: false },
+                            wipSnapshots: { type: 'object', properties: { file: { type: 'string' } }, additionalProperties: false },
+                            retainage: { type: 'object', properties: { file: { type: 'string' } }, additionalProperties: false },
+                            subPayments: { type: 'object', properties: { file: { type: 'string' } }, additionalProperties: false },
+                        },
+                    },
                 },
                 required: ['file'],
                 additionalProperties: false,
@@ -184,13 +198,15 @@ function importTools() {
                 'awards) and drawdownFile + drawdownMapping for grant drawdowns (so grant-status measures cash drawn vs spent). ' +
                 'iolta: the main file is the trust journal; pass bankFile + bankMapping for bank-reconciliation snapshots (so three-way-reconciliation ' +
                 'can tie) and invoicesFile + invoicesMapping for fee invoices (so unsupported-fee-transfers can check each transfer). ' +
+                'construction: the main file is the jobs / WIP schedule; pass a companions object keyed by glRevenue / balances / wipSnapshots / ' +
+                'retainage / subPayments, each { file, mapping }, to fill the tables the other five controls tie to. ' +
                 'Each companion file records its own source-SHA-256 audit entry.',
             inputSchema: {
                 type: 'object',
                 properties: {
-                    file: { type: 'string', description: 'main CSV file name within the import folder (expenditures for municipal, trust journal for iolta)' },
+                    file: { type: 'string', description: 'main CSV file name within the import folder (expenditures for municipal, trust journal for iolta, jobs/WIP schedule for construction)' },
                     mapping: { type: 'object', description: 'confirmed mapping, canonical field -> CSV column (from propose_csv_mapping)' },
-                    pack: { type: 'string', description: 'warehouse to import into: "municipal" (default) or "iolta"' },
+                    pack: { type: 'string', description: 'warehouse to import into: "municipal" (default), "iolta" or "construction"' },
                     grantFile: { type: 'string', description: 'municipal: optional grant-register CSV file name within the import folder' },
                     grantMapping: { type: 'object', description: 'municipal: confirmed grant-register mapping; required when grantFile is given' },
                     drawdownFile: { type: 'string', description: 'municipal: optional grant-drawdowns CSV file name within the import folder' },
@@ -199,6 +215,18 @@ function importTools() {
                     bankMapping: { type: 'object', description: 'iolta: confirmed bank-snapshots mapping; required when bankFile is given' },
                     invoicesFile: { type: 'string', description: 'iolta: optional fee-invoices CSV file name within the import folder' },
                     invoicesMapping: { type: 'object', description: 'iolta: confirmed fee-invoices mapping; required when invoicesFile is given' },
+                    companions: {
+                        type: 'object',
+                        description: 'construction: optional companion files keyed by glRevenue / balances / wipSnapshots / retainage / subPayments, each { file, mapping }',
+                        additionalProperties: false,
+                        properties: {
+                            glRevenue: { type: 'object', properties: { file: { type: 'string' }, mapping: { type: 'object' } }, additionalProperties: false },
+                            balances: { type: 'object', properties: { file: { type: 'string' }, mapping: { type: 'object' } }, additionalProperties: false },
+                            wipSnapshots: { type: 'object', properties: { file: { type: 'string' }, mapping: { type: 'object' } }, additionalProperties: false },
+                            retainage: { type: 'object', properties: { file: { type: 'string' }, mapping: { type: 'object' } }, additionalProperties: false },
+                            subPayments: { type: 'object', properties: { file: { type: 'string' }, mapping: { type: 'object' } }, additionalProperties: false },
+                        },
+                    },
                 },
                 required: ['file', 'mapping'],
                 additionalProperties: false,
@@ -423,6 +451,21 @@ export async function callTool(name, args = {}, { client, overrides = {} } = {})
                 }
                 return out;
             }
+            if (args.pack === 'construction') {
+                const { runConstructionImport, CONSTRUCTION_COMPANION_KEYS } = await import('./import-construction-run.js');
+                const given = args.companions ?? {};
+                const companionArgs = {};
+                for (const key of CONSTRUCTION_COMPANION_KEYS) {
+                    companionArgs[key] = given[key]?.file ? { file: given[key].file, mapping: null } : null;
+                }
+                const r = await runConstructionImport({ file: args.file, mapping: null, ...companionArgs });
+                const out = { pack: 'construction', file: r.file, mapping: r.mapping, fields: r.fields, unmappedHeaders: r.unmappedHeaders, missingRequired: r.missingRequired };
+                for (const key of CONSTRUCTION_COMPANION_KEYS) {
+                    const b = r[key];
+                    if (b) out[key] = { file: b.file, mapping: b.mapping, fields: b.fields, unmappedHeaders: b.unmappedHeaders, missingRequired: b.missingRequired };
+                }
+                return out;
+            }
             const { runImport } = await import('./import.js');
             const r = await runImport({
                 file: args.file,
@@ -471,6 +514,30 @@ export async function callTool(name, args = {}, { client, overrides = {} } = {})
                     dbPath: r.paths.dbPath,
                     allowlistPath: r.paths.allowlistPath,
                 };
+            }
+            if (args.pack === 'construction') {
+                const { runConstructionImport, CONSTRUCTION_COMPANION_KEYS } = await import('./import-construction-run.js');
+                const given = args.companions ?? {};
+                const companionArgs = {};
+                for (const key of CONSTRUCTION_COMPANION_KEYS) {
+                    companionArgs[key] = given[key]?.file ? { file: given[key].file, mapping: given[key].mapping ?? null } : null;
+                }
+                const r = await runConstructionImport({ file: args.file, mapping: args.mapping, ...companionArgs, signer: loadSigner() });
+                const out = {
+                    pack: 'construction',
+                    file: r.file,
+                    counts: r.counts,
+                    sourceFileSha256: r.sourceFileSha256,
+                    byteLength: r.byteLength,
+                    canonicalSchemaVersion: r.canonicalSchemaVersion,
+                    mapping: r.mapping,
+                    audit: r.audit,
+                    gate: r.gate,
+                    dbPath: r.paths.dbPath,
+                    allowlistPath: r.paths.allowlistPath,
+                };
+                for (const key of CONSTRUCTION_COMPANION_KEYS) out[key] = r[key];
+                return out;
             }
             const { runImport } = await import('./import.js');
             const r = await runImport({

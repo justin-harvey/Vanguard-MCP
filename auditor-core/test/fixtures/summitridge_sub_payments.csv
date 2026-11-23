@@ -1,0 +1,5 @@
+Payment ID,Job Number,Subcontractor,Amount,Payment Date,Lien Waiver Received
+SP-1,J-100,SUB-STEEL,"$250,000.00",2026-04-15,Yes
+SP-2,J-100,SUB-CONCRETE,"$150,000.00",2026-05-20,Yes
+SP-3,J-200,SUB-PAVING,"$80,000.00",2026-05-01,Yes
+SP-4,J-300,SUB-ELECTRIC,"$50,000.00",2026-06-10,Yes

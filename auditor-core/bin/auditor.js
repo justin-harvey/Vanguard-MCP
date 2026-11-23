@@ -866,11 +866,13 @@ async function main() {
             const { ImportError } = await import('../src/import-csv.js');
             // --pack selects the warehouse the CSV is imported into (default
             // municipal). Each pack has its own canonical schema and its own
-            // optional companion files; iolta is routed to its own runner.
+            // optional companion files; iolta and construction route to their
+            // own runners.
+            const { IMPORT_PACKS } = await import('../src/import-spec.js');
             const packIdx = rest.indexOf('--pack');
             const pack = packIdx !== -1 ? rest[packIdx + 1] : 'municipal';
-            if (pack !== 'municipal' && pack !== 'iolta') {
-                console.error(`cc-auditor import: unknown --pack "${pack}" (known: municipal, iolta).`);
+            if (!IMPORT_PACKS.includes(pack)) {
+                console.error(`cc-auditor import: unknown --pack "${pack}" (known: ${IMPORT_PACKS.join(', ')}).`);
                 process.exitCode = 2;
                 return;
             }
@@ -939,6 +941,61 @@ async function main() {
                 break;
             }
 
+            if (pack === 'construction') {
+                // The jobs / WIP schedule is the primary file; the five companion
+                // files (GL revenue, balance-sheet balances, prior WIP snapshots,
+                // retainage, subcontractor payments) are driven generically from
+                // the spec: each companion's file flag is its map flag minus
+                // "-map" (--gl-map → --gl, etc.).
+                const { CONSTRUCTION_SPEC } = await import('../src/import-spec.js');
+                const { runConstructionImport, formatConstructionImport } = await import('../src/import-construction-run.js');
+                const companionFlags = CONSTRUCTION_SPEC.companions.map((c) => ({
+                    key: c.resultKey,
+                    fileFlag: c.mapFlag.replace(/-map$/, ''),
+                    mapFlag: c.mapFlag,
+                }));
+                const valueFlags = ['--pack', '--map', ...companionFlags.flatMap((c) => [c.fileFlag, c.mapFlag])];
+                const flagValues = new Set(
+                    valueFlags.map((f) => rest.indexOf(f)).filter((i) => i !== -1).map((i) => rest[i + 1]).filter(Boolean),
+                );
+                const file = rest.find((a) => !a.startsWith('--') && !flagValues.has(a));
+                if (!file) {
+                    console.error('Usage: cc-auditor import --pack construction <jobs.csv> [--map mapping.json] \\');
+                    console.error('         [--gl gl.csv --gl-map gl.json] [--balances bal.csv --balances-map bal.json] \\');
+                    console.error('         [--snapshots snap.csv --snapshots-map snap.json] [--retainage ret.csv --retainage-map ret.json] \\');
+                    console.error('         [--subpayments sub.csv --subpayments-map sub.json]');
+                    console.error('  Set CIVIC_IMPORT_DIR to the folder your CSV lives in. Without --map, prints a proposed mapping.');
+                    console.error('  The jobs file is the WIP schedule; each companion fills one more table so a control can tie:');
+                    console.error('  --gl (earned revenue ties the GL), --balances (over/underbillings tie the balance sheet),');
+                    console.error('  --snapshots (margin fade), --retainage (retainage reconciles), --subpayments (lien waivers).');
+                    process.exitCode = 2;
+                    return;
+                }
+                const mapping = readMapping('--map') ?? null;
+                if (process.exitCode === 2) return;
+                const companionArgs = {};
+                for (const c of companionFlags) {
+                    const fi = rest.indexOf(c.fileFlag);
+                    const companionFile = fi !== -1 ? rest[fi + 1] : null;
+                    const companionMap = readMapping(c.mapFlag);
+                    if (process.exitCode === 2) return;
+                    companionArgs[c.key] = companionFile ? { file: companionFile, mapping: companionMap ?? null } : null;
+                }
+                try {
+                    const result = await runConstructionImport({ file, mapping, ...companionArgs, signer: loadSigner() });
+                    console.log(formatConstructionImport(result));
+                    if (result.stage === 'imported' && result.gate && !result.gate.ok) process.exitCode = 1;
+                } catch (error) {
+                    if (error instanceof ImportPathError || error instanceof ImportError) {
+                        console.error(`cc-auditor import: ${error.message}`);
+                        process.exitCode = 1;
+                        return;
+                    }
+                    throw error;
+                }
+                break;
+            }
+
             // The first non-flag argument is the CSV file name within CIVIC_IMPORT_DIR.
             // The first non-flag argument is the expenditure CSV; --grants names
             // an optional grant-register CSV applied onto the same ledger.
@@ -955,7 +1012,7 @@ async function main() {
             );
             const file = rest.find((a) => !a.startsWith('--') && !flagValues.has(a));
             if (!file) {
-                console.error('Usage: cc-auditor import <file.csv> [--pack municipal|iolta] [--map mapping.json] [--grants register.csv --grants-map grants.json] [--drawdowns draws.csv --drawdowns-map draws.json]');
+                console.error('Usage: cc-auditor import <file.csv> [--pack municipal|iolta|construction] [--map mapping.json] [--grants register.csv --grants-map grants.json] [--drawdowns draws.csv --drawdowns-map draws.json]');
                 console.error('  Set CIVIC_IMPORT_DIR to the folder your CSV lives in. Without --map, prints a proposed mapping.');
                 console.error('  --grants adds a grant register (award amounts) so grant-status is meaningful.');
                 console.error('  --drawdowns adds grant cash drawn down, so grant-status measures drawn vs spent.');
@@ -1121,7 +1178,7 @@ async function main() {
             console.log('  cc-auditor lseg <sub>                LSEG fundamentals warehouse + ingest seam');
             console.log('  cc-auditor controls <sub>            run SOC 2 controls (PASS/EXCEPTION + evidence)');
             console.log('  cc-auditor doctor                    check the install, print the MCP client config');
-            console.log('  cc-auditor import <file.csv>         import a buyer CSV from CIVIC_IMPORT_DIR (--map to confirm; --pack municipal|iolta)');
+            console.log('  cc-auditor import <file.csv>         import a buyer CSV from CIVIC_IMPORT_DIR (--map to confirm; --pack municipal|iolta|construction)');
             console.log('  cc-auditor ruleset <sub>             inspect/sign Civic-Chain rulesets (list, show, keygen, sign)');
             console.log('  cc-auditor mcp                       serve the engine over MCP (stdio)');
             console.log('  cc-auditor serve [--port N]          serve the engine over HTTP (needs ENGINE_SERVICE_TOKEN)');

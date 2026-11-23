@@ -38,6 +38,21 @@ import {
     CANONICAL_IOLTA_BANK_FIELDS,
     CANONICAL_IOLTA_INVOICE_FIELDS,
 } from './import-iolta.js';
+import {
+    buildConstructionLedgerFromCsv,
+    applyGlRevenueToLedger,
+    applyBalancesToLedger,
+    applyWipSnapshotsToLedger,
+    applyRetainageToLedger,
+    applySubPaymentsToLedger,
+    CONSTRUCTION_SCHEMA_VERSION,
+    CANONICAL_CONSTRUCTION_JOB_FIELDS,
+    CANONICAL_CONSTRUCTION_GL_FIELDS,
+    CANONICAL_CONSTRUCTION_BALANCE_FIELDS,
+    CANONICAL_CONSTRUCTION_SNAPSHOT_FIELDS,
+    CANONICAL_CONSTRUCTION_RETAINAGE_FIELDS,
+    CANONICAL_CONSTRUCTION_SUBPAYMENT_FIELDS,
+} from './import-construction.js';
 
 /** @type {ImportSpec} */
 export const MUNICIPAL_SPEC = Object.freeze({
@@ -131,10 +146,96 @@ export const IOLTA_SPEC = Object.freeze({
     ],
 });
 
+/** @type {ImportSpec} */
+export const CONSTRUCTION_SPEC = Object.freeze({
+    pack: 'construction',
+    emitPackField: true,
+    schemaVersion: CONSTRUCTION_SCHEMA_VERSION,
+    rulesetPath: assetPath('construction', 'ruleset.construction-v1.json'),
+    gateQueries: ['wip-schedule', 'billings-tie-out', 'loss-jobs', 'margin-fade', 'retainage-reconciles', 'payments-without-lien-waiver'],
+    primary: {
+        fields: CANONICAL_CONSTRUCTION_JOB_FIELDS,
+        build: buildConstructionLedgerFromCsv,
+        tables: ['jobs'],
+        proposeTitle: (file) => `Proposed construction jobs / WIP-schedule mapping for ${file} (nothing written yet)`,
+        importQuestion: (counts, file) => `Imported ${counts.rowCount} job(s) from ${file}`,
+        headerNoun: () => 'job(s)',
+        derived: null,
+    },
+    companions: [
+        {
+            resultKey: 'glRevenue',
+            fields: CANONICAL_CONSTRUCTION_GL_FIELDS,
+            apply: applyGlRevenueToLedger,
+            mapFlag: '--gl-map',
+            kind: 'import-gl-revenue',
+            tables: ['gl_revenue'],
+            missingMapError: (file) => `a general-ledger revenue file (${file}) was given without a confirmed --gl-map; run without --map to see a proposed GL mapping.`,
+            proposeTitle: (file) => `Proposed general-ledger revenue mapping for ${file} (nothing written yet)`,
+            question: (counts, file) => `Applied ${counts.entries} general-ledger revenue posting(s) from ${file}`,
+            rowCount: (counts) => counts.entries,
+            summaryLine: (counts, file) => `General-ledger revenue ${file}: ${counts.entries} posting(s)`,
+        },
+        {
+            resultKey: 'balances',
+            fields: CANONICAL_CONSTRUCTION_BALANCE_FIELDS,
+            apply: applyBalancesToLedger,
+            mapFlag: '--balances-map',
+            kind: 'import-balances',
+            tables: ['balance_sheet_balances'],
+            missingMapError: (file) => `a balance-sheet balances file (${file}) was given without a confirmed --balances-map; run without --map to see a proposed balances mapping.`,
+            proposeTitle: (file) => `Proposed balance-sheet balances mapping for ${file} (nothing written yet)`,
+            question: (counts, file) => `Applied ${counts.balances} balance-sheet balance(s) from ${file}`,
+            rowCount: (counts) => counts.balances,
+            summaryLine: (counts, file) => `Balance-sheet balances ${file}: ${counts.balances} balance(s)`,
+        },
+        {
+            resultKey: 'wipSnapshots',
+            fields: CANONICAL_CONSTRUCTION_SNAPSHOT_FIELDS,
+            apply: applyWipSnapshotsToLedger,
+            mapFlag: '--snapshots-map',
+            kind: 'import-wip-snapshots',
+            tables: ['wip_snapshots'],
+            missingMapError: (file) => `a WIP snapshots file (${file}) was given without a confirmed --snapshots-map; run without --map to see a proposed snapshots mapping.`,
+            proposeTitle: (file) => `Proposed prior-WIP-snapshots mapping for ${file} (nothing written yet)`,
+            question: (counts, file) => `Applied ${counts.snapshots} prior WIP snapshot(s) from ${file}`,
+            rowCount: (counts) => counts.snapshots,
+            summaryLine: (counts, file) => `Prior WIP snapshots ${file}: ${counts.snapshots} snapshot(s)`,
+        },
+        {
+            resultKey: 'retainage',
+            fields: CANONICAL_CONSTRUCTION_RETAINAGE_FIELDS,
+            apply: applyRetainageToLedger,
+            mapFlag: '--retainage-map',
+            kind: 'import-retainage',
+            tables: ['retainage'],
+            missingMapError: (file) => `a retainage file (${file}) was given without a confirmed --retainage-map; run without --map to see a proposed retainage mapping.`,
+            proposeTitle: (file) => `Proposed retainage mapping for ${file} (nothing written yet)`,
+            question: (counts, file) => `Applied retainage for ${counts.jobs} job(s) from ${file}`,
+            rowCount: (counts) => counts.jobs,
+            summaryLine: (counts, file) => `Retainage ${file}: ${counts.jobs} job(s)`,
+        },
+        {
+            resultKey: 'subPayments',
+            fields: CANONICAL_CONSTRUCTION_SUBPAYMENT_FIELDS,
+            apply: applySubPaymentsToLedger,
+            mapFlag: '--subpayments-map',
+            kind: 'import-sub-payments',
+            tables: ['sub_payments'],
+            missingMapError: (file) => `a subcontractor payments file (${file}) was given without a confirmed --subpayments-map; run without --map to see a proposed payments mapping.`,
+            proposeTitle: (file) => `Proposed subcontractor-payments mapping for ${file} (nothing written yet)`,
+            question: (counts, file) => `Applied ${counts.payments} subcontractor payment(s) from ${file}`,
+            rowCount: (counts) => counts.payments,
+            summaryLine: (counts, file) => `Subcontractor payments ${file}: ${counts.payments} payment(s)`,
+        },
+    ],
+});
+
 /** All packs that support `cc-auditor import --pack <name>`, keyed by pack id. */
 export const IMPORT_SPECS = Object.freeze({
     municipal: MUNICIPAL_SPEC,
     iolta: IOLTA_SPEC,
+    construction: CONSTRUCTION_SPEC,
 });
 
 /** The pack ids that support CSV import, for help text and the `--pack` guard. */
