@@ -92,6 +92,23 @@ import {
     CANONICAL_EXCISE_OPERATIONS_FIELDS,
     CANONICAL_EXCISE_RETURN_FIELDS,
 } from './import-excise.js';
+import {
+    buildSchoolsLedgerFromCsv,
+    applyActivityAccountsToLedger,
+    applyActivityDisbursementsToLedger,
+    applyFederalProgramsToLedger,
+    applyFederalCostsToLedger,
+    applyBudgetLinesToLedger,
+    applyExpendituresToLedger,
+    SCHOOLS_SCHEMA_VERSION,
+    CANONICAL_SCHOOLS_COLLECTION_FIELDS,
+    CANONICAL_SCHOOLS_ACCOUNT_FIELDS,
+    CANONICAL_SCHOOLS_DISBURSEMENT_FIELDS,
+    CANONICAL_SCHOOLS_PROGRAM_FIELDS,
+    CANONICAL_SCHOOLS_COST_FIELDS,
+    CANONICAL_SCHOOLS_BUDGET_FIELDS,
+    CANONICAL_SCHOOLS_EXPENDITURE_FIELDS,
+} from './import-schools.js';
 
 /** @type {ImportSpec} */
 export const MUNICIPAL_SPEC = Object.freeze({
@@ -487,6 +504,104 @@ export const EXCISE_SPEC = Object.freeze({
     ],
 });
 
+/** @type {ImportSpec} */
+export const SCHOOLS_SPEC = Object.freeze({
+    pack: 'schools',
+    emitPackField: true,
+    schemaVersion: SCHOOLS_SCHEMA_VERSION,
+    rulesetPath: assetPath('schools', 'ruleset.schools-v1.json'),
+    gateQueries: ['activity-negative-balances', 'activity-deposits-late', 'activity-unapproved-disbursements', 'federal-outside-period', 'budget-variance'],
+    primary: {
+        fields: CANONICAL_SCHOOLS_COLLECTION_FIELDS,
+        build: buildSchoolsLedgerFromCsv,
+        tables: ['activity_collections'],
+        proposeTitle: (file) => `Proposed activity-collections mapping for ${file} (nothing written yet)`,
+        importQuestion: (counts, file) => `Imported ${counts.rowCount} activity collection(s) from ${file}`,
+        headerNoun: (c) => `activity collection(s) across ${c.accounts} account(s)`,
+        derived: (c) => `${c.collectedCents} cent(s) collected`,
+    },
+    companions: [
+        {
+            resultKey: 'accounts',
+            fields: CANONICAL_SCHOOLS_ACCOUNT_FIELDS,
+            apply: applyActivityAccountsToLedger,
+            mapFlag: '--accounts-map',
+            kind: 'import-activity-accounts',
+            tables: ['activity_accounts'],
+            missingMapError: (file) => `an activity accounts file (${file}) was given without a confirmed --accounts-map; run without --map to see a proposed accounts mapping.`,
+            proposeTitle: (file) => `Proposed activity-accounts mapping for ${file} (nothing written yet)`,
+            question: (counts, file) => `Applied ${counts.accounts} activity account(s) from ${file}`,
+            rowCount: (counts) => counts.accounts,
+            summaryLine: (counts, file) => `Activity accounts ${file}: ${counts.accounts} account(s)`,
+        },
+        {
+            resultKey: 'disbursements',
+            fields: CANONICAL_SCHOOLS_DISBURSEMENT_FIELDS,
+            apply: applyActivityDisbursementsToLedger,
+            mapFlag: '--disbursements-map',
+            kind: 'import-activity-disbursements',
+            tables: ['activity_disbursements'],
+            missingMapError: (file) => `an activity disbursements file (${file}) was given without a confirmed --disbursements-map; run without --map to see a proposed disbursements mapping.`,
+            proposeTitle: (file) => `Proposed activity-disbursements mapping for ${file} (nothing written yet)`,
+            question: (counts, file) => `Applied ${counts.disbursements} activity disbursement(s) from ${file}`,
+            rowCount: (counts) => counts.disbursements,
+            summaryLine: (counts, file) => `Activity disbursements ${file}: ${counts.disbursements} disbursement(s)`,
+        },
+        {
+            resultKey: 'programs',
+            fields: CANONICAL_SCHOOLS_PROGRAM_FIELDS,
+            apply: applyFederalProgramsToLedger,
+            mapFlag: '--programs-map',
+            kind: 'import-federal-programs',
+            tables: ['federal_programs'],
+            missingMapError: (file) => `a federal programs file (${file}) was given without a confirmed --programs-map; run without --map to see a proposed programs mapping.`,
+            proposeTitle: (file) => `Proposed federal-programs mapping for ${file} (nothing written yet)`,
+            question: (counts, file) => `Applied ${counts.programs} federal program(s) from ${file}`,
+            rowCount: (counts) => counts.programs,
+            summaryLine: (counts, file) => `Federal programs ${file}: ${counts.programs} program(s)`,
+        },
+        {
+            resultKey: 'costs',
+            fields: CANONICAL_SCHOOLS_COST_FIELDS,
+            apply: applyFederalCostsToLedger,
+            mapFlag: '--costs-map',
+            kind: 'import-federal-costs',
+            tables: ['federal_costs'],
+            missingMapError: (file) => `a federal costs file (${file}) was given without a confirmed --costs-map; run without --map to see a proposed costs mapping.`,
+            proposeTitle: (file) => `Proposed federal-costs mapping for ${file} (nothing written yet)`,
+            question: (counts, file) => `Applied ${counts.costs} federal cost(s) from ${file}`,
+            rowCount: (counts) => counts.costs,
+            summaryLine: (counts, file) => `Federal costs ${file}: ${counts.costs} cost(s)`,
+        },
+        {
+            resultKey: 'budgetLines',
+            fields: CANONICAL_SCHOOLS_BUDGET_FIELDS,
+            apply: applyBudgetLinesToLedger,
+            mapFlag: '--budget-lines-map',
+            kind: 'import-budget-lines',
+            tables: ['budget_lines'],
+            missingMapError: (file) => `a budget lines file (${file}) was given without a confirmed --budget-lines-map; run without --map to see a proposed budget-lines mapping.`,
+            proposeTitle: (file) => `Proposed budget-lines mapping for ${file} (nothing written yet)`,
+            question: (counts, file) => `Applied ${counts.lines} budget line(s) from ${file}`,
+            rowCount: (counts) => counts.lines,
+            summaryLine: (counts, file) => `Budget lines ${file}: ${counts.lines} line(s)`,
+        },
+        {
+            resultKey: 'expenditures',
+            fields: CANONICAL_SCHOOLS_EXPENDITURE_FIELDS,
+            apply: applyExpendituresToLedger,
+            mapFlag: '--expenditures-map',
+            kind: 'import-expenditures',
+            tables: ['expenditures'],
+            missingMapError: (file) => `an expenditures file (${file}) was given without a confirmed --expenditures-map; run without --map to see a proposed expenditures mapping.`,
+            proposeTitle: (file) => `Proposed expenditures mapping for ${file} (nothing written yet)`,
+            question: (counts, file) => `Applied ${counts.expenditures} expenditure(s) from ${file}`,
+            rowCount: (counts) => counts.expenditures,
+            summaryLine: (counts, file) => `Expenditures ${file}: ${counts.expenditures} expenditure(s)`,
+        },
+    ],
+});
+
 /** All packs that support `cc-auditor import --pack <name>`, keyed by pack id. */
 export const IMPORT_SPECS = Object.freeze({
     municipal: MUNICIPAL_SPEC,
@@ -495,6 +610,7 @@ export const IMPORT_SPECS = Object.freeze({
     nonprofit: NONPROFIT_SPEC,
     insurance: INSURANCE_SPEC,
     excise: EXCISE_SPEC,
+    schools: SCHOOLS_SPEC,
 });
 
 /** The pack ids that support CSV import, for help text and the `--pack` guard. */

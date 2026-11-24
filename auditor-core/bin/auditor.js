@@ -1158,6 +1158,62 @@ async function main() {
                 break;
             }
 
+            if (pack === 'schools') {
+                // The activity collections are the primary file; the six companion
+                // files (activity accounts, activity disbursements, federal programs,
+                // federal costs, budget lines, expenditures) are driven generically
+                // from the spec: each companion's file flag is its map flag minus
+                // "-map" (--accounts-map → --accounts, etc.).
+                const { SCHOOLS_SPEC } = await import('../src/import-spec.js');
+                const { runSchoolsImport, formatSchoolsImport } = await import('../src/import-schools-run.js');
+                const companionFlags = SCHOOLS_SPEC.companions.map((c) => ({
+                    key: c.resultKey,
+                    fileFlag: c.mapFlag.replace(/-map$/, ''),
+                    mapFlag: c.mapFlag,
+                }));
+                const valueFlags = ['--pack', '--map', ...companionFlags.flatMap((c) => [c.fileFlag, c.mapFlag])];
+                const flagValues = new Set(
+                    valueFlags.map((f) => rest.indexOf(f)).filter((i) => i !== -1).map((i) => rest[i + 1]).filter(Boolean),
+                );
+                const file = rest.find((a) => !a.startsWith('--') && !flagValues.has(a));
+                if (!file) {
+                    console.error('Usage: cc-auditor import --pack schools <collections.csv> [--map mapping.json] \\');
+                    console.error('         [--accounts acct.csv --accounts-map acct.json] [--disbursements dis.csv --disbursements-map dis.json] \\');
+                    console.error('         [--programs prog.csv --programs-map prog.json] [--costs cost.csv --costs-map cost.json] \\');
+                    console.error('         [--budget-lines bl.csv --budget-lines-map bl.json] [--expenditures exp.csv --expenditures-map exp.json]');
+                    console.error('  Set CIVIC_IMPORT_DIR to the folder your CSV lives in. Without --map, prints a proposed mapping.');
+                    console.error('  The collections file is the activity-fund cash receipts; each companion fills one more table so a control can read:');
+                    console.error('  --accounts + --disbursements (activity-negative-balances, activity-unapproved-disbursements),');
+                    console.error('  --programs + --costs (federal-outside-period), --budget-lines + --expenditures (budget-variance).');
+                    console.error('  No student records are read or stored; the controls reconcile accounts, programs and budget lines by code only.');
+                    process.exitCode = 2;
+                    return;
+                }
+                const mapping = readMapping('--map') ?? null;
+                if (process.exitCode === 2) return;
+                const companionArgs = {};
+                for (const c of companionFlags) {
+                    const fi = rest.indexOf(c.fileFlag);
+                    const companionFile = fi !== -1 ? rest[fi + 1] : null;
+                    const companionMap = readMapping(c.mapFlag);
+                    if (process.exitCode === 2) return;
+                    companionArgs[c.key] = companionFile ? { file: companionFile, mapping: companionMap ?? null } : null;
+                }
+                try {
+                    const result = await runSchoolsImport({ file, mapping, ...companionArgs, signer: loadSigner() });
+                    console.log(formatSchoolsImport(result));
+                    if (result.stage === 'imported' && result.gate && !result.gate.ok) process.exitCode = 1;
+                } catch (error) {
+                    if (error instanceof ImportPathError || error instanceof ImportError) {
+                        console.error(`cc-auditor import: ${error.message}`);
+                        process.exitCode = 1;
+                        return;
+                    }
+                    throw error;
+                }
+                break;
+            }
+
             // The first non-flag argument is the CSV file name within CIVIC_IMPORT_DIR.
             // The first non-flag argument is the expenditure CSV; --grants names
             // an optional grant-register CSV applied onto the same ledger.
@@ -1174,7 +1230,7 @@ async function main() {
             );
             const file = rest.find((a) => !a.startsWith('--') && !flagValues.has(a));
             if (!file) {
-                console.error('Usage: cc-auditor import <file.csv> [--pack municipal|iolta|construction|nonprofit|insurance] [--map mapping.json] [--grants register.csv --grants-map grants.json] [--drawdowns draws.csv --drawdowns-map draws.json]');
+                console.error('Usage: cc-auditor import <file.csv> [--pack municipal|iolta|construction|nonprofit|insurance|excise|schools] [--map mapping.json] [--grants register.csv --grants-map grants.json] [--drawdowns draws.csv --drawdowns-map draws.json]');
                 console.error('  Set CIVIC_IMPORT_DIR to the folder your CSV lives in. Without --map, prints a proposed mapping.');
                 console.error('  --grants adds a grant register (award amounts) so grant-status is meaningful.');
                 console.error('  --drawdowns adds grant cash drawn down, so grant-status measures drawn vs spent.');

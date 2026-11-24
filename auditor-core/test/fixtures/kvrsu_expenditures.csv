@@ -1,0 +1,5 @@
+Line ID,FY,Amount,Status
+BL-INSTR,2026,"$48,000.00",paid
+BL-INSTR,2026,"$2,000.00",pending
+BL-TRANS,2026,"$29,000.00",paid
+BL-PLANT,2026,"$21,000.00",paid
