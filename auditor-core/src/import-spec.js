@@ -109,6 +109,26 @@ import {
     CANONICAL_SCHOOLS_BUDGET_FIELDS,
     CANONICAL_SCHOOLS_EXPENDITURE_FIELDS,
 } from './import-schools.js';
+import {
+    buildPropertyLedgerFromCsv,
+    applyPropertyBankSnapshotsToLedger,
+    applyLeasesToLedger,
+    PROPERTY_SCHEMA_VERSION,
+    CANONICAL_PROPERTY_LEDGER_FIELDS,
+    CANONICAL_PROPERTY_SNAPSHOT_FIELDS,
+    CANONICAL_PROPERTY_LEASE_FIELDS,
+} from './import-property.js';
+import {
+    buildHoaLedgerFromCsv,
+    applyBudgetLinesToLedger as applyHoaBudgetLinesToLedger,
+    applyOperatingExpensesToLedger,
+    applyAssessmentsToLedger,
+    HOA_SCHEMA_VERSION,
+    CANONICAL_HOA_TRANSFER_FIELDS,
+    CANONICAL_HOA_BUDGET_FIELDS,
+    CANONICAL_HOA_EXPENSE_FIELDS,
+    CANONICAL_HOA_ASSESSMENT_FIELDS,
+} from './import-hoa.js';
 
 /** @type {ImportSpec} */
 export const MUNICIPAL_SPEC = Object.freeze({
@@ -602,6 +622,111 @@ export const SCHOOLS_SPEC = Object.freeze({
     ],
 });
 
+/** @type {ImportSpec} */
+export const PROPERTY_SPEC = Object.freeze({
+    pack: 'property',
+    emitPackField: true,
+    schemaVersion: PROPERTY_SCHEMA_VERSION,
+    rulesetPath: assetPath('property', 'ruleset.property-trust-v1.json'),
+    gateQueries: ['trust-vs-liability', 'negative-owner-balances', 'deposits-held-vs-owed', 'deposit-return-overdue'],
+    primary: {
+        fields: CANONICAL_PROPERTY_LEDGER_FIELDS,
+        build: buildPropertyLedgerFromCsv,
+        tables: ['trust_ledger'],
+        proposeTitle: (file) => `Proposed trust-ledger mapping for ${file} (nothing written yet)`,
+        importQuestion: (counts, file) => `Imported ${counts.rowCount} trust-ledger entr(y/ies) from ${file}`,
+        headerNoun: (c) => `trust-ledger entr(y/ies) across ${c.ledgers} beneficiary ledger(s)`,
+        derived: null,
+    },
+    companions: [
+        {
+            resultKey: 'bankSnapshots',
+            fields: CANONICAL_PROPERTY_SNAPSHOT_FIELDS,
+            apply: applyPropertyBankSnapshotsToLedger,
+            mapFlag: '--bank-map',
+            kind: 'import-bank-snapshots',
+            tables: ['trust_bank_snapshots'],
+            missingMapError: (file) => `a bank-snapshots file (${file}) was given without a confirmed --bank-map; run without --map to see a proposed bank mapping.`,
+            proposeTitle: (file) => `Proposed trust bank-snapshots mapping for ${file} (nothing written yet)`,
+            question: (counts, file) => `Applied ${counts.snapshots} bank snapshot(s) from ${file}`,
+            rowCount: (counts) => counts.snapshots,
+            summaryLine: (counts, file) => `Bank snapshots ${file}: ${counts.snapshots} snapshot(s)`,
+        },
+        {
+            resultKey: 'leases',
+            fields: CANONICAL_PROPERTY_LEASE_FIELDS,
+            apply: applyLeasesToLedger,
+            mapFlag: '--leases-map',
+            kind: 'import-leases',
+            tables: ['leases'],
+            missingMapError: (file) => `a leases file (${file}) was given without a confirmed --leases-map; run without --map to see a proposed leases mapping.`,
+            proposeTitle: (file) => `Proposed leases mapping for ${file} (nothing written yet)`,
+            question: (counts, file) => `Applied ${counts.leases} lease(s) from ${file}`,
+            rowCount: (counts) => counts.leases,
+            summaryLine: (counts, file) => `Leases ${file}: ${counts.leases} lease(s)`,
+        },
+    ],
+});
+
+/** @type {ImportSpec} */
+export const HOA_SPEC = Object.freeze({
+    pack: 'hoa',
+    emitPackField: true,
+    schemaVersion: HOA_SCHEMA_VERSION,
+    rulesetPath: assetPath('hoa', 'ruleset.hoa-v1.json'),
+    gateQueries: ['reserve-transfers-unapproved', 'budget-variance', 'delinquent-assessments'],
+    primary: {
+        fields: CANONICAL_HOA_TRANSFER_FIELDS,
+        build: buildHoaLedgerFromCsv,
+        tables: ['reserve_transfers'],
+        proposeTitle: (file) => `Proposed reserve-transfers mapping for ${file} (nothing written yet)`,
+        importQuestion: (counts, file) => `Imported ${counts.rowCount} reserve transfer(s) from ${file}`,
+        headerNoun: (c) => `reserve transfer(s) (${c.outOfReserve} out of reserve)`,
+        derived: null,
+    },
+    companions: [
+        {
+            resultKey: 'budgetLines',
+            fields: CANONICAL_HOA_BUDGET_FIELDS,
+            apply: applyHoaBudgetLinesToLedger,
+            mapFlag: '--budget-lines-map',
+            kind: 'import-budget-lines',
+            tables: ['budget_lines'],
+            missingMapError: (file) => `a budget lines file (${file}) was given without a confirmed --budget-lines-map; run without --map to see a proposed budget-lines mapping.`,
+            proposeTitle: (file) => `Proposed budget-lines mapping for ${file} (nothing written yet)`,
+            question: (counts, file) => `Applied ${counts.lines} budget line(s) from ${file}`,
+            rowCount: (counts) => counts.lines,
+            summaryLine: (counts, file) => `Budget lines ${file}: ${counts.lines} line(s)`,
+        },
+        {
+            resultKey: 'operatingExpenses',
+            fields: CANONICAL_HOA_EXPENSE_FIELDS,
+            apply: applyOperatingExpensesToLedger,
+            mapFlag: '--expenses-map',
+            kind: 'import-operating-expenses',
+            tables: ['operating_expenses'],
+            missingMapError: (file) => `an operating expenses file (${file}) was given without a confirmed --expenses-map; run without --map to see a proposed expenses mapping.`,
+            proposeTitle: (file) => `Proposed operating-expenses mapping for ${file} (nothing written yet)`,
+            question: (counts, file) => `Applied ${counts.expenses} operating expense(s) from ${file}`,
+            rowCount: (counts) => counts.expenses,
+            summaryLine: (counts, file) => `Operating expenses ${file}: ${counts.expenses} expense(s)`,
+        },
+        {
+            resultKey: 'assessments',
+            fields: CANONICAL_HOA_ASSESSMENT_FIELDS,
+            apply: applyAssessmentsToLedger,
+            mapFlag: '--assessments-map',
+            kind: 'import-assessments',
+            tables: ['assessments'],
+            missingMapError: (file) => `an assessments file (${file}) was given without a confirmed --assessments-map; run without --map to see a proposed assessments mapping.`,
+            proposeTitle: (file) => `Proposed assessments mapping for ${file} (nothing written yet)`,
+            question: (counts, file) => `Applied ${counts.assessments} assessment(s) from ${file}`,
+            rowCount: (counts) => counts.assessments,
+            summaryLine: (counts, file) => `Assessments ${file}: ${counts.assessments} assessment(s)`,
+        },
+    ],
+});
+
 /** All packs that support `cc-auditor import --pack <name>`, keyed by pack id. */
 export const IMPORT_SPECS = Object.freeze({
     municipal: MUNICIPAL_SPEC,
@@ -611,6 +736,8 @@ export const IMPORT_SPECS = Object.freeze({
     insurance: INSURANCE_SPEC,
     excise: EXCISE_SPEC,
     schools: SCHOOLS_SPEC,
+    property: PROPERTY_SPEC,
+    hoa: HOA_SPEC,
 });
 
 /** The pack ids that support CSV import, for help text and the `--pack` guard. */

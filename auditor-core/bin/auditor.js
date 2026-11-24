@@ -1214,6 +1214,112 @@ async function main() {
                 break;
             }
 
+            if (pack === 'property') {
+                // The trust ledger is the primary file; the two companion files
+                // (bank snapshots, leases) are driven generically from the spec:
+                // each companion's file flag is its map flag minus "-map" (--bank-map
+                // → --bank, --leases-map → --leases).
+                const { PROPERTY_SPEC } = await import('../src/import-spec.js');
+                const { runPropertyImport, formatPropertyImport } = await import('../src/import-property-run.js');
+                const companionFlags = PROPERTY_SPEC.companions.map((c) => ({
+                    key: c.resultKey,
+                    fileFlag: c.mapFlag.replace(/-map$/, ''),
+                    mapFlag: c.mapFlag,
+                }));
+                const valueFlags = ['--pack', '--map', ...companionFlags.flatMap((c) => [c.fileFlag, c.mapFlag])];
+                const flagValues = new Set(
+                    valueFlags.map((f) => rest.indexOf(f)).filter((i) => i !== -1).map((i) => rest[i + 1]).filter(Boolean),
+                );
+                const file = rest.find((a) => !a.startsWith('--') && !flagValues.has(a));
+                if (!file) {
+                    console.error('Usage: cc-auditor import --pack property <trust-ledger.csv> [--map mapping.json] \\');
+                    console.error('         [--bank bank.csv --bank-map bank.json] [--leases leases.csv --leases-map leases.json]');
+                    console.error('  Set CIVIC_IMPORT_DIR to the folder your CSV lives in. Without --map, prints a proposed mapping.');
+                    console.error('  The trust-ledger file is the beneficiary ledger; each companion fills one more table so a control can read:');
+                    console.error('  --bank (trust-vs-liability reads the reconciled bank balance),');
+                    console.error('  --leases (deposits-held-vs-owed, deposit-return-overdue).');
+                    console.error('  No resident records are read or stored; the controls reconcile money by ledger, property and lease ID only.');
+                    process.exitCode = 2;
+                    return;
+                }
+                const mapping = readMapping('--map') ?? null;
+                if (process.exitCode === 2) return;
+                const companionArgs = {};
+                for (const c of companionFlags) {
+                    const fi = rest.indexOf(c.fileFlag);
+                    const companionFile = fi !== -1 ? rest[fi + 1] : null;
+                    const companionMap = readMapping(c.mapFlag);
+                    if (process.exitCode === 2) return;
+                    companionArgs[c.key] = companionFile ? { file: companionFile, mapping: companionMap ?? null } : null;
+                }
+                try {
+                    const result = await runPropertyImport({ file, mapping, ...companionArgs, signer: loadSigner() });
+                    console.log(formatPropertyImport(result));
+                    if (result.stage === 'imported' && result.gate && !result.gate.ok) process.exitCode = 1;
+                } catch (error) {
+                    if (error instanceof ImportPathError || error instanceof ImportError) {
+                        console.error(`cc-auditor import: ${error.message}`);
+                        process.exitCode = 1;
+                        return;
+                    }
+                    throw error;
+                }
+                break;
+            }
+
+            if (pack === 'hoa') {
+                // The reserve transfers are the primary file; the three companion
+                // files (budget lines, operating expenses, assessments) are driven
+                // generically from the spec: each companion's file flag is its map
+                // flag minus "-map" (--budget-lines-map → --budget-lines, etc.).
+                const { HOA_SPEC } = await import('../src/import-spec.js');
+                const { runHoaImport, formatHoaImport } = await import('../src/import-hoa-run.js');
+                const companionFlags = HOA_SPEC.companions.map((c) => ({
+                    key: c.resultKey,
+                    fileFlag: c.mapFlag.replace(/-map$/, ''),
+                    mapFlag: c.mapFlag,
+                }));
+                const valueFlags = ['--pack', '--map', ...companionFlags.flatMap((c) => [c.fileFlag, c.mapFlag])];
+                const flagValues = new Set(
+                    valueFlags.map((f) => rest.indexOf(f)).filter((i) => i !== -1).map((i) => rest[i + 1]).filter(Boolean),
+                );
+                const file = rest.find((a) => !a.startsWith('--') && !flagValues.has(a));
+                if (!file) {
+                    console.error('Usage: cc-auditor import --pack hoa <reserve-transfers.csv> [--map mapping.json] \\');
+                    console.error('         [--budget-lines bl.csv --budget-lines-map bl.json] [--expenses exp.csv --expenses-map exp.json] \\');
+                    console.error('         [--assessments assess.csv --assessments-map assess.json]');
+                    console.error('  Set CIVIC_IMPORT_DIR to the folder your CSV lives in. Without --map, prints a proposed mapping.');
+                    console.error('  The reserve-transfers file is the primary book; each companion fills one more table so a control can read:');
+                    console.error('  --budget-lines + --expenses (budget-variance), --assessments (delinquent-assessments).');
+                    console.error('  No resident records are read or stored; the controls work from unit, line and transfer ID only.');
+                    process.exitCode = 2;
+                    return;
+                }
+                const mapping = readMapping('--map') ?? null;
+                if (process.exitCode === 2) return;
+                const companionArgs = {};
+                for (const c of companionFlags) {
+                    const fi = rest.indexOf(c.fileFlag);
+                    const companionFile = fi !== -1 ? rest[fi + 1] : null;
+                    const companionMap = readMapping(c.mapFlag);
+                    if (process.exitCode === 2) return;
+                    companionArgs[c.key] = companionFile ? { file: companionFile, mapping: companionMap ?? null } : null;
+                }
+                try {
+                    const result = await runHoaImport({ file, mapping, ...companionArgs, signer: loadSigner() });
+                    console.log(formatHoaImport(result));
+                    if (result.stage === 'imported' && result.gate && !result.gate.ok) process.exitCode = 1;
+                } catch (error) {
+                    if (error instanceof ImportPathError || error instanceof ImportError) {
+                        console.error(`cc-auditor import: ${error.message}`);
+                        process.exitCode = 1;
+                        return;
+                    }
+                    throw error;
+                }
+                break;
+            }
+
             // The first non-flag argument is the CSV file name within CIVIC_IMPORT_DIR.
             // The first non-flag argument is the expenditure CSV; --grants names
             // an optional grant-register CSV applied onto the same ledger.
@@ -1230,7 +1336,7 @@ async function main() {
             );
             const file = rest.find((a) => !a.startsWith('--') && !flagValues.has(a));
             if (!file) {
-                console.error('Usage: cc-auditor import <file.csv> [--pack municipal|iolta|construction|nonprofit|insurance|excise|schools] [--map mapping.json] [--grants register.csv --grants-map grants.json] [--drawdowns draws.csv --drawdowns-map draws.json]');
+                console.error('Usage: cc-auditor import <file.csv> [--pack municipal|iolta|construction|nonprofit|insurance|excise|schools|property|hoa] [--map mapping.json] [--grants register.csv --grants-map grants.json] [--drawdowns draws.csv --drawdowns-map draws.json]');
                 console.error('  Set CIVIC_IMPORT_DIR to the folder your CSV lives in. Without --map, prints a proposed mapping.');
                 console.error('  --grants adds a grant register (award amounts) so grant-status is meaningful.');
                 console.error('  --drawdowns adds grant cash drawn down, so grant-status measures drawn vs spent.');

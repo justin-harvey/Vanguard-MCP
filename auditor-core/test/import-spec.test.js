@@ -16,7 +16,7 @@ import { IMPORT_SPECS, IMPORT_PACKS, getImportSpec } from '../src/import-spec.js
 import { loadRuleset } from '../src/ruleset.js';
 
 test('the registry lists exactly the packs that support CSV import', () => {
-    assert.deepEqual([...IMPORT_PACKS].sort(), ['construction', 'excise', 'insurance', 'iolta', 'municipal', 'nonprofit', 'schools']);
+    assert.deepEqual([...IMPORT_PACKS].sort(), ['construction', 'excise', 'hoa', 'insurance', 'iolta', 'municipal', 'nonprofit', 'property', 'schools']);
 });
 
 test('getImportSpec resolves known packs and throws on an unknown one', () => {
@@ -27,6 +27,8 @@ test('getImportSpec resolves known packs and throws on an unknown one', () => {
     assert.equal(getImportSpec('insurance').pack, 'insurance');
     assert.equal(getImportSpec('excise').pack, 'excise');
     assert.equal(getImportSpec('schools').pack, 'schools');
+    assert.equal(getImportSpec('property').pack, 'property');
+    assert.equal(getImportSpec('hoa').pack, 'hoa');
     assert.throws(() => getImportSpec('nope'), /unknown import pack "nope"/);
 });
 
@@ -105,6 +107,11 @@ test('the shipped packs pin the companion result keys callers depend on', () => 
         getImportSpec('schools').companions.map((c) => c.resultKey),
         ['accounts', 'disbursements', 'programs', 'costs', 'budgetLines', 'expenditures'],
     );
+    assert.deepEqual(getImportSpec('property').companions.map((c) => c.resultKey), ['bankSnapshots', 'leases']);
+    assert.deepEqual(
+        getImportSpec('hoa').companions.map((c) => c.resultKey),
+        ['budgetLines', 'operatingExpenses', 'assessments'],
+    );
     // Byte-identical with the original municipal runner: no top-level `pack` key.
     assert.equal(getImportSpec('municipal').emitPackField, false);
     assert.equal(getImportSpec('iolta').emitPackField, true);
@@ -113,4 +120,6 @@ test('the shipped packs pin the companion result keys callers depend on', () => 
     assert.equal(getImportSpec('insurance').emitPackField, true);
     assert.equal(getImportSpec('excise').emitPackField, true);
     assert.equal(getImportSpec('schools').emitPackField, true);
+    assert.equal(getImportSpec('property').emitPackField, true);
+    assert.equal(getImportSpec('hoa').emitPackField, true);
 });
