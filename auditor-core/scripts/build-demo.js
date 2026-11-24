@@ -61,15 +61,13 @@ const common = {
     legalComments: 'none',
 };
 
+// One combined bundle for demo.html: the three demo controllers (municipal
+// ledger, plain-English sandbox, CSV import) share one copy of the engine and
+// the SQLite parser instead of shipping it three times. See src/browser/demo-all.js.
 await esbuild.build({
     ...common,
-    entryPoints: [join(core, 'src', 'browser', 'demo-entry.js')],
-    outfile: join(siteAssets, 'demo-engine.js'),
-});
-await esbuild.build({
-    ...common,
-    entryPoints: [join(core, 'src', 'browser', 'byod-entry.js')],
-    outfile: join(siteAssets, 'byod-engine.js'),
+    entryPoints: [join(core, 'src', 'browser', 'demo-all.js')],
+    outfile: join(siteAssets, 'demo-bundle.js'),
 });
 
 // Self-host the sql.js loader and WASM; no CDN, so the CSP can stay 'self'.
@@ -78,8 +76,7 @@ copyFileSync(join(sqljsDist, 'sql-wasm.wasm'), join(siteAssets, 'sql-wasm.wasm')
 
 const kb = (bytes) => `${(bytes / 1024).toFixed(1)} KB`;
 const files = [
-    ['demo-engine.js', join(siteAssets, 'demo-engine.js')],
-    ['byod-engine.js', join(siteAssets, 'byod-engine.js')],
+    ['demo-bundle.js', join(siteAssets, 'demo-bundle.js')],
     ['sql-wasm.js', join(siteAssets, 'sql-wasm.js')],
     ['sql-wasm.wasm', join(siteAssets, 'sql-wasm.wasm')],
 ];

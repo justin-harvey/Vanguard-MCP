@@ -5,12 +5,14 @@ the visitor's browser**. There is no engine host and no proxy: the static site
 is the only moving part.
 
 ```
- browser ──▶ loads site/assets/demo-engine.js + sql-wasm.{js,wasm}
+ browser ──▶ loads site/assets/demo-bundle.js + sql-wasm.{js,wasm}
              │
              └─▶ runs the real engine locally: guard · named queries · WASM
-                 SQLite (synthetic Town of Sampleton ledger) · lineage ·
-                 tamper-evident audit chain (in localStorage). Nothing is sent
-                 anywhere after the page loads.
+                 SQLite · lineage · tamper-evident audit chain (in
+                 localStorage), over three kinds of data — a CSV the visitor
+                 imports on the page, a small editable sandbox, and the
+                 synthetic Town of Sampleton ledger. Nothing (no file, question
+                 or result) is sent anywhere after the page loads.
 ```
 
 This replaces the S7 hosted path (Fly.io engine + Supabase Edge proxy), which
@@ -30,8 +32,11 @@ npm run build:demo
 
 This writes, under `site/assets/`:
 
-- `demo-engine.js` — the engine + page controller, one ES module, with the seed
-  SQL and the allow-list inlined from `skills/civic-chain-auditor/assets/`
+- `demo-bundle.js` — the engine + all three `demo.html` page controllers (CSV
+  import, the plain-English sandbox, and the municipal ledger), one ES module,
+  with the seed SQL and the allow-list inlined from
+  `skills/civic-chain-auditor/assets/`. The three controllers share one copy of
+  the engine and the SQLite parser instead of shipping it three times.
 - `sql-wasm.js`, `sql-wasm.wasm` — the self-hosted SQLite WebAssembly build
 
 The built files are **committed**, so Netlify needs no build step. Re-run after
@@ -40,11 +45,13 @@ prints the transferred size (budget: ~1.5 MB; currently ~1.0 MB).
 
 ## 2. Front-end on Netlify
 
-`site/` is published as-is (no build step; see root `netlify.toml`). That file
-also sets the Content-Security-Policy that locks the page down:
-`script-src 'self' 'wasm-unsafe-eval'; connect-src 'self'` — the page cannot
-phone home, which is the privacy claim enforced in the server response, not just
-asserted in copy. `demo.html` loads `sql-wasm.js` then `demo-engine.js`.
+`site/` is published as-is (no build step; see root `netlify.toml`). `demo.html`
+loads `sql-wasm.js` then `demo-bundle.js`. After load the page makes no request
+to any engine, proxy or Civic-Chain host — the privacy claim is that no file,
+question or result leaves the browser (the only third-party load is the Google
+Fonts stylesheet in the page `<head>`). Note: a `Content-Security-Policy` header
+(`script-src 'self' 'wasm-unsafe-eval'; connect-src 'self'`, with the font CDN
+allowed) is a recommended hardening but is **not** yet set in `netlify.toml`.
 
 ## 3. End-to-end check (as the public sees it)
 

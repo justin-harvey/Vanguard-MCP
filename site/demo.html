@@ -68,6 +68,29 @@
 
 
       #byo-verify-wrap[hidden] { display: none !important; }
+
+      /* import-your-CSV */
+      .step { font: 700 11px var(--font-sans); text-transform: uppercase; letter-spacing: .08em; color: var(--blue-700); margin: 0 0 6px; }
+      .drop { border: 2px dashed var(--border-strong); border-radius: 14px; padding: 26px 22px; text-align: center; cursor: pointer; background: var(--control-bg); transition: border-color .15s ease, background .15s ease; }
+      .drop:hover, .drop.over { border-color: var(--blue-600); background: color-mix(in oklab, var(--blue-600) 6%, transparent); }
+      .drop .big { font: 600 16px var(--font-sans); color: var(--foreground); }
+      .drop .sub { font-size: 13px; color: var(--slate-700); margin-top: 6px; }
+      .drop-row { display: flex; align-items: center; gap: 12px; margin-top: 12px; flex-wrap: wrap; }
+      #imp-status { font-size: 13px; color: var(--slate-700); margin: 14px 0 0; }
+      .maptbl { width: 100%; border-collapse: collapse; font-size: 13px; margin-top: 8px; }
+      .maptbl th, .maptbl td { text-align: left; padding: 9px 12px; border-bottom: 1px solid var(--border); vertical-align: top; }
+      .maptbl thead th { font: 600 11px var(--font-sans); text-transform: uppercase; letter-spacing: .05em; color: var(--slate-700); }
+      .maptbl tr:last-child td { border-bottom: none; }
+      .maptbl .fld code { font-family: var(--font-code); color: var(--foreground); font-size: 12.5px; }
+      .maptbl .fdesc { font-size: 12px; color: var(--slate-700); margin-top: 3px; }
+      .maptbl .map-sel { width: 46%; }
+      .maptbl select { width: 100%; font: 500 14px var(--font-sans); color: var(--foreground); background: var(--surface); border: 1px solid var(--border-strong); border-radius: 8px; padding: 8px 10px; }
+      .req { font: 700 10px var(--font-sans); text-transform: uppercase; letter-spacing: .05em; color: var(--rose-700); margin-left: 6px; }
+      .maphint { margin-top: 12px; }
+      #imp-build-note { font-size: 13px; color: var(--slate-700); }
+      #imp-counts { display: flex; align-items: center; gap: 12px; margin: 14px 0 0; flex-wrap: wrap; }
+      #imp-run-wrap[hidden] { display: none !important; }
+      #imp-verify-wrap[hidden] { display: none !important; }
       /* plain-English ask */
       .ask-form { display: flex; gap: 10px; flex-wrap: wrap; }
       #ask-input { flex: 1 1 320px; font: 500 17px var(--font-sans); color: var(--foreground); background: var(--control-bg); border: 1px solid var(--border-strong); border-radius: 12px; padding: 14px 16px; }
@@ -131,23 +154,84 @@
     <main class="wrap">
       <section class="hero wash guilloche">
         <p class="kicker">Live demo · runs in your browser</p>
-        <h1>Ask in plain English. Get a number you can prove.</h1>
+        <h1>Import your own ledger. Get numbers you can prove.</h1>
         <p class="lede">
-          Type a question about the expenditures below. You get one specific answer, the result
-          hash that lets anyone reproduce it, and an entry in a tamper-evident audit chain. Flip
-          the view to see the same answer as the agent skill returns it in Claude: same engine,
-          same hash.
+          Drop a municipal expenditure CSV below. It is parsed on this page, mapped to the
+          canonical schema, and audited by the same engine a buyer runs — returning rows,
+          automatic checks, a reproducible result hash and a tamper-evident audit chain. The file
+          never leaves your browser.
         </p>
         <div class="disc" style="margin-top:20px">
-          <b>Runs in your browser.</b> The engine, a WebAssembly SQLite database and the audit
-          chain all run on this page; nothing is sent to Civic-Chain or anyone else. There is no
-          language model on this page: a local phrase-matcher maps your question to one of nine
-          named queries and never writes SQL or does arithmetic. The data is yours or fictional.
-          <b>This is not a professional audit opinion</b>; it demonstrates the verification mechanism.
+          <b>Nothing is uploaded.</b> The engine, a WebAssembly SQLite database and the audit chain
+          all run on this page; no file, question or result is sent to Civic-Chain or anyone else.
+          The three sections below are the same engine over three kinds of data — your CSV, a quick
+          editable sandbox, and a full fictional town ledger. <b>This is not a professional audit
+          opinion</b>; it demonstrates the verification mechanism. Imported data is yours;
+          everything else is synthetic.
+        </div>
+      </section>
+
+      <section class="section" id="import">
+        <h2>1 · Import your own CSV</h2>
+        <p class="lede" style="margin-bottom:16px">
+          A real expenditure export, audited locally. The agent proposes how your columns map to
+          the canonical schema; you confirm or change it; the ledger is built in memory and the
+          named queries run against it. Columns you do not map — a tax id, an address — never enter
+          the ledger.
+        </p>
+        <div class="builder">
+          <p class="step">Step 1 — choose a file</p>
+          <div class="drop" id="imp-drop" role="button" tabindex="0" aria-label="Drop a CSV file or click to choose one">
+            <div class="big">Drop a CSV here, or click to choose</div>
+            <div class="sub">Expenditure export: a date, a payee and an amount per row, plus any department, fund, account, budget or grant columns.</div>
+          </div>
+          <input id="imp-file" type="file" accept=".csv,text/csv" hidden />
+          <div class="drop-row">
+            <button class="btn ghost" id="imp-sample" type="button">Use a sample ledger</button>
+            <span class="muted">or drop your own — it stays on this page.</span>
+          </div>
+          <p id="imp-status"></p>
+
+          <p class="step" style="margin-top:22px">Step 2 — confirm the column mapping</p>
+          <div id="imp-map"></div>
+          <div class="run-row">
+            <button class="btn" id="imp-build-btn" disabled>Confirm &amp; build ledger →</button>
+            <span id="imp-build-note"></span>
+          </div>
+          <div id="imp-counts"></div>
+
+          <div id="imp-run-wrap" hidden>
+            <p class="step" style="margin-top:22px">Step 3 — run a verified audit query</p>
+            <div class="controls">
+              <label class="field">
+                <span>Question</span>
+                <select id="imp-query"></select>
+              </label>
+              <p id="imp-q-blurb" class="muted" style="text-transform:none;letter-spacing:0"></p>
+              <div id="imp-params"></div>
+            </div>
+            <div class="run-row">
+              <button class="btn" id="imp-run-btn">Run verified query →</button>
+            </div>
+            <div id="imp-result"></div>
+            <div id="imp-verify-wrap" hidden style="margin-top:20px;display:flex;align-items:center;gap:14px;flex-wrap:wrap">
+              <button class="btn ghost" id="imp-verify-btn">Verify the audit chain →</button>
+              <button class="btn ghost" id="imp-tamper-btn">Tamper with an entry</button>
+              <button class="btn ghost" id="imp-reset-btn">Reset chain</button>
+              <div id="imp-verify-out" style="display:flex;align-items:center;gap:10px;font-size:13px"></div>
+              <p class="muted" style="flex-basis:100%">This chain lives in your browser. Run a few queries, verify it, then tamper with an entry and verify again to watch the break surface.</p>
+            </div>
+          </div>
         </div>
       </section>
 
       <section class="section" id="ask">
+        <h2>2 · Ask in plain English</h2>
+        <p class="lede" style="margin-bottom:16px">
+          Prefer to just type a question? This quick sandbox has a fixed schema you can edit by
+          hand. A local phrase-matcher maps your question to a named query — there is no language
+          model on the page, and it never writes SQL or does arithmetic.
+        </p>
         <div class="builder">
           <form class="ask-form" id="ask-form" autocomplete="off">
             <input id="ask-input" type="text" placeholder="e.g. How much did we pay North Fuel in April?" aria-label="Your question" />
@@ -205,7 +289,7 @@ fleet-26, 30000</textarea>
       </section>
 
       <section class="section">
-        <h2>Explore a full municipal ledger</h2>
+        <h2>3 · Explore a full municipal ledger</h2>
         <p class="lede" style="margin-bottom:14px">The Town of Sampleton's fictional books: grants, drawdowns and budget lines, with named queries and their parameters exposed directly.</p>
         <div class="builder mat-blueprint">
           <div class="controls">
@@ -231,6 +315,14 @@ fleet-26, 30000</textarea>
             <div id="verify-out"></div>
             <p class="muted" style="flex-basis:100%">This chain lives in your browser. Run a few queries, verify it, then tamper with an entry and verify again to watch the break surface.</p>
           </div>
+
+          <details class="more">
+            <summary>Try your own SQL — watch the guard refuse what it should</summary>
+            <p class="muted" style="margin:10px 0 12px">The guard parses the SQL, allows only <code>SELECT</code> over allow-listed tables and columns, and injects a <code>LIMIT</code>. The <code>payroll</code> table and <code>vendors.tax_id</code> are deliberately outside the allow-list, so a query that reaches for them is refused with a reason — the same control the agent skill runs behind.</p>
+            <textarea id="trysql-input" rows="3" spellcheck="false">SELECT tax_id FROM vendors</textarea>
+            <div class="run-row"><button class="btn ghost" id="trysql-btn">Run through the guard →</button></div>
+            <div id="trysql-out"></div>
+          </details>
         </div>
       </section>
 
@@ -258,11 +350,11 @@ fleet-26, 30000</textarea>
     </footer>
 
     <!-- The entire engine runs in your browser. sql-wasm.js is the SQLite
-         WebAssembly loader (self-hosted, no CDN); demo-engine.js is the bundled
-         engine and page controller, built by `npm run build:demo`. No proxy, no
-         token, no request leaves the page after these assets load. -->
+         WebAssembly loader (self-hosted, no CDN); demo-bundle.js is the bundled
+         engine and all three page controllers (import, sandbox, municipal),
+         built by `npm run build:demo`. No proxy, no token, no request leaves the
+         page after these assets load. -->
     <script src="assets/sql-wasm.js"></script>
-    <script type="module" src="assets/demo-engine.js"></script>
-    <script type="module" src="assets/byod-engine.js"></script>
+    <script type="module" src="assets/demo-bundle.js"></script>
   </body>
 </html>

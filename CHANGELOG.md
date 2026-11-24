@@ -5,6 +5,39 @@ The project follows [Semantic Versioning](https://semver.org/): MAJOR.MINOR.PATC
 
 ## [Unreleased]
 
+### Added — import your own CSV in the browser (demo)
+- The live demo now imports a visitor's own municipal expenditure CSV **entirely
+  in the browser**: the file is parsed on the page, the agent proposes how its
+  columns map to the Canonical Municipal Schema v1, the visitor confirms or edits
+  the mapping, and a ledger is built in memory (WASM SQLite). The three named
+  queries then run through the real guard / lineage / audit pipeline and return
+  rows, automatic checks, a reproducible result hash and a tamper-evident audit
+  chain. **The file never leaves the machine** — no upload, no network call.
+- **Parity, guaranteed by a shared core.** The pure import logic (RFC-4180 CSV
+  parsing, money/date coercion, mapping proposal/validation, row coercion and the
+  canonical-row builder) moved to a new node-free `src/import-canonical.js`, which
+  both runtimes consume: the Node importer (`import-csv.js`) inserts the rows it
+  produces into `node:sqlite`, and the browser emits the *same* rows as seed SQL
+  (`canonicalSeedSql`) into WASM SQLite. Because both build from one
+  `canonicalTables()`, an in-browser import holds byte-identical rows to a Node
+  import, so result hashes match. New `test/import-browser-parity.test.js` pins
+  this (rows, checks, integrity, findings, SQL and the result hash all agree).
+- New browser modules `src/browser/import-engine.js` (runtime-agnostic
+  propose/build) and `src/browser/import-entry.js` (the page controller: file
+  drop/picker, editable mapping table, build, query runner, chain verify/tamper).
+
+### Changed — demo-site refurbish
+- `demo.html` leads with **"Import your own CSV"** as the centerpiece (step 1),
+  followed by the plain-English sandbox (step 2) and the full municipal ledger
+  (step 3). Restored the live **"try your own SQL"** box so a visitor can watch
+  the guard refuse `payroll` / `vendors.tax_id` with a reason. `index.html`
+  landing copy updated to point at the import flow.
+- **One demo bundle instead of three.** `demo.html` now loads a single
+  `demo-bundle.js` (via `src/browser/demo-all.js`) that shares one copy of the
+  engine and the SQLite parser across all three controllers, cutting the page's
+  JavaScript from ~806 KB to ~320 KB (total transfer ~1.0 MB). The old
+  `demo-engine.js` / `byod-engine.js` outputs are removed.
+
 ### Changed — finished the de-brand (G4 residue)
 - Renamed the package directory `vanguard-core/` → `auditor-core/` and the CLI
   entrypoint `bin/vanguard.js` → `bin/auditor.js`. The npm package name is
